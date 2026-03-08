@@ -28,3 +28,14 @@ Run the CLI:
 ```bash
 biblio --help
 ```
+
+## Release workflow
+
+Build and validate distributions:
+
+```bash
+python -m build
+python -m twine check dist/*
+```
+
+Upload instructions live in `RELEASE.md`.
