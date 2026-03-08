@@ -3,7 +3,7 @@ requires = ["setuptools>=65", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "biblio"
+name = "biblio-tools"
 version = "0.1.0"
 description = "Portable bibliography workspace tool"
 readme = "README.md"
