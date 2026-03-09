@@ -1,6 +1,4 @@
-import React from 'react';
-
-export default function CorpusTab({ papers, activePaper, actionState, setActiveKey, setActiveTab, triggerAction }) {
+export default function CorpusTab({ papers, actionState, setActiveKey, setActiveTab, triggerAction }) {
   return (
     <div className="panel table-wrap">
       <table className="paper-table">
@@ -32,6 +30,9 @@ export default function CorpusTab({ papers, activePaper, actionState, setActiveK
                 <span className={`badge ${paper.artifacts.openalex.exists ? "ok" : ""}`}>
                   {paper.artifacts.openalex.exists ? "openalex" : "no openalex"}
                 </span>
+                <span className={`badge ${paper.artifacts.grobid && paper.artifacts.grobid.exists ? "ok" : ""}`}>
+                  {paper.artifacts.grobid && paper.artifacts.grobid.exists ? "grobid" : "no grobid"}
+                </span>
               </td>
               <td>
                 <div className="table-actions">
@@ -55,6 +56,17 @@ export default function CorpusTab({ papers, activePaper, actionState, setActiveK
                     }}
                   >
                     Docling
+                  </button>
+                  <button
+                    disabled={actionState.busy}
+                    onClick={(ev) => {
+                      ev.stopPropagation();
+                      setActiveKey(paper.citekey);
+                      setActiveTab("actions");
+                      triggerAction("grobid-run", { citekey: paper.citekey });
+                    }}
+                  >
+                    GROBID
                   </button>
                 </div>
               </td>

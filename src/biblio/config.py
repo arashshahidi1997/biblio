@@ -21,6 +21,15 @@ DEFAULT_CONFIG_REL = Path("bib/config/biblio.yml")
 
 
 @dataclass(frozen=True)
+class GrobidConfig:
+    url: str
+    installation_path: Path | None
+    timeout_seconds: int
+    consolidate_header: bool
+    consolidate_citations: bool
+
+
+@dataclass(frozen=True)
 class BiblioConfig:
     repo_root: Path
     citekeys_path: Path
@@ -36,6 +45,7 @@ class BiblioConfig:
     ledger: LedgerPaths
     openalex_client: OpenAlexClientConfig
     openalex_cache: OpenAlexCache
+    grobid: GrobidConfig
 
 
 def _as_cmd(value: Any) -> list[str]:
@@ -99,6 +109,18 @@ def load_biblio_config(path: str | Path, *, root: str | Path | None = None) -> B
     cache_dir = Path((openalex_mapping or {}).get("cache_dir") or "bib/derivatives/openalex/cache")
     openalex_cache = OpenAlexCache(root=_abs(cache_dir))
 
+    grobid_mapping = payload.get("grobid") if isinstance(payload, dict) else None
+    if not isinstance(grobid_mapping, dict):
+        grobid_mapping = {}
+    raw_inst_path = grobid_mapping.get("installation_path")
+    grobid = GrobidConfig(
+        url=str(grobid_mapping.get("url") or "http://127.0.0.1:8070"),
+        installation_path=_abs(Path(raw_inst_path)) if raw_inst_path else None,
+        timeout_seconds=int(grobid_mapping.get("timeout_seconds") or 30),
+        consolidate_header=bool(grobid_mapping.get("consolidate_header", True)),
+        consolidate_citations=bool(grobid_mapping.get("consolidate_citations", False)),
+    )
+
     return BiblioConfig(
         repo_root=repo_root.resolve(),
         citekeys_path=_abs(citekeys),
@@ -114,6 +136,7 @@ def load_biblio_config(path: str | Path, *, root: str | Path | None = None) -> B
         ledger=default_ledger_paths(repo_root),
         openalex_client=openalex_cfg,
         openalex_cache=openalex_cache,
+        grobid=grobid,
     )
 
 

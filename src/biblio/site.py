@@ -483,6 +483,35 @@ main.site-width {
 """
 
 
+def _grobid_artifact(grobid_root: Path, key: str, repo_root: Path) -> dict[str, Any]:
+    header_path = grobid_root / key / "header.json"
+    refs_path = grobid_root / key / "references.json"
+    exists = header_path.exists()
+    return {
+        "exists": exists,
+        "path": _safe_rel(header_path, repo_root) if exists else None,
+        "references_path": _safe_rel(refs_path, repo_root) if refs_path.exists() else None,
+    }
+
+
+def _load_grobid_data(grobid_root: Path, key: str) -> dict[str, Any]:
+    header_path = grobid_root / key / "header.json"
+    refs_path = grobid_root / key / "references.json"
+    header: dict[str, Any] = {}
+    ref_count = 0
+    if header_path.exists():
+        try:
+            header = json.loads(header_path.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    if refs_path.exists():
+        try:
+            ref_count = len(json.loads(refs_path.read_text(encoding="utf-8")))
+        except Exception:
+            pass
+    return {"header": header, "reference_count": ref_count}
+
+
 def _build_site_model(cfg: BiblioConfig, options: BiblioSiteOptions) -> dict[str, Any]:
     repo_root = cfg.repo_root.resolve()
     citekeys = load_citekeys_md(cfg.citekeys_path) if cfg.citekeys_path.exists() else []
@@ -491,7 +520,9 @@ def _build_site_model(cfg: BiblioConfig, options: BiblioSiteOptions) -> dict[str
     for record in source_records:
         source_by_key.setdefault(str(record["citekey"]), []).append(record)
 
+    from .grobid import grobid_out_root
     docling_dirs = {p.name: p for p in sorted(cfg.out_root.glob("*")) if p.is_dir()}
+    grobid_root = grobid_out_root(cfg)
     openalex_rows = _load_jsonl(cfg.openalex.out_jsonl) if options.include_openalex else []
     openalex_by_key = {str(row.get("citekey")): row for row in openalex_rows if row.get("citekey")}
 
@@ -587,6 +618,7 @@ def _build_site_model(cfg: BiblioConfig, options: BiblioSiteOptions) -> dict[str
                     "exists": openalex_row is not None,
                     "path": _safe_rel(cfg.openalex.out_jsonl, repo_root) if openalex_row is not None else None,
                 },
+                "grobid": _grobid_artifact(grobid_root, key, repo_root),
                 "notes": [
                     {"path": _safe_rel(path, repo_root), "name": path.name}
                     for path in extras["notes"]
@@ -600,6 +632,7 @@ def _build_site_model(cfg: BiblioConfig, options: BiblioSiteOptions) -> dict[str
                 "html": _minimal_markdown_to_html(docling_text) if docling_text else "",
                 "excerpt": "\n".join(docling_text.splitlines()[:20]).strip(),
             },
+            "grobid": _load_grobid_data(grobid_root, key),
             "openalex": openalex_row,
             "graph": {
                 "seed_openalex_id": seed_id,
@@ -620,6 +653,7 @@ def _build_site_model(cfg: BiblioConfig, options: BiblioSiteOptions) -> dict[str
         "papers_with_pdf": sum(1 for paper in papers if paper["artifacts"]["pdf"]["exists"]),
         "papers_with_docling": sum(1 for paper in papers if paper["artifacts"]["docling_md"]["exists"]),
         "papers_with_openalex": sum(1 for paper in papers if paper["artifacts"]["openalex"]["exists"]),
+        "papers_with_grobid": sum(1 for paper in papers if paper["artifacts"]["grobid"]["exists"]),
         "missing_pdf": sorted(paper["citekey"] for paper in papers if not paper["artifacts"]["pdf"]["exists"]),
         "missing_docling": sorted(paper["citekey"] for paper in papers if not paper["artifacts"]["docling_md"]["exists"]),
         "missing_openalex": sorted(paper["citekey"] for paper in papers if not paper["artifacts"]["openalex"]["exists"]),

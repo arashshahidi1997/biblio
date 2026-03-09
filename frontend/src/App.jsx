@@ -191,7 +191,7 @@ export default function App() {
         window.setTimeout(pollOpenAlexProgress, 150);
         return;
       }
-      if (data.async && (action === "graph-expand" || action === "docling-run")) {
+      if (data.async && (action === "graph-expand" || action === "docling-run" || action === "grobid-run")) {
         const total = Number(data.total || 0);
         const completed = Number(data.completed || 0);
         setActionState({
@@ -244,6 +244,11 @@ export default function App() {
       if (endpoint === "/api/setup/docling-check") {
         setSetup((prev) => prev ? { ...prev, docling: data } : prev);
         setActionState({ busy: false, message: data.message || "Docling checked", error: !data.ok });
+        return;
+      }
+      if (endpoint === "/api/setup/grobid-check") {
+        setSetup((prev) => prev ? { ...prev, grobid: { ...prev.grobid, ...data } } : prev);
+        setActionState({ busy: false, message: data.message || "GROBID checked", error: !data.ok });
         return;
       }
       setActionState({ busy: false, message: data.message || "Setup updated", error: false });
@@ -379,7 +384,6 @@ export default function App() {
       {activeTab === "corpus" && (
         <CorpusTab
           papers={papers}
-          activePaper={activePaper}
           actionState={actionState}
           setActiveKey={setActiveKey}
           setActiveTab={setActiveTab}

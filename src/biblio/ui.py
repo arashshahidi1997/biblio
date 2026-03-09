@@ -18,6 +18,7 @@ from .graph import add_openalex_work_to_bib, expand_openalex_reference_graph, lo
 from .openalex.openalex_resolve import ResolveOptions, resolve_srcbib_to_openalex
 from .rag import default_biblio_rag_template, default_rag_config_path, sync_biblio_rag_config
 from .rag_support import load_raw_rag_config, write_raw_rag_config
+from .grobid import check_grobid_server_as_dict, derive_start_cmd, run_grobid_for_key
 from .site import build_biblio_site
 from .site import BiblioSiteOptions, _build_site_model, default_site_out_dir
 
@@ -124,6 +125,17 @@ def build_setup_report(cfg: BiblioConfig) -> dict[str, Any]:
             "srcbib": str(cfg.bibtex_merge.src_dir),
             "openalex_out": str(cfg.openalex.out_jsonl),
         },
+        "grobid": {
+            "url": cfg.grobid.url,
+            "installation_path": str(cfg.grobid.installation_path) if cfg.grobid.installation_path else None,
+            "timeout_seconds": cfg.grobid.timeout_seconds,
+            "consolidate_header": cfg.grobid.consolidate_header,
+            "consolidate_citations": cfg.grobid.consolidate_citations,
+            "derived_start_cmd": derive_start_cmd(cfg.grobid),
+            "ok": None,
+            "message": "Click Check to verify.",
+            "latency_ms": None,
+        },
     }
 
 
@@ -197,6 +209,18 @@ def _load_rag_mapping(repo_root: Path) -> dict[str, Any]:
 
 def _write_rag_mapping(repo_root: Path, payload: dict[str, Any]) -> Path:
     return write_raw_rag_config(default_rag_config_path(repo_root), payload)
+
+
+def _update_grobid_config(repo_root: Path, updates: dict[str, Any]) -> Path:
+    payload = _load_config_mapping(repo_root)
+    grobid = payload.get("grobid")
+    if not isinstance(grobid, dict):
+        grobid = {}
+        payload["grobid"] = grobid
+    for key in ("url", "installation_path", "timeout_seconds", "consolidate_header", "consolidate_citations"):
+        if key in updates and updates[key] is not None:
+            grobid[key] = updates[key]
+    return _write_config_mapping(repo_root, payload)
 
 
 def _update_docling_command(repo_root: Path, cmd_value: str | list[str]) -> Path:
@@ -374,9 +398,19 @@ def create_ui_app(cfg: BiblioConfig):
         "citekey": None,
         "md_path": None,
     }
+    grobid_job: dict[str, Any] = {
+        "running": False,
+        "message": "",
+        "error": None,
+        "citekey": None,
+        "completed": 0,
+        "total": 0,
+        "references_path": None,
+    }
     openalex_lock = threading.Lock()
     graph_lock = threading.Lock()
     docling_lock = threading.Lock()
+    grobid_lock = threading.Lock()
 
     def _openalex_snapshot() -> dict[str, Any]:
         with openalex_lock:
@@ -389,6 +423,10 @@ def create_ui_app(cfg: BiblioConfig):
     def _docling_snapshot() -> dict[str, Any]:
         with docling_lock:
             return dict(docling_job)
+
+    def _grobid_snapshot() -> dict[str, Any]:
+        with grobid_lock:
+            return dict(grobid_job)
 
     @app.post("/api/actions/bibtex-merge", response_class=responses.JSONResponse)
     def action_bibtex_merge():
@@ -588,6 +626,50 @@ def create_ui_app(cfg: BiblioConfig):
     def action_graph_expand_status():
         return _graph_snapshot()
 
+    @app.post("/api/actions/grobid-run", response_class=responses.JSONResponse)
+    def action_grobid_run(payload: dict[str, Any]):
+        active_cfg = current_cfg()
+        citekey = str(payload.get("citekey") or "").strip()
+        if not citekey:
+            raise fastapi.HTTPException(status_code=400, detail="Missing citekey")
+        with grobid_lock:
+            if grobid_job["running"]:
+                return {"ok": True, "async": True, **dict(grobid_job)}
+            grobid_job.update(
+                {
+                    "running": True,
+                    "message": f"Running GROBID for {citekey}...",
+                    "error": None,
+                    "citekey": citekey,
+                    "references_path": None,
+                    "completed": 0,
+                    "total": 1,
+                }
+            )
+
+        def _run_grobid() -> None:
+            try:
+                out = run_grobid_for_key(active_cfg, citekey, force=bool(payload.get("force")))
+                with grobid_lock:
+                    grobid_job["running"] = False
+                    grobid_job["message"] = f"GROBID finished for {citekey}."
+                    grobid_job["error"] = None
+                    grobid_job["references_path"] = str(out.references_path)
+                    grobid_job["completed"] = 1
+                    grobid_job["total"] = 1
+            except Exception as e:
+                with grobid_lock:
+                    grobid_job["running"] = False
+                    grobid_job["error"] = str(e)
+                    grobid_job["message"] = f"GROBID failed: {e}"
+
+        threading.Thread(target=_run_grobid, daemon=True).start()
+        return {"ok": True, "async": True, **_grobid_snapshot()}
+
+    @app.get("/api/actions/grobid-run/status", response_class=responses.JSONResponse)
+    def action_grobid_run_status():
+        return _grobid_snapshot()
+
     @app.post("/api/actions/site-build", response_class=responses.JSONResponse)
     def action_site_build():
         result = build_biblio_site(current_cfg(), force=True)
@@ -621,6 +703,21 @@ def create_ui_app(cfg: BiblioConfig):
     @app.post("/api/setup/docling-check", response_class=responses.JSONResponse)
     def setup_docling_check():
         return check_docling_command(current_cfg())
+
+    @app.post("/api/setup/grobid-check", response_class=responses.JSONResponse)
+    def setup_grobid_check():
+        return check_grobid_server_as_dict(current_cfg().grobid)
+
+    @app.post("/api/setup/grobid-config", response_class=responses.JSONResponse)
+    def setup_grobid_config(payload: dict[str, Any]):
+        repo_root = current_cfg().repo_root
+        _update_grobid_config(repo_root, payload)
+        updated = reload_cfg()
+        return {
+            "ok": True,
+            "message": "Saved GROBID config.",
+            "setup": build_setup_report(updated),
+        }
 
     @app.post("/api/setup/docling-command", response_class=responses.JSONResponse)
     def setup_docling_command(payload: dict[str, Any]):

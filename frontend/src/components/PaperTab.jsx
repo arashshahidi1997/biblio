@@ -1,4 +1,3 @@
-import React from 'react';
 
 export default function PaperTab({ activePaper, activeArtifacts, showPdf, setShowPdf, doclingHtml }) {
   if (!activePaper) return null;
@@ -21,6 +20,9 @@ export default function PaperTab({ activePaper, activeArtifacts, showPdf, setSho
           </span>
           <span className={`badge ${activeArtifacts && activeArtifacts.openalex.exists ? "ok" : ""}`}>
             {activeArtifacts && activeArtifacts.openalex.exists ? "openalex" : "no openalex"}
+          </span>
+          <span className={`badge ${activeArtifacts && activeArtifacts.grobid && activeArtifacts.grobid.exists ? "ok" : ""}`}>
+            {activeArtifacts && activeArtifacts.grobid && activeArtifacts.grobid.exists ? "grobid" : "no grobid"}
           </span>
         </div>
       </div>
@@ -57,6 +59,42 @@ export default function PaperTab({ activePaper, activeArtifacts, showPdf, setSho
           />
         </div>
       </div>
+      {activePaper.grobid && activePaper.grobid.header && Object.keys(activePaper.grobid.header).length > 0 && (
+        <div className="panel">
+          <h3>GROBID</h3>
+          <div className="kv">
+            {activePaper.grobid.header.title && (
+              <>
+                <div className="small">Title</div>
+                <div>{activePaper.grobid.header.title}</div>
+              </>
+            )}
+            {activePaper.grobid.header.authors && activePaper.grobid.header.authors.length > 0 && (
+              <>
+                <div className="small">Authors</div>
+                <div>{activePaper.grobid.header.authors.join(", ")}</div>
+              </>
+            )}
+            {activePaper.grobid.header.year && (
+              <>
+                <div className="small">Year</div>
+                <div>{activePaper.grobid.header.year}</div>
+              </>
+            )}
+            {activePaper.grobid.header.doi && (
+              <>
+                <div className="small">DOI</div>
+                <code>{activePaper.grobid.header.doi}</code>
+              </>
+            )}
+            <div className="small">References</div>
+            <div>{activePaper.grobid.reference_count ?? 0}</div>
+          </div>
+          {activePaper.grobid.header.abstract && (
+            <div className="small" style={{ marginTop: "0.6rem" }}>{activePaper.grobid.header.abstract}</div>
+          )}
+        </div>
+      )}
       <div className="layout">
         <div className="panel">
           <h3>Related local papers</h3>

@@ -1,4 +1,38 @@
-import React from 'react';
+import { useState } from 'react';
+
+function GrobidConfigForm({ setup, actionState, triggerSetupAction }) {
+  const [url, setUrl] = useState(setup.grobid.url || "http://127.0.0.1:8070");
+  const [installPath, setInstallPath] = useState(setup.grobid.installation_path || "");
+  return (
+    <div className="setup-grid" style={{ marginTop: "0.9rem" }}>
+      <div className="subpanel">
+        <div className="actions">
+          <button disabled={actionState.busy} onClick={() => triggerSetupAction("/api/setup/grobid-check", {})}>
+            Check
+          </button>
+        </div>
+      </div>
+      <div className="subpanel">
+        <div className="field">
+          <label>Server URL</label>
+          <input value={url} onChange={(ev) => setUrl(ev.target.value)} placeholder="http://127.0.0.1:8070" />
+        </div>
+        <div className="field">
+          <label>Installation path (optional)</label>
+          <input value={installPath} onChange={(ev) => setInstallPath(ev.target.value)} placeholder="/path/to/grobid" />
+        </div>
+        <div className="actions">
+          <button
+            disabled={actionState.busy || !url.trim()}
+            onClick={() => triggerSetupAction("/api/setup/grobid-config", { url: url.trim(), installation_path: installPath.trim() || null })}
+          >
+            Save GROBID config
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function SetupTab({
   setup,
@@ -114,6 +148,45 @@ export default function SetupTab({
           </>
         ) : (
           <div className="small">Loading…</div>
+        )}
+      </div>
+      <div className="panel">
+        <h3>GROBID</h3>
+        <div className="small">Scholarly structure extraction — references, header metadata, sections from PDFs.</div>
+        {setup.grobid && (
+          <>
+            <div className="kv" style={{ marginTop: "0.8rem" }}>
+              <div className="small">URL</div>
+              <code>{setup.grobid.url}</code>
+              {setup.grobid.installation_path && (
+                <>
+                  <div className="small">Install path</div>
+                  <code>{setup.grobid.installation_path}</code>
+                </>
+              )}
+              {setup.grobid.derived_start_cmd && (
+                <>
+                  <div className="small">Derived start cmd</div>
+                  <code>{setup.grobid.derived_start_cmd.join(" ")}</code>
+                </>
+              )}
+              {setup.grobid.latency_ms != null && (
+                <>
+                  <div className="small">Latency</div>
+                  <code>{setup.grobid.latency_ms}ms</code>
+                </>
+              )}
+            </div>
+            <div style={{ marginTop: "0.8rem" }}>
+              <span className={`badge ${setup.grobid.ok === true ? "ok" : setup.grobid.ok === false ? "error" : ""}`}>
+                {setup.grobid.ok === true ? "grobid reachable" : setup.grobid.ok === false ? "grobid unreachable" : "not checked"}
+              </span>
+            </div>
+            <div className={`action-status ${setup.grobid.ok === false ? "error" : ""}`}>
+              {setup.grobid.message || "Click Check to verify."}
+            </div>
+            <GrobidConfigForm setup={setup} actionState={actionState} triggerSetupAction={triggerSetupAction} />
+          </>
         )}
       </div>
       <div className="panel">

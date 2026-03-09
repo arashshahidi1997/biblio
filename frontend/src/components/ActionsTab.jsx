@@ -1,11 +1,9 @@
-import React from 'react';
-
 export default function ActionsTab({ activePaper, actionState, triggerAction, addDoi, setAddDoi }) {
   return (
     <div className="panel">
       <h2>Actions</h2>
       <div className="small">
-        {activePaper ? `Selected paper for Docling: ${activePaper.citekey}` : "No paper selected."}
+        {activePaper ? `Selected paper: ${activePaper.citekey}` : "No paper selected."}
       </div>
       <div className="actions">
         <button disabled={actionState.busy} onClick={() => triggerAction("bibtex-merge")} className="primary">
@@ -25,6 +23,12 @@ export default function ActionsTab({ activePaper, actionState, triggerAction, ad
           onClick={() => activePaper && triggerAction("docling-run", { citekey: activePaper.citekey })}
         >
           Run Docling For Selected
+        </button>
+        <button
+          disabled={actionState.busy || !activePaper}
+          onClick={() => activePaper && triggerAction("grobid-run", { citekey: activePaper.citekey })}
+        >
+          Run GROBID For Selected
         </button>
       </div>
       <div className="field" style={{ marginTop: "1rem" }}>
@@ -48,7 +52,7 @@ export default function ActionsTab({ activePaper, actionState, triggerAction, ad
           {actionState.message}
         </div>
       )}
-      {(actionState.action === "openalex-resolve" || actionState.action === "graph-expand" || actionState.action === "docling-run") &&
+      {(actionState.action === "openalex-resolve" || actionState.action === "graph-expand" || actionState.action === "docling-run" || actionState.action === "grobid-run") &&
         (actionState.progressTotal > 0 || actionState.busy) && (
           <div className="progress-wrap">
             <div className="small">

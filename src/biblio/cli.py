@@ -31,6 +31,7 @@ from .site import (
 )
 from .openalex.openalex_resolve import ResolveOptions, resolve_srcbib_to_openalex
 from .ui import serve_ui_app
+from .grobid import check_grobid_server, run_grobid_for_key
 
 try:
     import argcomplete
@@ -271,6 +272,21 @@ def _build_parser() -> argparse.ArgumentParser:
     site_doctor.add_argument("--no-docling", dest="include_docling", action="store_false")
     site_doctor.add_argument("--include-openalex", dest="include_openalex", action="store_true", default=True)
     site_doctor.add_argument("--no-openalex", dest="include_openalex", action="store_false")
+
+    p_grobid = sub.add_parser("grobid", help="GROBID scholarly structure extraction.")
+    grobid_sub = p_grobid.add_subparsers(dest="grobid_cmd", required=True)
+    grobid_check = grobid_sub.add_parser("check", help="Check connectivity to the configured GROBID server.")
+    grobid_check.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    grobid_check.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    grobid_check.add_argument("--url", help="GROBID server URL (overrides config).")
+
+    grobid_run = grobid_sub.add_parser("run", help="Extract scholarly structure from PDFs via GROBID.")
+    grobid_run.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    grobid_run.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    grobid_run_group = grobid_run.add_mutually_exclusive_group(required=True)
+    grobid_run_group.add_argument("--key", help="Single citekey (with or without leading @).")
+    grobid_run_group.add_argument("--all", action="store_true", help="Run for all citekeys in citekeys.md.")
+    grobid_run.add_argument("--force", action="store_true", help="Re-run even if outputs already exist.")
 
     p_ui = sub.add_parser("ui", help="Serve a local interactive bibliography UI.")
     ui_sub = p_ui.add_subparsers(dest="ui_cmd", required=True)
@@ -606,6 +622,58 @@ def main(argv: Iterable[str] | None = None) -> None:
             f"[OK] seeds={result.total_inputs} seeds_with_openalex={result.seeds_with_openalex} "
             f"direction={args.direction} candidates={result.candidates} -> {result.output_path}"
         )
+        return
+
+    if args.command == "grobid":
+        repo_root = (args.root.expanduser().resolve() if args.root else find_repo_root())
+        cfg_path = (repo_root / args.config).resolve() if args.config else (repo_root / "bib" / "config" / "biblio.yml")
+        cfg = load_biblio_config(cfg_path, root=repo_root)
+        if args.grobid_cmd == "check":
+            from .config import GrobidConfig
+            grobid_cfg = cfg.grobid
+            if args.url:
+                grobid_cfg = GrobidConfig(
+                    url=args.url,
+                    installation_path=grobid_cfg.installation_path,
+                    timeout_seconds=grobid_cfg.timeout_seconds,
+                    consolidate_header=grobid_cfg.consolidate_header,
+                    consolidate_citations=grobid_cfg.consolidate_citations,
+                )
+            result = check_grobid_server(grobid_cfg)
+            status = "[OK]" if result.ok else "[FAIL]"
+            print(f"{status} url={result.url} latency={result.latency_ms}ms message={result.message}")
+            if not result.ok:
+                raise SystemExit(1)
+        elif args.grobid_cmd == "run":
+            if args.all:
+                try:
+                    keys = load_citekeys_md(cfg.citekeys_path)
+                except FileNotFoundError:
+                    print(f"Missing citekeys file: {cfg.citekeys_path}", file=sys.stderr)
+                    raise SystemExit(2)
+                if not keys:
+                    print(f"No citekeys found in {cfg.citekeys_path}", file=sys.stderr)
+                    raise SystemExit(2)
+                print(
+                    f"[INFO] repo_root={repo_root} keys={len(keys)} grobid_url={cfg.grobid.url}",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                failures = 0
+                for idx, key in enumerate(keys, start=1):
+                    try:
+                        print(f"[RUN {idx}/{len(keys)}] {key}", file=sys.stderr, flush=True)
+                        out = run_grobid_for_key(cfg, key, force=args.force)
+                    except Exception as e:
+                        failures += 1
+                        print(f"[FAIL {idx}/{len(keys)}] {key}: {e}", file=sys.stderr)
+                    else:
+                        print(f"[OK {idx}/{len(keys)}] {key}: refs={out.references_path}", flush=True)
+                raise SystemExit(0 if failures == 0 else 1)
+            else:
+                print(f"[RUN] {args.key.lstrip('@')}", file=sys.stderr, flush=True)
+                out = run_grobid_for_key(cfg, args.key, force=args.force)
+                print(f"[OK] {args.key.lstrip('@')}: refs={out.references_path}")
         return
 
     if args.command == "site":
