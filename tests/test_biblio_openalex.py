@@ -116,3 +116,69 @@ def test_openalex_missing_httpx_message(monkeypatch: pytest.MonkeyPatch) -> None
     with pytest.raises(RuntimeError) as e:
         client_mod._require_httpx()
     assert 'biblio-tools[openalex]' in str(e.value)
+
+
+def test_openalex_resolve_progress_callback(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    src_dir = tmp_path / "bib" / "srcbib"
+    src_dir.mkdir(parents=True)
+    (src_dir / "a.bib").write_text(
+        "@article{a2020, title={A}, year={2020}, doi={10.1234/ABC}}\n"
+        "@article{b2021, title={B}, year={2021}, doi={10.1234/DEF}}\n",
+        encoding="utf-8",
+    )
+
+    oa_cfg = OpenAlexClientConfig(
+        base_url="https://api.openalex.org",
+        email=None,
+        api_key=None,
+        timeout_s=30,
+        max_retries=0,
+        per_page=10,
+        select=("id", "display_name"),
+    )
+    cache = OpenAlexCache(root=tmp_path / "cache")
+    responses = {
+        "10.1234/abc": {
+            "id": "https://openalex.org/W123",
+            "display_name": "A",
+            "publication_year": 2020,
+            "cited_by_count": 1,
+            "ids": {"openalex": "https://openalex.org/W123"},
+            "authorships": [],
+            "topics": [],
+            "referenced_works": [],
+        },
+        "10.1234/def": {
+            "id": "https://openalex.org/W456",
+            "display_name": "B",
+            "publication_year": 2021,
+            "cited_by_count": 2,
+            "ids": {"openalex": "https://openalex.org/W456"},
+            "authorships": [],
+            "topics": [],
+            "referenced_works": [],
+        },
+    }
+    fake = _FakeClient(oa_cfg, responses=responses)
+    progress: list[dict[str, Any]] = []
+
+    import biblio.openalex.openalex_resolve as mod
+
+    monkeypatch.setattr(mod, "OpenAlexClient", lambda cfg: fake)
+    counts = resolve_srcbib_to_openalex(
+        cfg=oa_cfg,
+        cache=cache,
+        src_dir=src_dir,
+        src_glob="*.bib",
+        out_path=tmp_path / "resolved.jsonl",
+        out_format="jsonl",
+        limit=None,
+        opts=ResolveOptions(prefer_doi=True, fallback_title_search=False, per_page=10, strict=True, force=False),
+        progress_cb=progress.append,
+    )
+    assert counts["resolved"] == 2
+    assert progress[0]["phase"] == "start"
+    assert progress[0]["total"] == 2
+    assert progress[-1]["phase"] == "done"
+    assert progress[-1]["completed"] == 2
+    assert any(item.get("citekey") == "a2020" for item in progress)

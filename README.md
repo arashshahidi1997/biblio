@@ -88,6 +88,12 @@ pip install -e ".[ui]"
 biblio ui serve
 ```
 
+Convenience alias:
+
+```bash
+biblio-gui
+```
+
 The UI serves a local FastAPI app with a React/Cytoscape front end. It can:
 
 - explore the local paper graph

@@ -16,7 +16,7 @@ from .docling import run_docling_for_key
 from .openalex import resolve_openalex
 from .paths import find_repo_root
 from .rag import sync_biblio_rag_config
-from .graph import expand_openalex_reference_graph, load_openalex_seed_records
+from .graph import add_openalex_work_to_bib, expand_openalex_reference_graph, load_openalex_seed_records
 from .ingest import default_import_bib_path, ingest_file
 from .scaffold import init_bib_scaffold
 from .pdf_fetch import fetch_pdfs
@@ -199,6 +199,17 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Reinitialize the RAG config from defaults before syncing biblio-owned sources.",
     )
 
+    p_add = sub.add_parser("add", help="Add a paper to the bibliography from DOI or OpenAlex.")
+    add_sub = p_add.add_subparsers(dest="add_cmd", required=True)
+    add_doi = add_sub.add_parser("doi", help="Add a paper by DOI via OpenAlex metadata.")
+    add_doi.add_argument("doi", help="DOI to add.")
+    add_doi.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    add_doi.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    add_oa = add_sub.add_parser("openalex", help="Add a paper by OpenAlex work id.")
+    add_oa.add_argument("openalex_id", help="OpenAlex ID like W123 or https://openalex.org/W123.")
+    add_oa.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    add_oa.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+
     p_graph = sub.add_parser("graph", help="Expand graph-style literature candidates from OpenAlex results.")
     graph_sub = p_graph.add_subparsers(dest="graph_cmd", required=True)
     graph_expand = graph_sub.add_parser("expand", help="Expand referenced-work candidates from OpenAlex-resolved seeds.")
@@ -219,6 +230,12 @@ def _build_parser() -> argparse.ArgumentParser:
         "--force",
         action="store_true",
         help="Ignore cached OpenAlex work payloads and refetch them.",
+    )
+    graph_expand.add_argument(
+        "--direction",
+        choices=["references", "citing", "both"],
+        default="both",
+        help="Expand past works, future works, or both (default: both).",
     )
 
     p_site = sub.add_parser("site", help="Build and inspect a standalone bibliography site.")
@@ -540,6 +557,32 @@ def main(argv: Iterable[str] | None = None) -> None:
         print(f"[NEXT] {result.follow_up_cmd}")
         return
 
+    if args.command == "add":
+        repo_root = (args.root.expanduser().resolve() if getattr(args, "root", None) else find_repo_root())
+        cfg_path = (repo_root / args.config).resolve() if getattr(args, "config", None) else (repo_root / "bib" / "config" / "biblio.yml")
+        cfg = load_biblio_config(cfg_path, root=repo_root)
+        if args.add_cmd == "doi":
+            result = add_openalex_work_to_bib(
+                cfg=cfg.openalex_client,
+                cache=cfg.openalex_cache,
+                repo_root=repo_root,
+                doi=str(args.doi),
+            )
+        elif args.add_cmd == "openalex":
+            result = add_openalex_work_to_bib(
+                cfg=cfg.openalex_client,
+                cache=cfg.openalex_cache,
+                repo_root=repo_root,
+                openalex_id=str(args.openalex_id),
+            )
+        else:
+            raise SystemExit(2)
+        print(
+            f"[OK] citekey={result.citekey} openalex_id={result.openalex_id or '-'} doi={result.doi or '-'} "
+            f"srcbib={result.output_path} citekeys={result.citekeys_path}"
+        )
+        return
+
     if args.command == "graph":
         if args.graph_cmd != "expand":
             raise SystemExit(2)
@@ -556,11 +599,12 @@ def main(argv: Iterable[str] | None = None) -> None:
             cache=cfg.openalex_cache,
             records=records,
             out_path=output_path,
+            direction=str(args.direction),
             force=bool(args.force),
         )
         print(
             f"[OK] seeds={result.total_inputs} seeds_with_openalex={result.seeds_with_openalex} "
-            f"candidates={result.candidates} -> {result.output_path}"
+            f"direction={args.direction} candidates={result.candidates} -> {result.output_path}"
         )
         return
 

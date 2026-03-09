@@ -7,4 +7,5 @@ Use these when you already know what you want to do.
 - [Run Docling](docling.md)
 - [Resolve OpenAlex metadata](openalex.md)
 - [Build the bibliography site](site.md)
+- [Use the local UI](ui.md)
 - [Sync RAG sources](rag.md)

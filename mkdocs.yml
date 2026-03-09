@@ -32,6 +32,7 @@ nav:
       - Run Docling: how-to/docling.md
       - Resolve OpenAlex Metadata: how-to/openalex.md
       - Build The Bibliography Site: how-to/site.md
+      - Use The Local UI: how-to/ui.md
       - Sync RAG Sources: how-to/rag.md
   - Explanation:
       - explanation/index.md

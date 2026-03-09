@@ -150,6 +150,26 @@ class OpenAlexClient:
                 out.append(item)
         return out
 
+    def filter_works(self, *, filter_expr: str, per_page: int | None = None) -> list[dict[str, Any]]:
+        expr = (filter_expr or "").strip()
+        if not expr:
+            return []
+        payload = self._get_json(
+            "works",
+            params={
+                "filter": expr,
+                "per-page": per_page or self.cfg.per_page,
+            },
+        )
+        results = payload.get("results")
+        if not isinstance(results, list):
+            return []
+        out: list[dict[str, Any]] = []
+        for item in results:
+            if isinstance(item, dict):
+                out.append(item)
+        return out
+
 
 def openalex_config_from_mapping(mapping: dict[str, Any] | None) -> OpenAlexClientConfig:
     m = mapping or {}

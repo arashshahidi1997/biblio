@@ -45,6 +45,7 @@ dev = ["pytest", "build", "twine", "mkdocs>=1.6", "mkdocs-material>=9.5", "pybte
 
 [project.scripts]
 biblio = "biblio.cli:main"
+biblio-gui = "biblio.gui:gui_main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
@@ -54,4 +55,4 @@ where = ["src"]
 include = ["biblio", "biblio.*"]
 
 [tool.setuptools.package-data]
-biblio = ["templates/**/*.tmpl"]
+biblio = ["templates/**/*.tmpl", "static/**"]

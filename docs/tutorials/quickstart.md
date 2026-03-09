@@ -77,6 +77,16 @@ biblio docling run --all
 biblio openalex resolve
 ```
 
+## Expand the reference graph
+
+Discover papers that cite or are referenced by your corpus:
+
+```bash
+biblio graph expand
+```
+
+Results appear in the **Explore** tab of the local UI.
+
 ## Build the bibliography site
 
 ```bash
@@ -90,14 +100,17 @@ The generated site lives under `bib/site/`.
 
 ```bash
 biblio ui serve
+# or
+biblio-gui
 ```
 
-The UI provides tabs for:
+The UI has five tabs:
 
-- `Explore`
-- `Corpus`
-- `Paper`
-- `Actions`
+- `Explore` — Cytoscape graph + expansion candidates with Add to Bib actions
+- `Corpus` — full paper table with per-row artifact status and actions
+- `Paper` — PDF viewer, Docling excerpt, neighborhood
+- `Actions` — trigger BibTeX merge, OpenAlex resolve, graph expand, site build, Docling
+- `Setup` — configure Docling command and bibliography-owned RAG sources
 
 If port `8010` is occupied, `biblio` automatically chooses the next free port
 and prints the final local URL.

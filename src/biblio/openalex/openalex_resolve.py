@@ -5,7 +5,7 @@ import json
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 from pathlib import Path
-from typing import Any, Iterable, Iterator
+from typing import Any, Callable, Iterable, Iterator
 
 from .._pybtex_utils import parse_bibtex_file, require_pybtex
 from .openalex_cache import OpenAlexCache, normalize_doi
@@ -111,6 +111,7 @@ def resolve_srcbib_to_openalex(
     out_format: str,
     limit: int | None,
     opts: ResolveOptions,
+    progress_cb: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, int]:
     """
     Resolve srcbib entries to OpenAlex works and write JSONL/CSV.
@@ -125,12 +126,24 @@ def resolve_srcbib_to_openalex(
     errors = 0
 
     records: list[dict[str, Any]] = []
+    entries = list(iter_srcbib_entries(src_dir, src_glob))
+    if limit is not None:
+        entries = entries[: int(limit)]
+    total = len(entries)
+    if progress_cb is not None:
+        progress_cb(
+            {
+                "phase": "start",
+                "completed": 0,
+                "total": total,
+                "citekey": None,
+                "resolved": 0,
+                "unresolved": 0,
+                "errors": 0,
+            }
+        )
     try:
-        for citekey, bib_path, entry in iter_srcbib_entries(src_dir, src_glob):
-            total += 1
-            if limit is not None and total > limit:
-                break
-
+        for index, (citekey, bib_path, entry) in enumerate(entries, start=1):
             doi = _doi_from_entry(entry)
             title = _title_from_entry(entry)
             year = _year_from_entry(entry)
@@ -186,6 +199,18 @@ def resolve_srcbib_to_openalex(
                     raise
 
             records.append(rec)
+            if progress_cb is not None:
+                progress_cb(
+                    {
+                        "phase": "resolve",
+                        "completed": index,
+                        "total": total,
+                        "citekey": citekey,
+                        "resolved": resolved,
+                        "unresolved": unresolved,
+                        "errors": errors,
+                    }
+                )
     finally:
         client.close()
 
@@ -213,5 +238,18 @@ def resolve_srcbib_to_openalex(
                 w.writerow(row)
     else:
         raise ValueError(f"Unsupported format: {out_format!r}")
+
+    if progress_cb is not None:
+        progress_cb(
+            {
+                "phase": "done",
+                "completed": total,
+                "total": total,
+                "citekey": None,
+                "resolved": resolved,
+                "unresolved": unresolved,
+                "errors": errors,
+            }
+        )
 
     return {"total": total, "resolved": resolved, "unresolved": unresolved, "errors": errors}

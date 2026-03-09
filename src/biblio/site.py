@@ -531,22 +531,30 @@ def _build_site_model(cfg: BiblioConfig, options: BiblioSiteOptions) -> dict[str
         incoming: list[dict[str, Any]] = []
         if options.include_graphs and seed_id:
             for item in graph_candidates:
-                if str(item.get("seed_openalex_id")) == seed_id:
+                if str(item.get("seed_openalex_id")) == seed_id and str(item.get("direction") or "references") == "references":
                     target_id = str(item.get("openalex_id") or "")
                     outgoing.append(
                         {
                             "openalex_id": target_id,
                             "openalex_url": item.get("openalex_url"),
                             "citekey": openalex_seed_to_citekey.get(target_id),
+                            "title": item.get("display_name"),
+                            "year": item.get("publication_year"),
+                            "doi": item.get("doi"),
+                            "direction": "references",
                         }
                     )
-                if str(item.get("openalex_id")) == seed_id:
-                    source_id = str(item.get("seed_openalex_id") or "")
+                if str(item.get("seed_openalex_id")) == seed_id and str(item.get("direction") or "") == "citing":
+                    source_id = str(item.get("openalex_id") or "")
                     incoming.append(
                         {
                             "openalex_id": source_id,
-                            "openalex_url": f"https://openalex.org/{source_id}" if source_id else None,
+                            "openalex_url": item.get("openalex_url") or (f"https://openalex.org/{source_id}" if source_id else None),
                             "citekey": openalex_seed_to_citekey.get(source_id),
+                            "title": item.get("display_name"),
+                            "year": item.get("publication_year"),
+                            "doi": item.get("doi"),
+                            "direction": "citing",
                         }
                     )
 
@@ -648,6 +656,9 @@ def _build_site_model(cfg: BiblioConfig, options: BiblioSiteOptions) -> dict[str
                             "citekey": target_citekey,
                             "label": neighbor.get("citekey") or neighbor["openalex_id"],
                             "openalex_id": neighbor["openalex_id"],
+                            "title": neighbor.get("title"),
+                            "year": neighbor.get("year"),
+                            "doi": neighbor.get("doi"),
                             "kind": "local_seed" if target_citekey else "neighbor",
                             "is_local": bool(target_citekey),
                         }
@@ -663,6 +674,39 @@ def _build_site_model(cfg: BiblioConfig, options: BiblioSiteOptions) -> dict[str
                             "source_citekey": paper["citekey"],
                             "target_citekey": target_citekey,
                             "target_openalex_id": neighbor["openalex_id"],
+                            "direction": "references",
+                        }
+                    )
+            for neighbor in paper["graph"]["incoming"]:
+                source_citekey = neighbor.get("citekey")
+                source_id = f"paper:{source_citekey}" if source_citekey else f"openalex:{neighbor['openalex_id']}"
+                if source_id not in seen_nodes:
+                    seen_nodes.add(source_id)
+                    graph_nodes.append(
+                        {
+                            "id": source_id,
+                            "citekey": source_citekey,
+                            "label": neighbor.get("citekey") or neighbor["openalex_id"],
+                            "openalex_id": neighbor["openalex_id"],
+                            "title": neighbor.get("title"),
+                            "year": neighbor.get("year"),
+                            "doi": neighbor.get("doi"),
+                            "kind": "local_seed" if source_citekey else "neighbor",
+                            "is_local": bool(source_citekey),
+                        }
+                    )
+                edge_key = (source_id, node_id)
+                if edge_key not in edge_pairs:
+                    edge_pairs.add(edge_key)
+                    graph_edges.append(
+                        {
+                            "source": source_id,
+                            "target": node_id,
+                            "kind": "cites",
+                            "source_citekey": source_citekey,
+                            "target_citekey": paper["citekey"],
+                            "source_openalex_id": neighbor["openalex_id"],
+                            "direction": "citing",
                         }
                     )
 

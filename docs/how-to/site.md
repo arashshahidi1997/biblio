@@ -1,57 +1,36 @@
 # Build The Bibliography Site
 
-Build:
-
-```bash
-biblio site build
-```
-
-Serve:
-
-```bash
-biblio site serve
-```
-
-Clean:
-
-```bash
-biblio site clean
-```
-
-Inspect the workspace first if needed:
+## Inspect readiness
 
 ```bash
 biblio citekeys status
 ```
 
-## Launch the interactive local UI
-
-Install the UI extra:
+## Build
 
 ```bash
-pip install "biblio-tools[ui]"
+biblio site build
 ```
 
-Then run:
+## Serve
 
 ```bash
-biblio ui serve
+biblio site serve
 ```
 
-The local UI can also trigger selected `biblio` actions directly, including:
+## Clean
 
-- BibTeX merge
-- OpenAlex resolve
-- graph expansion
-- site rebuild
-- Docling for the currently selected paper
+```bash
+biblio site clean
+```
 
-The UI currently has four tabs:
+## Check a built site
 
-- `Explore`
-- `Corpus`
-- `Paper`
-- `Actions`
+```bash
+biblio site doctor
+```
 
-If the requested port is already in use, `biblio ui serve` automatically picks
-the next free port and prints the final URL.
+The generated site lives under `bib/site/` and can be opened directly in a
+browser or served over HTTP with `biblio site serve`.
+
+For an interactive live view during active work, see [Use The Local UI](ui.md).
