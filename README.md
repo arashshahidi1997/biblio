@@ -11,6 +11,9 @@ BibTeX imports, runs Docling, resolves OpenAlex metadata, syncs a
 bibliography-owned RAG config, expands local literature graphs, and builds a
 standalone bibliography explorer.
 
+In the development repo, there is also a small local demo workspace under
+`bib/` with three sample papers so you can try the commands immediately.
+
 It can also ingest structured inputs before you have `.bib` files, including:
 
 - DOI lists
@@ -36,6 +39,12 @@ Run the CLI:
 biblio --help
 ```
 
+Enable shell completion for `bash`:
+
+```bash
+eval "$(register-python-argcomplete biblio)"
+```
+
 Example ingestion flow:
 
 ```bash
@@ -43,6 +52,17 @@ biblio ingest csljson exports/library.json
 biblio ingest ris exports/library.ris
 biblio ingest dois reading-list.txt --stdout
 biblio ingest pdfs ~/Downloads/papers/
+```
+
+Example local demo flow from this repo:
+
+```bash
+make ui-serve
+biblio citekeys status
+biblio bibtex merge
+biblio docling run --all
+biblio openalex resolve
+biblio site build
 ```
 
 ## Documentation
@@ -67,6 +87,13 @@ Optional local UI:
 pip install -e ".[ui]"
 biblio ui serve
 ```
+
+The UI serves a local FastAPI app with a React/Cytoscape front end. It can:
+
+- explore the local paper graph
+- inspect corpus and paper details
+- trigger selected `biblio` actions directly
+- fall back to the next free port if `8010` is already in use
 
 ## Release workflow
 

@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 
 from biblio.config import load_biblio_config
 from biblio.scaffold import init_bib_scaffold
-from biblio.ui import create_ui_app
+from biblio.ui import create_ui_app, find_available_port
 
 
 def test_ui_api_exposes_model_and_index(tmp_path: Path) -> None:
@@ -57,3 +57,14 @@ def test_ui_action_endpoint_for_docling_validates_payload(tmp_path: Path) -> Non
     resp = client.post("/api/actions/docling-run", json={})
     assert resp.status_code == 400
     assert "Missing citekey" in resp.json()["detail"]
+
+
+def test_find_available_port_skips_busy_port() -> None:
+    import socket
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        sock.listen(1)
+        busy_port = sock.getsockname()[1]
+        port = find_available_port("127.0.0.1", busy_port, max_tries=4)
+        assert port != busy_port

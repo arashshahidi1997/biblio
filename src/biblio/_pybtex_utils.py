@@ -15,11 +15,12 @@ def require_pybtex(feature: str) -> None:
 
 @contextmanager
 def non_strict_pybtex():
-    from pybtex.errors import set_strict_mode
+    from pybtex.errors import capture, set_strict_mode
 
     set_strict_mode(False)
     try:
-        yield
+        with capture():
+            yield
     finally:
         set_strict_mode(True)
 

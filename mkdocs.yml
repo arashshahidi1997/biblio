@@ -22,6 +22,7 @@ nav:
   - Tutorials:
       - tutorials/index.md
       - Quickstart: tutorials/quickstart.md
+      - Demo Workspace: tutorials/demo-workspace.md
       - Docling And OpenAlex Walkthrough: tutorials/docling-openalex.md
       - Bibliography Site Walkthrough: tutorials/site.md
   - How-To Guides:

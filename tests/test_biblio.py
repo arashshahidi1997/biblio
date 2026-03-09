@@ -62,6 +62,26 @@ def test_find_repo_root_prefers_biblio_config(tmp_path: Path) -> None:
     assert find_repo_root(deep) == tmp_path.resolve()
 
 
+def test_citekeys_status_lists_candidates_and_configured(tmp_path: Path, capsys) -> None:
+    init_bib_scaffold(tmp_path, force=False)
+    (tmp_path / "bib" / "srcbib").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "bib" / "srcbib" / "library.bib").write_text(
+        (
+            "@article{configured2024, title={Configured Paper}, year={2024}}\n"
+            "@article{candidate2025, title={Candidate Paper}, year={2025}}\n"
+        ),
+        encoding="utf-8",
+    )
+    add_citekeys_md(tmp_path / "bib" / "config" / "citekeys.md", ["configured2024"])
+
+    from biblio.cli import main as biblio_main
+
+    biblio_main(["citekeys", "status", "--root", str(tmp_path)])
+    out = capsys.readouterr().out
+    assert "configured2024\tconfigured" in out
+    assert "candidate2025\tcandidate" in out
+
+
 def test_bibtex_merge_drops_file_field(tmp_path: Path) -> None:
     from pybtex.database import parse_file
 

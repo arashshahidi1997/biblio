@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "biblio-tools"
-version = "0.1.1"
+version = "0.1.2"
 description = "Portable bibliography workspace tool"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -26,6 +26,7 @@ classifiers = [
   "Topic :: Utilities",
 ]
 dependencies = [
+  "argcomplete",
   "pyyaml",
   "pybtex",
 ]

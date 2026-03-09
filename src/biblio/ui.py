@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import json
+import socket
 from pathlib import Path
 from typing import Any
 
@@ -32,6 +33,18 @@ def _require_uvicorn():
         raise RuntimeError(
             'UI features require `uvicorn` (install with `pip install "biblio-tools[ui]"`).'
         ) from e
+
+
+def find_available_port(host: str, start_port: int, *, max_tries: int = 25) -> int:
+    for port in range(int(start_port), int(start_port) + int(max_tries)):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            try:
+                sock.bind((host, port))
+            except OSError:
+                continue
+            return port
+    raise OSError(f"No available port found starting at {start_port} on host {host}")
 
 
 def build_ui_model(cfg: BiblioConfig) -> dict[str, Any]:
@@ -231,6 +244,26 @@ def _index_html() -> str:
       opacity: 0.55;
       cursor: wait;
     }
+    .tabs {
+      display: flex;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+    .tab {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 0.55rem 0.9rem;
+      background: rgba(255,255,255,0.75);
+      cursor: pointer;
+      font-size: 0.94rem;
+      font-family: inherit;
+    }
+    .tab.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
     .action-status {
       margin-top: 0.65rem;
       padding: 0.7rem 0.85rem;
@@ -241,6 +274,39 @@ def _index_html() -> str:
     .action-status.error {
       background: #f7e8e5;
       color: #8f3b2a;
+    }
+    .table-wrap {
+      overflow: auto;
+    }
+    .paper-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .paper-table th, .paper-table td {
+      padding: 0.65rem 0.7rem;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+    .paper-table tr {
+      cursor: pointer;
+    }
+    .paper-table tr:hover {
+      background: rgba(13, 107, 95, 0.05);
+    }
+    .paper-detail {
+      display: grid;
+      gap: 1rem;
+    }
+    .docling-box {
+      white-space: pre-wrap;
+      max-height: 20rem;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fff;
+      padding: 0.9rem 1rem;
+      font-size: 0.95rem;
     }
     @media (max-width: 960px) {
       .controls, .layout, .metric-row {
@@ -260,6 +326,7 @@ def _index_html() -> str:
       const [query, setQuery] = React.useState("");
       const [activeKey, setActiveKey] = React.useState("");
       const [localOnly, setLocalOnly] = React.useState(false);
+      const [activeTab, setActiveTab] = React.useState("explore");
       const [actionState, setActionState] = React.useState({busy: false, message: "", error: false});
       const cyRef = React.useRef(null);
 
@@ -310,7 +377,9 @@ def _index_html() -> str:
       }
 
       React.useEffect(() => {
-        if (!payload || !activePaper) return;
+        if (!payload || !activePaper || activeTab !== "explore") return;
+        const container = document.getElementById("cy");
+        if (!container) return;
         const graph = payload.graph || {nodes: [], edges: []};
         const related = new Set((activePaper.related_local || []).map((item) => `paper:${item.citekey}`));
         const activeNodeId = `paper:${activePaper.citekey}`;
@@ -341,7 +410,7 @@ def _index_html() -> str:
         ];
         if (!cyRef.current) {
           cyRef.current = cytoscape({
-            container: document.getElementById("cy"),
+            container,
             elements,
             style: [
               { selector: "node", style: {
@@ -375,7 +444,7 @@ def _index_html() -> str:
           cyRef.current.add(elements);
           cyRef.current.layout({ name: "cose", fit: true, padding: 30, animate: false }).run();
         }
-      }, [payload, activePaper, localOnly]);
+      }, [payload, activePaper, localOnly, activeTab]);
 
       if (!payload) {
         return e("div", {className: "app"}, e("div", {className: "header"}, "Loading bibliography UI..."));
@@ -383,6 +452,19 @@ def _index_html() -> str:
 
       const status = payload.status || {};
       const activeArtifacts = activePaper ? activePaper.artifacts : null;
+      const tabs = [
+        ["explore", "Explore"],
+        ["corpus", "Corpus"],
+        ["paper", "Paper"],
+        ["actions", "Actions"],
+      ];
+      const actionButtons = e("div", {className: "actions"},
+        e("button", {disabled: actionState.busy, onClick: () => triggerAction("bibtex-merge"), className: "primary"}, "Merge BibTeX"),
+        e("button", {disabled: actionState.busy, onClick: () => triggerAction("openalex-resolve")}, "Resolve OpenAlex"),
+        e("button", {disabled: actionState.busy, onClick: () => triggerAction("graph-expand")}, "Expand Graph"),
+        e("button", {disabled: actionState.busy, onClick: () => triggerAction("site-build")}, "Build Site"),
+        e("button", {disabled: actionState.busy || !activePaper, onClick: () => activePaper && triggerAction("docling-run", {citekey: activePaper.citekey})}, "Run Docling For Selected")
+      );
 
       return e("div", {className: "app"},
         e("div", {className: "header"},
@@ -392,20 +474,21 @@ def _index_html() -> str:
             e("span", {className: "legend-seed"}, "active seed"),
             e("span", {className: "legend-local"}, "local paper"),
             e("span", {className: "legend-external"}, "external neighbor")
-          ),
-          e("div", {className: "actions"},
-            e("button", {disabled: actionState.busy, onClick: () => triggerAction("bibtex-merge"), className: "primary"}, "Merge BibTeX"),
-            e("button", {disabled: actionState.busy, onClick: () => triggerAction("openalex-resolve")}, "Resolve OpenAlex"),
-            e("button", {disabled: actionState.busy, onClick: () => triggerAction("graph-expand")}, "Expand Graph"),
-            e("button", {disabled: actionState.busy, onClick: () => triggerAction("site-build")}, "Build Site"),
-            e("button", {disabled: actionState.busy || !activePaper, onClick: () => activePaper && triggerAction("docling-run", {citekey: activePaper.citekey})}, "Run Docling For Selected")
-          ),
-          actionState.message && e("div", {className: `action-status ${actionState.error ? "error" : ""}`}, actionState.message)
+          )
         ),
         e("div", {className: "small", style: {marginBottom: "0.9rem"}},
           activePaper ? `Focused paper: ${activePaper.citekey}` : "No active paper"
           )
         ,
+        e("div", {className: "tabs"},
+          tabs.map(([value, label]) =>
+            e("button", {
+              key: value,
+              className: `tab ${activeTab === value ? "active" : ""}`,
+              onClick: () => setActiveTab(value),
+            }, label)
+          )
+        ),
         e("div", {className: "controls"},
           e("div", {className: "field"},
             e("label", null, "Search papers"),
@@ -425,7 +508,7 @@ def _index_html() -> str:
             )
           )
         ),
-        e("div", {className: "layout"},
+        activeTab === "explore" && e("div", {className: "layout"},
           e("div", {className: "panel graph-panel"}, e("div", {id: "cy"})),
           e("div", {className: "side"},
             e("div", {className: "panel"},
@@ -469,6 +552,82 @@ def _index_html() -> str:
               )
             )
           )
+        ),
+        activeTab === "corpus" && e("div", {className: "panel table-wrap"},
+          e("table", {className: "paper-table"},
+            e("thead", null,
+              e("tr", null,
+                e("th", null, "Citekey"),
+                e("th", null, "Title"),
+                e("th", null, "Year"),
+                e("th", null, "Artifacts")
+              )
+            ),
+            e("tbody", null,
+              papers.map((paper) =>
+                e("tr", {
+                  key: paper.citekey,
+                  onClick: () => { setActiveKey(paper.citekey); setActiveTab("paper"); },
+                },
+                  e("td", null, paper.citekey),
+                  e("td", null, paper.title),
+                  e("td", null, paper.year || "n.d."),
+                  e("td", null,
+                    e("span", {className: `badge ${paper.artifacts.pdf.exists ? "ok" : ""}`}, paper.artifacts.pdf.exists ? "pdf" : "no pdf"),
+                    e("span", {className: `badge ${paper.artifacts.docling_md.exists ? "ok" : ""}`}, paper.artifacts.docling_md.exists ? "docling" : "no docling"),
+                    e("span", {className: `badge ${paper.artifacts.openalex.exists ? "ok" : ""}`}, paper.artifacts.openalex.exists ? "openalex" : "no openalex")
+                  )
+                )
+              )
+            )
+          )
+        ),
+        activeTab === "paper" && activePaper && e("div", {className: "paper-detail"},
+          e("div", {className: "panel"},
+            e("div", {className: "paper-card-title"},
+              e("h2", null, activePaper.citekey),
+              e("span", {className: "small"}, activePaper.year || "n.d.")
+            ),
+            e("div", {className: "small"}, activePaper.title),
+            e("p", null, (activePaper.authors || []).join(", ") || "Unknown authors"),
+            e("div", null,
+              e("span", {className: `badge ${activeArtifacts && activeArtifacts.pdf.exists ? "ok" : ""}`}, activeArtifacts && activeArtifacts.pdf.exists ? "pdf" : "no pdf"),
+              e("span", {className: `badge ${activeArtifacts && activeArtifacts.docling_md.exists ? "ok" : ""}`}, activeArtifacts && activeArtifacts.docling_md.exists ? "docling" : "no docling"),
+              e("span", {className: `badge ${activeArtifacts && activeArtifacts.openalex.exists ? "ok" : ""}`}, activeArtifacts && activeArtifacts.openalex.exists ? "openalex" : "no openalex")
+            )
+          ),
+          e("div", {className: "panel"},
+            e("h3", null, "Docling excerpt"),
+            e("div", {className: "docling-box"}, (activePaper.docling && activePaper.docling.excerpt) || "No Docling content available.")
+          ),
+          e("div", {className: "layout"},
+            e("div", {className: "panel"},
+              e("h3", null, "Related local papers"),
+              e("ul", {className: "list-clean"},
+                ((activePaper.related_local || []).length ? activePaper.related_local : [{citekey: null}]).map((item, idx) =>
+                  item.citekey
+                    ? e("li", {key: `${item.citekey}-${idx}`},
+                        e("strong", null, item.citekey),
+                        e("span", {className: "small"}, ` score ${item.score}, shared outgoing ${item.shared_outgoing}, shared incoming ${item.shared_incoming}`)
+                      )
+                    : e("li", {key: "none", className: "small"}, "No related local papers yet.")
+                )
+              )
+            ),
+            e("div", {className: "panel"},
+              e("h3", null, "Neighborhood"),
+              e("div", {className: "small"}, `${(activePaper.graph.outgoing || []).length} outgoing, ${(activePaper.graph.incoming || []).length} incoming local links`),
+              e("ul", {className: "list-clean"},
+                (activePaper.graph.outgoing || []).slice(0, 8).map((item, idx) => e("li", {key: `o-${idx}`}, item.citekey || item.openalex_id))
+              )
+            )
+          )
+        ),
+        activeTab === "actions" && e("div", {className: "panel"},
+          e("h2", null, "Actions"),
+          e("div", {className: "small"}, activePaper ? `Selected paper for Docling: ${activePaper.citekey}` : "No paper selected."),
+          actionButtons,
+          actionState.message && e("div", {className: `action-status ${actionState.error ? "error" : ""}`}, actionState.message)
         )
       );
     }
@@ -589,4 +748,8 @@ def create_ui_app(cfg: BiblioConfig):
 def serve_ui_app(cfg: BiblioConfig, *, host: str = "127.0.0.1", port: int = 8010) -> None:
     uvicorn = _require_uvicorn()
     app = create_ui_app(cfg)
-    uvicorn.run(app, host=host, port=int(port))
+    selected_port = find_available_port(str(host), int(port))
+    print(f"[OK] UI available at http://{host}:{selected_port}")
+    if selected_port != int(port):
+        print(f"[INFO] Requested port {port} was unavailable; using {selected_port} instead.")
+    uvicorn.run(app, host=host, port=int(selected_port))

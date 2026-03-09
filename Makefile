@@ -4,6 +4,9 @@ PUBLISH ?= /storage2/arash/infra/bin/publish_pypi.sh
 DATALAD ?= /storage/share/python/environments/Anaconda3/envs/cogpy/bin/datalad
 MSG ?= Update biblio
 
+RUNTIME_PATH := $(patsubst %/,%,$(dir $(DATALAD))):$(patsubst %/,%,$(dir $(PYTHON))):$(patsubst %/,%,$(dir $(PYTEST_PYTHON))):$(patsubst %/,%,$(dir $(PUBLISH)))
+export PATH := $(RUNTIME_PATH):$(PATH)
+
 .PHONY: help urls dev test test-all docs docs-serve ui-serve build check clean save push publish publish-test
 
 help:
@@ -26,7 +29,8 @@ help:
 urls:
 	@printf '%s\n' \
 		'GitHub: https://github.com/arashshahidi1997/biblio' \
-		'Pages:  https://arashshahidi1997.github.io/biblio/'
+		'Pages:  https://arashshahidi1997.github.io/biblio/' \
+		'PyPI:   https://pypi.org/project/biblio-tools/'
 
 dev:
 	$(PYTHON) -m pip install -e ".[dev]"

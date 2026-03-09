@@ -10,6 +10,7 @@ It helps a project create and maintain a repo-local `bib/` workspace for:
 - OpenAlex metadata enrichment
 - bibliography-owned RAG source config
 - static bibliography site generation
+- a local interactive UI
 
 The docs follow the Diataxis structure:
 
@@ -21,5 +22,6 @@ The docs follow the Diataxis structure:
 Start here:
 
 - [Quickstart](tutorials/quickstart.md)
+- [Demo workspace](tutorials/demo-workspace.md)
 - [Initialize a workspace](how-to/init.md)
 - [CLI reference](reference/cli.md)

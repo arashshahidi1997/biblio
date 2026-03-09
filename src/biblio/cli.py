@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import shlex
+import json
 import shutil
 import subprocess
 import sys
@@ -21,6 +22,7 @@ from .scaffold import init_bib_scaffold
 from .pdf_fetch import fetch_pdfs
 from .site import (
     BiblioSiteOptions,
+    _build_site_model,
     build_biblio_site,
     clean_biblio_site,
     default_site_out_dir,
@@ -29,6 +31,11 @@ from .site import (
 )
 from .openalex.openalex_resolve import ResolveOptions, resolve_srcbib_to_openalex
 from .ui import serve_ui_app
+
+try:
+    import argcomplete
+except Exception:  # pragma: no cover
+    argcomplete = None
 
 
 def _build_screen_bash_command(
@@ -81,6 +88,10 @@ def _build_parser() -> argparse.ArgumentParser:
     ck_rm.add_argument("keys", nargs="+", help="Keys like @foo_2020_Bar or foo_2020_Bar.")
     ck_rm.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
     ck_rm.add_argument("--path", type=Path, help="Path to citekeys.md (overrides config).")
+    ck_status = ck_sub.add_parser("status", help="Show discovered papers and whether they are in citekeys.md.")
+    ck_status.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    ck_status.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    ck_status.add_argument("--json", action="store_true", help="Emit JSON instead of plain text.")
 
     p_ingest = sub.add_parser("ingest", help="Import non-BibTeX inputs into bib/srcbib/imported.bib.")
     ingest_sub = p_ingest.add_subparsers(dest="ingest_cmd", required=True)
@@ -256,7 +267,10 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Iterable[str] | None = None) -> None:
-    args = _build_parser().parse_args(list(argv) if argv is not None else None)
+    parser = _build_parser()
+    if argcomplete is not None:
+        argcomplete.autocomplete(parser)
+    args = parser.parse_args(list(argv) if argv is not None else None)
     if args.command == "init":
         repo_root = (args.root.expanduser().resolve() if args.root else find_repo_root())
         res = init_bib_scaffold(repo_root, force=args.force)
@@ -288,6 +302,49 @@ def main(argv: Iterable[str] | None = None) -> None:
         if args.citekeys_cmd == "add":
             keys = add_citekeys_md(citekeys_path, args.keys)
             print(f"[OK] citekeys={len(keys)} path={citekeys_path}")
+            return
+        if args.citekeys_cmd == "remove":
+            keys = remove_citekeys_md(citekeys_path, args.keys)
+            print(f"[OK] citekeys={len(keys)} path={citekeys_path}")
+            return
+        if args.citekeys_cmd == "status":
+            cfg_path = (repo_root / args.config).resolve() if getattr(args, "config", None) else (repo_root / "bib" / "config" / "biblio.yml")
+            cfg = load_biblio_config(cfg_path, root=repo_root)
+            model = _build_site_model(
+                cfg,
+                BiblioSiteOptions(
+                    out_dir=default_site_out_dir(root=repo_root),
+                    include_graphs=True,
+                    include_docling=True,
+                    include_openalex=True,
+                ),
+            )
+            manifest = [
+                {
+                    "citekey": paper["citekey"],
+                    "title": paper["title"],
+                    "configured": bool(paper["configured"]),
+                    "source_bibs": list(paper["source_bibs"]),
+                    "pdf": bool(paper["artifacts"]["pdf"]["exists"]),
+                    "docling": bool(paper["artifacts"]["docling_md"]["exists"]),
+                    "openalex": bool(paper["artifacts"]["openalex"]["exists"]),
+                    "suggest_add": not bool(paper["configured"]),
+                }
+                for paper in model["papers"]
+            ]
+            if args.json:
+                print(json.dumps(manifest, indent=2, sort_keys=True))
+            else:
+                for item in manifest:
+                    flags = []
+                    flags.append("configured" if item["configured"] else "candidate")
+                    if item["pdf"]:
+                        flags.append("pdf")
+                    if item["docling"]:
+                        flags.append("docling")
+                    if item["openalex"]:
+                        flags.append("openalex")
+                    print(f"{item['citekey']}\t{','.join(flags)}\t{item['title']}")
             return
 
     if args.command == "ingest":
@@ -326,11 +383,6 @@ def main(argv: Iterable[str] | None = None) -> None:
         if args.stdout:
             print(bibtex_text, end="")
         return
-        if args.citekeys_cmd == "remove":
-            keys = remove_citekeys_md(citekeys_path, args.keys)
-            print(f"[OK] citekeys={len(keys)} path={citekeys_path}")
-            return
-
     if args.command == "docling":
         if args.doc_cmd != "run":
             raise SystemExit(2)
