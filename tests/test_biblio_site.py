@@ -40,7 +40,15 @@ def test_build_biblio_site_minimal(tmp_path: Path) -> None:
 
 def test_build_biblio_site_with_docling_openalex_and_graph(tmp_path: Path) -> None:
     init_bib_scaffold(tmp_path, force=False)
-    _write_srcbib(tmp_path)
+    src_dir = tmp_path / "bib" / "srcbib"
+    src_dir.mkdir(parents=True, exist_ok=True)
+    (src_dir / "library.bib").write_text(
+        (
+            "@article{paper2024, title={Paper Title}, year={2024}, doi={10.1000/example}, author={Doe, Jane}}\n"
+            "@article{paper2025, title={Paper Followup}, year={2025}, doi={10.1000/example2}, author={Roe, Richard}}\n"
+        ),
+        encoding="utf-8",
+    )
     cfg = load_biblio_config(tmp_path / "bib" / "config" / "biblio.yml", root=tmp_path)
 
     paper_dir = cfg.out_root / "paper2024"
@@ -53,17 +61,30 @@ def test_build_biblio_site_with_docling_openalex_and_graph(tmp_path: Path) -> No
 
     cfg.openalex.out_jsonl.parent.mkdir(parents=True, exist_ok=True)
     cfg.openalex.out_jsonl.write_text(
-        json.dumps(
-            {
-                "citekey": "paper2024",
-                "display_name": "Paper Title",
-                "openalex_id": "W1",
-                "openalex_url": "https://openalex.org/W1",
-                "publication_year": 2024,
-            },
-            sort_keys=True,
-        )
-        + "\n",
+        (
+            json.dumps(
+                {
+                    "citekey": "paper2024",
+                    "display_name": "Paper Title",
+                    "openalex_id": "W1",
+                    "openalex_url": "https://openalex.org/W1",
+                    "publication_year": 2024,
+                },
+                sort_keys=True,
+            )
+            + "\n"
+            + json.dumps(
+                {
+                    "citekey": "paper2025",
+                    "display_name": "Paper Followup",
+                    "openalex_id": "W2",
+                    "openalex_url": "https://openalex.org/W2",
+                    "publication_year": 2025,
+                },
+                sort_keys=True,
+            )
+            + "\n"
+        ),
         encoding="utf-8",
     )
     (cfg.openalex.out_jsonl.parent / "graph_candidates.json").write_text(
@@ -73,6 +94,16 @@ def test_build_biblio_site_with_docling_openalex_and_graph(tmp_path: Path) -> No
                     "seed_openalex_id": "W1",
                     "openalex_id": "W2",
                     "openalex_url": "https://openalex.org/W2",
+                },
+                {
+                    "seed_openalex_id": "W2",
+                    "openalex_id": "W1",
+                    "openalex_url": "https://openalex.org/W1",
+                },
+                {
+                    "seed_openalex_id": "W2",
+                    "openalex_id": "W3",
+                    "openalex_url": "https://openalex.org/W3",
                 }
             ],
             indent=2,
@@ -88,10 +119,15 @@ def test_build_biblio_site_with_docling_openalex_and_graph(tmp_path: Path) -> No
     assert "Graph neighborhood" in paper_html
     assert "paper2024_summary.md" in paper_html
     assert "paper2024_notes.md" in paper_html
+    graph_html = (result.out_dir / "graph.html").read_text(encoding="utf-8")
+    assert 'id="graph-canvas"' in graph_html
+    assert "Related local papers" in graph_html
 
     graph_payload = json.loads((result.out_dir / "_data" / "graph.json").read_text(encoding="utf-8"))
-    assert len(graph_payload["edges"]) == 1
+    assert len(graph_payload["edges"]) == 3
     assert graph_payload["edges"][0]["kind"] == "references"
+    graph_papers = {item["citekey"]: item for item in graph_payload["papers"]}
+    assert graph_papers["paper2024"]["related_local"][0]["citekey"] == "paper2025"
 
 
 def test_biblio_site_doctor_cli_and_clean(tmp_path: Path, capsys) -> None:

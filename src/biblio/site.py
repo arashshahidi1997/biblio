@@ -393,8 +393,90 @@ main.site-width {
 .list-clean li + li {
   margin-top: 0.5rem;
 }
+.graph-layout {
+  display: grid;
+  grid-template-columns: 2.2fr 1fr;
+  gap: 1rem;
+}
+.graph-stage {
+  min-height: 36rem;
+  padding: 0.25rem;
+}
+.graph-stage svg {
+  width: 100%;
+  height: 34rem;
+  display: block;
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at top left, rgba(13, 107, 95, 0.08), transparent 18rem),
+    linear-gradient(180deg, #fffdfa 0%, #f5f1e7 100%);
+  border: 1px solid var(--line);
+}
+.graph-controls {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.graph-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+}
+.graph-legend span::before {
+  content: "";
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 999px;
+  margin-right: 0.4rem;
+  vertical-align: middle;
+}
+.legend-seed::before { background: #0d6b5f; }
+.legend-local::before { background: #c67f27; }
+.legend-neighbor::before { background: #8d98a7; }
+.graph-meta {
+  display: grid;
+  gap: 0.75rem;
+}
+.graph-card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 0.9rem 1rem;
+  background: rgba(255,255,255,0.65);
+}
+.graph-card h3 {
+  margin-top: 0;
+}
+.graph-node text {
+  font-size: 11px;
+  fill: #243126;
+  pointer-events: none;
+}
+.graph-node circle {
+  stroke: rgba(31, 36, 31, 0.15);
+  stroke-width: 1.5px;
+}
+.graph-edge {
+  stroke: rgba(92, 100, 92, 0.35);
+  stroke-width: 1.3px;
+}
+.graph-edge.is-faded,
+.graph-node.is-faded {
+  opacity: 0.18;
+}
+.graph-node.is-active circle {
+  stroke: #0d6b5f;
+  stroke-width: 3px;
+}
+.graph-node.is-related circle {
+  stroke: #c67f27;
+  stroke-width: 2.5px;
+}
 @media (max-width: 800px) {
   .split {
+    grid-template-columns: 1fr;
+  }
+  .graph-layout {
     grid-template-columns: 1fr;
   }
 }
@@ -540,6 +622,7 @@ def _build_site_model(cfg: BiblioConfig, options: BiblioSiteOptions) -> dict[str
     graph_edges: list[dict[str, Any]] = []
     if options.include_graphs:
         seen_nodes: set[str] = set()
+        edge_pairs: set[tuple[str, str]] = set()
         for paper in papers:
             node_id = f"paper:{paper['citekey']}"
             if node_id not in seen_nodes:
@@ -551,34 +634,93 @@ def _build_site_model(cfg: BiblioConfig, options: BiblioSiteOptions) -> dict[str
                         "label": paper["title"],
                         "openalex_id": paper["graph"]["seed_openalex_id"],
                         "kind": "seed",
+                        "is_local": True,
                     }
                 )
             for neighbor in paper["graph"]["outgoing"]:
-                target_id = f"openalex:{neighbor['openalex_id']}"
+                target_citekey = neighbor.get("citekey")
+                target_id = f"paper:{target_citekey}" if target_citekey else f"openalex:{neighbor['openalex_id']}"
                 if target_id not in seen_nodes:
                     seen_nodes.add(target_id)
                     graph_nodes.append(
                         {
                             "id": target_id,
-                            "citekey": neighbor.get("citekey"),
+                            "citekey": target_citekey,
                             "label": neighbor.get("citekey") or neighbor["openalex_id"],
                             "openalex_id": neighbor["openalex_id"],
-                            "kind": "neighbor",
+                            "kind": "local_seed" if target_citekey else "neighbor",
+                            "is_local": bool(target_citekey),
                         }
                     )
-                graph_edges.append(
-                    {
-                        "source": node_id,
-                        "target": target_id,
-                        "kind": "references",
-                    }
-                )
+                edge_key = (node_id, target_id)
+                if edge_key not in edge_pairs:
+                    edge_pairs.add(edge_key)
+                    graph_edges.append(
+                        {
+                            "source": node_id,
+                            "target": target_id,
+                            "kind": "references",
+                            "source_citekey": paper["citekey"],
+                            "target_citekey": target_citekey,
+                            "target_openalex_id": neighbor["openalex_id"],
+                        }
+                    )
+
+    node_by_id = {node["id"]: node for node in graph_nodes}
+    outgoing_local_by_seed: dict[str, set[str]] = {}
+    incoming_local_by_seed: dict[str, set[str]] = {}
+    for paper in papers:
+        outgoing_local_by_seed[paper["citekey"]] = {
+            str(item["citekey"])
+            for item in paper["graph"]["outgoing"]
+            if item.get("citekey")
+        }
+        incoming_local_by_seed[paper["citekey"]] = {
+            str(item["citekey"])
+            for item in paper["graph"]["incoming"]
+            if item.get("citekey")
+        }
+
+    related_by_seed: dict[str, list[dict[str, Any]]] = {}
+    for paper in papers:
+        related: list[dict[str, Any]] = []
+        a = str(paper["citekey"])
+        for other in papers:
+            b = str(other["citekey"])
+            if a == b:
+                continue
+            shared_out = len(outgoing_local_by_seed[a] & outgoing_local_by_seed[b])
+            shared_in = len(incoming_local_by_seed[a] & incoming_local_by_seed[b])
+            direct = int(b in outgoing_local_by_seed[a]) + int(b in incoming_local_by_seed[a])
+            score = shared_out * 2 + shared_in + direct * 3
+            if score <= 0:
+                continue
+            related.append(
+                {
+                    "citekey": b,
+                    "title": other["title"],
+                    "score": score,
+                    "shared_outgoing": shared_out,
+                    "shared_incoming": shared_in,
+                    "direct_links": direct,
+                }
+            )
+        related.sort(key=lambda item: (-int(item["score"]), str(item["citekey"])))
+        related_by_seed[a] = related[:8]
+
+    degrees: dict[str, int] = {node["id"]: 0 for node in graph_nodes}
+    for edge in graph_edges:
+        degrees[edge["source"]] = degrees.get(edge["source"], 0) + 1
+        degrees[edge["target"]] = degrees.get(edge["target"], 0) + 1
+    for node in graph_nodes:
+        node["degree"] = degrees.get(node["id"], 0)
 
     graph_papers = [
         {
             "citekey": paper["citekey"],
             "title": paper["title"],
             "graph": paper["graph"],
+            "related_local": related_by_seed.get(str(paper["citekey"]), []),
         }
         for paper in papers
     ]
@@ -809,42 +951,164 @@ def _render_status_page(model: dict[str, Any]) -> str:
 def _render_graph_page() -> str:
     body = """
 <section class="panel">
-  <p class="small">Select a seed paper to inspect its immediate local neighborhood.</p>
-  <select id="graph-paper" class="search"></select>
+  <div class="graph-controls">
+    <div>
+      <p class="small">Select a seed paper to inspect its immediate local neighborhood.</p>
+      <select id="graph-paper" class="search"></select>
+    </div>
+    <label class="small"><input id="graph-only-local" type="checkbox"> Focus on local papers only</label>
+  </div>
+  <div class="graph-legend small">
+    <span class="legend-seed">active seed</span>
+    <span class="legend-local">local related paper</span>
+    <span class="legend-neighbor">external OpenAlex neighbor</span>
+  </div>
 </section>
-<section class="split">
-  <article class="panel">
-    <h2>Outgoing references</h2>
-    <ul id="graph-outgoing" class="list-clean"></ul>
+<section class="graph-layout">
+  <article class="panel graph-stage">
+    <svg id="graph-canvas" viewBox="0 0 920 540" role="img" aria-label="Local paper graph"></svg>
   </article>
-  <article class="panel">
-    <h2>Incoming references</h2>
-    <ul id="graph-incoming" class="list-clean"></ul>
-  </article>
+  <aside class="graph-meta">
+    <article class="panel graph-card">
+      <h3 id="graph-title">Graph focus</h3>
+      <p id="graph-summary" class="small">Select a paper to explore.</p>
+    </article>
+    <article class="panel graph-card">
+      <h3>Outgoing references</h3>
+      <ul id="graph-outgoing" class="list-clean"></ul>
+    </article>
+    <article class="panel graph-card">
+      <h3>Incoming references</h3>
+      <ul id="graph-incoming" class="list-clean"></ul>
+    </article>
+    <article class="panel graph-card">
+      <h3>Related local papers</h3>
+      <ul id="graph-related" class="list-clean"></ul>
+    </article>
+  </aside>
 </section>
 <script>
 fetch("./_data/graph.json").then((resp) => resp.json()).then((graph) => {
   const select = document.getElementById("graph-paper");
+  const onlyLocal = document.getElementById("graph-only-local");
   const outgoingEl = document.getElementById("graph-outgoing");
   const incomingEl = document.getElementById("graph-incoming");
+  const relatedEl = document.getElementById("graph-related");
+  const titleEl = document.getElementById("graph-title");
+  const summaryEl = document.getElementById("graph-summary");
+  const svg = document.getElementById("graph-canvas");
   const papers = (graph.papers || []).filter((paper) => paper.graph && paper.graph.seed_openalex_id);
+  const nodes = graph.nodes || [];
+  const edges = graph.edges || [];
+  const seedNodeByCitekey = new Map(nodes.filter((node) => node.citekey).map((node) => [node.citekey, node]));
   papers.forEach((paper) => {
     const opt = document.createElement("option");
     opt.value = paper.citekey;
     opt.textContent = `${paper.citekey} — ${paper.title}`;
     select.appendChild(opt);
   });
+
+  const width = 920;
+  const height = 540;
+  const centerX = width / 2;
+  const centerY = height / 2;
+
+  function buildSubgraph(paper) {
+    if (!paper) return {nodes: [], edges: []};
+    const localOnly = onlyLocal.checked;
+    const paperNode = seedNodeByCitekey.get(paper.citekey);
+    const neighborIds = new Set();
+    (paper.graph.outgoing || []).forEach((item) => {
+      if (localOnly && !item.citekey) return;
+      neighborIds.add(item.citekey ? `paper:${item.citekey}` : `openalex:${item.openalex_id}`);
+    });
+    (paper.related_local || []).forEach((item) => neighborIds.add(`paper:${item.citekey}`));
+    const nodeIds = new Set([paperNode ? paperNode.id : `paper:${paper.citekey}`, ...neighborIds]);
+    const subNodes = nodes.filter((node) => nodeIds.has(node.id));
+    const subEdges = edges.filter((edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target));
+    return {nodes: subNodes, edges: subEdges};
+  }
+
+  function layoutNodes(subgraph, activeCitekey, relatedCitekeys) {
+    const activeId = `paper:${activeCitekey}`;
+    const relatedSet = new Set(relatedCitekeys.map((item) => `paper:${item.citekey}`));
+    const active = subgraph.nodes.find((node) => node.id === activeId);
+    const others = subgraph.nodes.filter((node) => node.id !== activeId);
+    if (active) {
+      active.x = centerX;
+      active.y = centerY;
+    }
+    const local = others.filter((node) => node.is_local);
+    const external = others.filter((node) => !node.is_local);
+    local.forEach((node, idx) => {
+      const angle = (Math.PI * 2 * idx) / Math.max(local.length, 1);
+      node.x = centerX + Math.cos(angle) * 160;
+      node.y = centerY + Math.sin(angle) * 150;
+    });
+    external.forEach((node, idx) => {
+      const angle = (Math.PI * 2 * idx) / Math.max(external.length, 1);
+      node.x = centerX + Math.cos(angle) * 280;
+      node.y = centerY + Math.sin(angle) * 220;
+    });
+    return {activeId, relatedSet};
+  }
+
+  function escapeHtml(s) {
+    return String(s)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;");
+  }
+
+  function renderGraph(subgraph, activeId, relatedSet) {
+    const edgeMarkup = subgraph.edges.map((edge) => {
+      const source = subgraph.nodes.find((node) => node.id === edge.source);
+      const target = subgraph.nodes.find((node) => node.id === edge.target);
+      if (!source || !target) return "";
+      const isConnected = edge.source === activeId || edge.target === activeId || relatedSet.has(edge.source) || relatedSet.has(edge.target);
+      return `<line class="graph-edge${isConnected ? "" : " is-faded"}" x1="${source.x}" y1="${source.y}" x2="${target.x}" y2="${target.y}"></line>`;
+    }).join("");
+    const nodeMarkup = subgraph.nodes.map((node) => {
+      const radius = node.id === activeId ? 18 : (node.is_local ? 13 : 10);
+      const fill = node.id === activeId ? "#0d6b5f" : (node.is_local ? "#cf9b55" : "#97a1af");
+      const cls = [
+        "graph-node",
+        node.id === activeId ? "is-active" : "",
+        relatedSet.has(node.id) ? "is-related" : "",
+        (node.id === activeId || relatedSet.has(node.id)) ? "" : "is-faded",
+      ].filter(Boolean).join(" ");
+      return `
+        <g class="${cls}" transform="translate(${node.x}, ${node.y})">
+          <circle r="${radius}" fill="${fill}"></circle>
+          <text x="0" y="${radius + 16}" text-anchor="middle">${escapeHtml(node.citekey || node.label)}</text>
+        </g>
+      `;
+    }).join("");
+    svg.innerHTML = `<g>${edgeMarkup}${nodeMarkup}</g>`;
+  }
+
   function render() {
     const paper = papers.find((item) => item.citekey === select.value) || papers[0];
     if (!paper) {
+      titleEl.textContent = "Graph focus";
+      summaryEl.textContent = "No graph data available.";
       outgoingEl.innerHTML = '<li class="small">No graph data available.</li>';
       incomingEl.innerHTML = '<li class="small">No graph data available.</li>';
+      relatedEl.innerHTML = '<li class="small">No graph data available.</li>';
+      svg.innerHTML = "";
       return;
     }
-    outgoingEl.innerHTML = (paper.graph.outgoing || []).map((item) => `<li>${item.citekey || item.openalex_id}</li>`).join("") || '<li class="small">No outgoing neighbors.</li>';
-    incomingEl.innerHTML = (paper.graph.incoming || []).map((item) => `<li>${item.citekey || item.openalex_id}</li>`).join("") || '<li class="small">No incoming neighbors.</li>';
+    titleEl.textContent = `${paper.citekey} — ${paper.title}`;
+    summaryEl.textContent = `${(paper.graph.outgoing || []).length} outgoing references, ${(paper.graph.incoming || []).length} incoming local links, ${(paper.related_local || []).length} related local papers.`;
+    outgoingEl.innerHTML = (paper.graph.outgoing || []).map((item) => `<li>${escapeHtml(item.citekey || item.openalex_id)}</li>`).join("") || '<li class="small">No outgoing neighbors.</li>';
+    incomingEl.innerHTML = (paper.graph.incoming || []).map((item) => `<li>${escapeHtml(item.citekey || item.openalex_id)}</li>`).join("") || '<li class="small">No incoming neighbors.</li>';
+    relatedEl.innerHTML = (paper.related_local || []).map((item) => `<li><strong>${escapeHtml(item.citekey)}</strong> <span class="small">score ${item.score}, shared outgoing ${item.shared_outgoing}, shared incoming ${item.shared_incoming}</span></li>`).join("") || '<li class="small">No related local papers yet.</li>';
+    const subgraph = buildSubgraph(paper);
+    const layout = layoutNodes(subgraph, paper.citekey, paper.related_local || []);
+    renderGraph(subgraph, layout.activeId, layout.relatedSet);
   }
   select.addEventListener("change", render);
+  onlyLocal.addEventListener("change", render);
   render();
 });
 </script>

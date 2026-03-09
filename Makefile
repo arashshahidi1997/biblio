@@ -2,11 +2,12 @@ PYTHON ?= /storage/share/python/environments/Anaconda3/envs/cogpy/bin/python
 PYTEST_PYTHON ?= /storage/share/python/environments/Anaconda3/envs/labpy/bin/python
 PUBLISH ?= /storage2/arash/infra/bin/publish_pypi.sh
 
-.PHONY: help dev test test-all docs docs-serve build check clean publish publish-test
+.PHONY: help urls dev test test-all docs docs-serve build check clean publish publish-test
 
 help:
 	@printf '%s\n' \
 		'make dev         # install editable package with dev extras' \
+		'make urls        # print repository and GitHub Pages URLs' \
 		'make test        # run focused test suite' \
 		'make test-all    # run all tests' \
 		'make docs        # build MkDocs site strictly' \
@@ -16,6 +17,11 @@ help:
 		'make clean       # remove local build artifacts' \
 		'make publish     # publish to PyPI via personal helper' \
 		'make publish-test # publish to TestPyPI via personal helper'
+
+urls:
+	@printf '%s\n' \
+		'GitHub: https://github.com/arashshahidi1997/biblio' \
+		'Pages:  https://arashshahidi1997.github.io/biblio/'
 
 dev:
 	$(PYTHON) -m pip install -e ".[dev]"
