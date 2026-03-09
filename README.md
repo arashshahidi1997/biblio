@@ -29,6 +29,22 @@ Run the CLI:
 biblio --help
 ```
 
+## Documentation
+
+Install docs dependencies:
+
+```bash
+pip install -e ".[docs]"
+```
+
+Preview locally:
+
+```bash
+mkdocs serve
+```
+
+The docs site uses a Diataxis layout and is intended for GitHub Pages deployment.
+
 ## Release workflow
 
 Build and validate distributions:

@@ -1,0 +1,44 @@
+site_name: biblio
+site_description: Portable bibliography workspace tooling
+site_url: https://arashshahidi1997.github.io/biblio/
+repo_url: https://github.com/arashshahidi1997/biblio
+repo_name: arashshahidi1997/biblio
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.indexes
+    - content.code.copy
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Tutorials:
+      - tutorials/index.md
+      - Quickstart: tutorials/quickstart.md
+      - Docling And OpenAlex Walkthrough: tutorials/docling-openalex.md
+      - Bibliography Site Walkthrough: tutorials/site.md
+  - How-To Guides:
+      - how-to/index.md
+      - Initialize A Workspace: how-to/init.md
+      - Merge BibTeX And Fetch PDFs: how-to/bibtex.md
+      - Run Docling: how-to/docling.md
+      - Resolve OpenAlex Metadata: how-to/openalex.md
+      - Build The Bibliography Site: how-to/site.md
+      - Sync RAG Sources: how-to/rag.md
+  - Explanation:
+      - explanation/index.md
+      - Workspace Model: explanation/workspace.md
+      - Why Docling And OpenAlex: explanation/docling-openalex.md
+      - Static Site First: explanation/site-first.md
+  - Reference:
+      - reference/index.md
+      - CLI: reference/cli.md
+      - Workspace Layout: reference/workspace.md
+      - Configuration: reference/configuration.md

@@ -37,8 +37,9 @@ Issues = "https://github.com/arashshahidi1997/biblio/issues"
 
 [project.optional-dependencies]
 bibtex = []
+docs = ["mkdocs>=1.6", "mkdocs-material>=9.5"]
 openalex = ["httpx", "tenacity", "tqdm"]
-dev = ["pytest", "build", "twine", "pybtex", "httpx", "tenacity", "tqdm"]
+dev = ["pytest", "build", "twine", "mkdocs>=1.6", "mkdocs-material>=9.5", "pybtex", "httpx", "tenacity", "tqdm"]
 
 [project.scripts]
 biblio = "biblio.cli:main"
