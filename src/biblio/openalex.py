@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
+from ._pybtex_utils import parse_bibtex_file, require_pybtex
 from .ledger import append_jsonl, new_run_id, utc_now_iso, write_json
 
 
@@ -22,15 +23,6 @@ class OpenAlexConfig:
     out_csv: Path | None
     mailto: str | None
     api_base: str
-
-
-def _require_pybtex():
-    try:
-        from pybtex.database import parse_file  # noqa: F401
-    except Exception as e:  # pragma: no cover
-        raise RuntimeError(
-            'biblio OpenAlex resolution requires `pybtex` (install with `pip install "labpy[biblio]"`).'
-        ) from e
 
 
 def _iter_bib_files(src_dir: Path, glob: str) -> list[Path]:
@@ -180,8 +172,7 @@ def resolve_openalex(
     *,
     fetch_json: Callable[[str], Any] | None = None,
 ) -> dict[str, int]:
-    _require_pybtex()
-    from pybtex.database import parse_file
+    require_pybtex("OpenAlex resolution")
 
     fetch_json = fetch_json or _default_fetch_json
     run_id = new_run_id("openalex_resolve")
@@ -191,7 +182,7 @@ def resolve_openalex(
 
     rows: list[dict[str, Any]] = []
     for bib_path in bib_files:
-        db = parse_file(str(bib_path))
+        db = parse_bibtex_file(bib_path)
         for citekey, entry in sorted(db.entries.items(), key=lambda kv: kv[0]):
             title = _normalize_title(entry.fields.get("title"))
             doi = _normalize_doi(entry.fields.get("doi"))

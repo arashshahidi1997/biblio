@@ -7,7 +7,7 @@ from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any, Iterable, Iterator
 
-from ..bibtex import _require_pybtex  # reuse existing dependency gate
+from .._pybtex_utils import parse_bibtex_file, require_pybtex
 from .openalex_cache import OpenAlexCache, normalize_doi
 from .openalex_client import OpenAlexClient, OpenAlexClientConfig
 
@@ -80,11 +80,10 @@ class ResolveOptions:
 
 
 def iter_srcbib_entries(src_dir: Path, src_glob: str) -> Iterator[tuple[str, Path, Any]]:
-    _require_pybtex()
-    from pybtex.database import parse_file
+    require_pybtex("OpenAlex resolution")
 
     for bib_path in sorted(p for p in src_dir.glob(src_glob) if p.is_file()):
-        db = parse_file(str(bib_path))
+        db = parse_bibtex_file(bib_path)
         for citekey, entry in sorted(db.entries.items(), key=lambda kv: kv[0]):
             yield citekey, bib_path, entry
 
@@ -216,4 +215,3 @@ def resolve_srcbib_to_openalex(
         raise ValueError(f"Unsupported format: {out_format!r}")
 
     return {"total": total, "resolved": resolved, "unresolved": unresolved, "errors": errors}
-

@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
+from ._pybtex_utils import parse_bibtex_file
 from .ledger import append_jsonl, new_run_id, utc_now_iso
 
 
@@ -26,15 +27,6 @@ class PdfFetchConfig:
 
 
 _PDF_RE = re.compile(r"(?i)([^;]+?\.pdf)\b")
-
-
-def _require_pybtex():
-    try:
-        from pybtex.database import parse_file  # noqa: F401
-    except Exception as e:  # pragma: no cover
-        raise RuntimeError(
-            'biblio bibtex features require `pybtex` (install with `pip install "labpy[biblio]"`).'
-        ) from e
 
 
 def _md5(path: Path) -> str:
@@ -138,9 +130,6 @@ def fetch_pdfs(cfg: PdfFetchConfig, *, dry_run: bool = False, force: bool = Fals
 
     Returns counts: {"sources": n_bib_files, "linked": n_done, "skipped": n_skipped, "missing": n_missing}
     """
-    _require_pybtex()
-    from pybtex.database import parse_file
-
     run_id = new_run_id("bibtex_fetch")
     bib_files = _iter_bib_files(cfg.src_dir, cfg.src_glob)
     if not bib_files:
@@ -155,7 +144,7 @@ def fetch_pdfs(cfg: PdfFetchConfig, *, dry_run: bool = False, force: bool = Fals
     source_records: list[dict[str, Any]] = []
 
     for bib_path in bib_files:
-        db = parse_file(str(bib_path))
+        db = parse_bibtex_file(bib_path)
         bib_dir = bib_path.parent
         for citekey, entry in sorted(db.entries.items(), key=lambda kv: kv[0]):
             file_field = entry.fields.get("file")

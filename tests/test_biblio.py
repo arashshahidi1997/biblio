@@ -99,6 +99,38 @@ def test_bibtex_merge_drops_file_field(tmp_path: Path) -> None:
     assert "source_bib" in runs
 
 
+def test_bibtex_merge_tolerates_duplicate_citekeys(tmp_path: Path) -> None:
+    from pybtex.database import parse_file
+
+    src_dir = tmp_path / "bib" / "srcbib"
+    src_dir.mkdir(parents=True)
+    (src_dir / "dup.bib").write_text(
+        (
+            "@article{dupkey, title={First}, file={/abs/path/first.pdf}}\n"
+            "@article{dupkey, title={Second}, file={/abs/path/second.pdf}}\n"
+        ),
+        encoding="utf-8",
+    )
+
+    out_bib = tmp_path / "bib" / "main.bib"
+    cfg = BibtexMergeConfig(
+        repo_root=tmp_path,
+        src_dir=src_dir,
+        src_glob="*.bib",
+        out_bib=out_bib,
+        file_field_mode="drop",
+        file_field_template="bib/articles/{citekey}/{citekey}.pdf",
+        duplicates_log=tmp_path / "bib" / "logs" / "duplicate_bib_ids.txt",
+    )
+
+    n_sources, n_entries = merge_srcbib(cfg, dry_run=False)
+    assert n_sources == 1
+    assert n_entries == 1
+
+    db = parse_file(str(out_bib))
+    assert list(db.entries.keys()) == ["dupkey"]
+
+
 def test_fetch_pdfs_from_file_field(tmp_path: Path) -> None:
     src_pdf = tmp_path / "Downloads" / "paper.pdf"
     src_pdf.parent.mkdir(parents=True)
@@ -176,6 +208,42 @@ def test_fetch_pdfs_from_plain_file_field(tmp_path: Path) -> None:
     assert counts["sources"] == 1
     assert counts["linked"] == 1
     dest = tmp_path / "bib" / "articles" / "k2021" / "k2021.pdf"
+    assert dest.exists()
+
+
+def test_fetch_pdfs_tolerates_duplicate_citekeys(tmp_path: Path) -> None:
+    first_pdf = tmp_path / "Downloads" / "first.pdf"
+    second_pdf = tmp_path / "Downloads" / "second.pdf"
+    first_pdf.parent.mkdir(parents=True)
+    first_pdf.write_bytes(b"%PDF-1.4 first\n")
+    second_pdf.write_bytes(b"%PDF-1.4 second\n")
+
+    src_dir = tmp_path / "bib" / "srcbib"
+    src_dir.mkdir(parents=True)
+    (src_dir / "zotero.bib").write_text(
+        (
+            f"@article{{dupkey, title={{One}}, file={{{first_pdf}}}}}\n"
+            f"@article{{dupkey, title={{Two}}, file={{{second_pdf}}}}}\n"
+        ),
+        encoding="utf-8",
+    )
+
+    cfg = PdfFetchConfig(
+        repo_root=tmp_path,
+        src_dir=src_dir,
+        src_glob="*.bib",
+        dest_root=tmp_path / "bib" / "articles",
+        dest_pattern="{citekey}/{citekey}.pdf",
+        mode="copy",
+        hash_mode="md5",
+        manifest_path=tmp_path / "bib" / "logs" / "pdf_manifest.json",
+        missing_log=tmp_path / "bib" / "logs" / "missing_pdfs.txt",
+    )
+
+    counts = fetch_pdfs(cfg, dry_run=False, force=False)
+    assert counts["sources"] == 1
+    assert counts["linked"] == 1
+    dest = tmp_path / "bib" / "articles" / "dupkey" / "dupkey.pdf"
     assert dest.exists()
 
 

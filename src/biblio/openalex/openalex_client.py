@@ -12,7 +12,7 @@ def _require_httpx():
         return importlib.import_module("httpx")
     except Exception as e:  # pragma: no cover
         raise RuntimeError(
-            'OpenAlex features require `httpx` (install with `pip install "labpy[openalex]"`).'
+            'OpenAlex features require `httpx` (install with `pip install "biblio-tools[openalex]"`).'
         ) from e
 
 
@@ -181,4 +181,3 @@ def openalex_config_from_mapping(mapping: dict[str, Any] | None) -> OpenAlexClie
         per_page=per_page,
         select=select,
     )
-

@@ -10,6 +10,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
+from ._pybtex_utils import parse_bibtex_file, require_pybtex
 from .citekeys import load_citekeys_md
 from .config import BiblioConfig
 
@@ -82,11 +83,11 @@ def _iter_srcbib_records(cfg: BiblioConfig) -> list[dict[str, Any]]:
     if not bib_files:
         return []
 
-    from pybtex.database import parse_file
+    require_pybtex("site generation")
 
     records: list[dict[str, Any]] = []
     for bib_path in bib_files:
-        db = parse_file(str(bib_path))
+        db = parse_bibtex_file(bib_path)
         for citekey, entry in sorted(db.entries.items(), key=lambda kv: kv[0]):
             persons = entry.persons.get("author", [])
             authors: list[str] = []

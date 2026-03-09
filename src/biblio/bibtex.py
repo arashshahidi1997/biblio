@@ -3,6 +3,8 @@ from __future__ import annotations
 import copy
 from dataclasses import dataclass
 from pathlib import Path
+
+from ._pybtex_utils import parse_bibtex_file, require_pybtex
 from .ledger import append_jsonl, new_run_id, utc_now_iso
 
 
@@ -17,17 +19,6 @@ class BibtexMergeConfig:
     duplicates_log: Path
 
 
-def _require_pybtex():
-    try:
-        from pybtex.database import BibliographyData  # noqa: F401
-        from pybtex.database import parse_file  # noqa: F401
-        from pybtex.database.output.bibtex import Writer  # noqa: F401
-    except Exception as e:  # pragma: no cover
-        raise RuntimeError(
-            'biblio bibtex features require `pybtex` (install with `pip install "labpy[biblio]"`).'
-        ) from e
-
-
 def _iter_bib_files(src_dir: Path, glob: str) -> list[Path]:
     if not src_dir.exists():
         return []
@@ -40,8 +31,8 @@ def merge_srcbib(cfg: BibtexMergeConfig, *, dry_run: bool = False) -> tuple[int,
 
     Returns: (n_sources, n_entries_written)
     """
-    _require_pybtex()
-    from pybtex.database import BibliographyData, Entry, parse_file
+    require_pybtex("BibTeX features")
+    from pybtex.database import BibliographyData, Entry
     from pybtex.database.output.bibtex import Writer
 
     run_id = new_run_id("bibtex_merge")
@@ -54,7 +45,7 @@ def merge_srcbib(cfg: BibtexMergeConfig, *, dry_run: bool = False) -> tuple[int,
     provenance: dict[str, str] = {}
 
     for bib_path in bib_files:
-        db = parse_file(str(bib_path))
+        db = parse_bibtex_file(bib_path)
         for key, entry in sorted(db.entries.items(), key=lambda kv: kv[0]):
             entry = copy.deepcopy(entry)
 

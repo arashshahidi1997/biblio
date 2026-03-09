@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "biblio-tools"
-version = "0.1.0"
+version = "0.1.1"
 description = "Portable bibliography workspace tool"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -27,6 +27,7 @@ classifiers = [
 ]
 dependencies = [
   "pyyaml",
+  "pybtex",
 ]
 
 [project.urls]
@@ -35,8 +36,8 @@ Repository = "https://github.com/arashshahidi1997/biblio"
 Issues = "https://github.com/arashshahidi1997/biblio/issues"
 
 [project.optional-dependencies]
-bibtex = ["pybtex"]
-openalex = ["pybtex", "httpx", "tenacity", "tqdm"]
+bibtex = []
+openalex = ["httpx", "tenacity", "tqdm"]
 dev = ["pytest", "build", "twine", "pybtex", "httpx", "tenacity", "tqdm"]
 
 [project.scripts]

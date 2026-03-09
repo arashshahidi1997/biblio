@@ -115,5 +115,4 @@ def test_openalex_missing_httpx_message(monkeypatch: pytest.MonkeyPatch) -> None
     monkeypatch.setattr(client_mod.importlib, "import_module", _fake_import)
     with pytest.raises(RuntimeError) as e:
         client_mod._require_httpx()
-    assert "labpy[openalex]" in str(e.value)
-
+    assert 'biblio-tools[openalex]' in str(e.value)
