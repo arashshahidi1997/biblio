@@ -36,14 +36,15 @@ export default function ExploreTab({
     const activeNodeId = `paper:${activePaper.citekey}`;
     const outgoing = new Set((activePaper.graph.outgoing || []).map((item) => item.citekey ? `paper:${item.citekey}` : `openalex:${item.openalex_id}`));
     const incoming = new Set((activePaper.graph.incoming || []).map((item) => item.citekey ? `paper:${item.citekey}` : `openalex:${item.openalex_id}`));
+    const grobidRefs = new Set((activePaper.graph.grobid_refs || []).map((item) => `paper:${item.target_citekey}`));
     const allowed = graphMode === "all"
       ? null
-      : new Set([activeNodeId, ...related, ...outgoing, ...incoming]);
+      : new Set([activeNodeId, ...related, ...outgoing, ...incoming, ...grobidRefs]);
     const nodes = (graph.nodes || []).filter((node) => (!allowed || allowed.has(node.id)) && (!localOnly || node.is_local));
     const nodeIds = new Set(nodes.map((node) => node.id));
     const edges = (graph.edges || []).filter((edge) => {
       if (!(nodeIds.has(edge.source) && nodeIds.has(edge.target))) return false;
-      if (graphDirection === "past") return edge.direction === "references";
+      if (graphDirection === "past") return edge.direction === "references" || edge.kind === "grobid_ref";
       if (graphDirection === "future") return edge.direction === "citing";
       return true;
     });
@@ -63,6 +64,7 @@ export default function ExploreTab({
           id: `edge-${idx}-${edge.source}-${edge.target}`,
           source: edge.source,
           target: edge.target,
+          kind: edge.kind || "openalex",
         }
       })),
     ];
@@ -88,6 +90,7 @@ export default function ExploreTab({
           { selector: "node[active]", style: { "background-color": "#0d6b5f", "width": 28, "height": 28, "border-width": 3, "border-color": "#0d6b5f" }},
           { selector: "node[related]", style: { "border-width": 3, "border-color": "#c67f27" }},
           { selector: "edge", style: { "line-color": "rgba(92,100,92,0.35)", "width": 1.5, "curve-style": "bezier", "target-arrow-shape": "triangle", "target-arrow-color": "rgba(92,100,92,0.45)" }},
+          { selector: "edge[kind='grobid_ref']", style: { "line-color": "rgba(13,107,95,0.55)", "line-style": "dashed", "width": 1.5, "target-arrow-color": "rgba(13,107,95,0.65)" }},
         ],
         layout: { name: "cose", fit: true, padding: 30, animate: false }
       });
@@ -120,7 +123,13 @@ export default function ExploreTab({
     if (!activePaper) return [];
     const outgoing = (activePaper.graph.outgoing || []).map((item) => ({ ...item, direction: "outgoing" }));
     const incoming = (activePaper.graph.incoming || []).map((item) => ({ ...item, direction: "incoming" }));
-    const all = [...outgoing, ...incoming];
+    const grobidRefs = (activePaper.graph.grobid_refs || []).map((item) => ({
+      citekey: item.target_citekey,
+      title: item.ref_title,
+      direction: "grobid_ref",
+      match_type: item.match_type,
+    }));
+    const all = [...outgoing, ...incoming, ...grobidRefs];
     // Sort: local (has citekey) first, then external
     all.sort((a, b) => {
       const aLocal = a.citekey ? 1 : 0;
@@ -159,6 +168,10 @@ export default function ExploreTab({
             <div className="metric">
               <span className="small">openalex</span>
               <strong>{String(status.papers_with_openalex || 0)}</strong>
+            </div>
+            <div className="metric">
+              <span className="small">grobid</span>
+              <strong>{String(status.papers_with_grobid || 0)}</strong>
             </div>
           </div>
         </div>
@@ -205,6 +218,7 @@ export default function ExploreTab({
             <h3>Candidates</h3>
             <div className="small" style={{ marginBottom: "0.5rem" }}>
               {(activePaper.graph.outgoing || []).length} outgoing (refs), {(activePaper.graph.incoming || []).length} incoming (citing)
+              {(activePaper.graph.grobid_refs || []).length > 0 && `, ${activePaper.graph.grobid_refs.length} grobid refs`}
             </div>
             {candidates.length === 0 && (
               <div className="small">No candidates yet. Run Resolve OpenAlex + Expand Graph first.</div>
@@ -217,7 +231,7 @@ export default function ExploreTab({
                 <div className="candidate-meta">
                   {item.year && <span className="badge">{item.year}</span>}
                   <span className="badge">
-                    {item.direction === "outgoing" ? "→ ref" : "← citing"}
+                    {item.direction === "outgoing" ? "→ ref" : item.direction === "grobid_ref" ? `↗ grobid (${item.match_type})` : "← citing"}
                   </span>
                   {item.citekey
                     ? <span className="badge ok">in corpus</span>

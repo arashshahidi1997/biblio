@@ -31,7 +31,7 @@ from .site import (
 )
 from .openalex.openalex_resolve import ResolveOptions, resolve_srcbib_to_openalex
 from .ui import serve_ui_app
-from .grobid import check_grobid_server, run_grobid_for_key
+from .grobid import check_grobid_server, run_grobid_for_key, run_grobid_match
 
 try:
     import argcomplete
@@ -287,6 +287,10 @@ def _build_parser() -> argparse.ArgumentParser:
     grobid_run_group.add_argument("--key", help="Single citekey (with or without leading @).")
     grobid_run_group.add_argument("--all", action="store_true", help="Run for all citekeys in citekeys.md.")
     grobid_run.add_argument("--force", action="store_true", help="Re-run even if outputs already exist.")
+
+    grobid_match = grobid_sub.add_parser("match", help="Match GROBID references against the local corpus.")
+    grobid_match.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    grobid_match.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
 
     p_ui = sub.add_parser("ui", help="Serve a local interactive bibliography UI.")
     ui_sub = p_ui.add_subparsers(dest="ui_cmd", required=True)
@@ -674,6 +678,10 @@ def main(argv: Iterable[str] | None = None) -> None:
                 print(f"[RUN] {args.key.lstrip('@')}", file=sys.stderr, flush=True)
                 out = run_grobid_for_key(cfg, args.key, force=args.force)
                 print(f"[OK] {args.key.lstrip('@')}: refs={out.references_path}")
+        elif args.grobid_cmd == "match":
+            out_path, matches = run_grobid_match(cfg)
+            total_links = sum(len(v) for v in matches.values())
+            print(f"[OK] matched papers={len(matches)} local_links={total_links} -> {out_path}")
         return
 
     if args.command == "site":

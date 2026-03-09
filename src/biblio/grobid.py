@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import json
+import re
 import time
 import urllib.error
 import urllib.request
@@ -303,3 +304,127 @@ def derive_start_cmd(cfg: GrobidConfig) -> list[str] | None:
         if jar_candidates:
             return ["java", "-jar", str(jar_candidates[-1])]
     return None
+
+
+# ── reference matching ────────────────────────────────────────────────────────
+
+def _normalize_title(title: str) -> str:
+    """Lowercase, strip punctuation, collapse whitespace for fuzzy matching."""
+    t = title.lower()
+    t = re.sub(r"[^\w\s]", " ", t)
+    return re.sub(r"\s+", " ", t).strip()
+
+
+def local_refs_path(cfg: BiblioConfig) -> Path:
+    """Path to the GROBID local reference match output file."""
+    return grobid_out_root(cfg) / "local_refs.json"
+
+
+def match_grobid_references(
+    cfg: BiblioConfig,
+    corpus: list[dict[str, Any]],
+) -> dict[str, list[dict[str, Any]]]:
+    """Match GROBID-extracted references against the local corpus.
+
+    corpus: list of {citekey, doi, title}.
+    Returns: {source_citekey: [{target_citekey, ref_title, ref_doi, match_type}]}.
+    DOI match takes precedence; title match is the fallback.
+    """
+    doi_index: dict[str, str] = {}    # normalized_doi -> citekey
+    title_index: dict[str, str] = {}  # normalized_title -> citekey
+    grobid_root = grobid_out_root(cfg)
+
+    for record in corpus:
+        ck = str(record.get("citekey") or "").strip()
+        if not ck:
+            continue
+        doi = str(record.get("doi") or "").strip().lower()
+        if doi:
+            doi_index.setdefault(doi, ck)
+        title = str(record.get("title") or "").strip()
+        if title:
+            norm = _normalize_title(title)
+            if norm:
+                title_index.setdefault(norm, ck)
+        # Enrich index from GROBID header (paper may have DOI/title not in srcbib)
+        header_path = grobid_root / ck / "header.json"
+        if header_path.exists():
+            try:
+                header = json.loads(header_path.read_text(encoding="utf-8"))
+                h_doi = str(header.get("doi") or "").strip().lower()
+                if h_doi:
+                    doi_index.setdefault(h_doi, ck)
+                h_title = str(header.get("title") or "").strip()
+                if h_title:
+                    norm = _normalize_title(h_title)
+                    if norm:
+                        title_index.setdefault(norm, ck)
+            except Exception:  # noqa: BLE001
+                pass
+
+    result: dict[str, list[dict[str, Any]]] = {}
+    for record in corpus:
+        ck = str(record.get("citekey") or "").strip()
+        if not ck:
+            continue
+        refs_path = grobid_root / ck / "references.json"
+        if not refs_path.exists():
+            continue
+        try:
+            refs = json.loads(refs_path.read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001
+            continue
+        matched: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        for ref in refs:
+            target: str | None = None
+            match_type: str | None = None
+            ref_doi = str(ref.get("doi") or "").strip().lower()
+            if ref_doi and ref_doi in doi_index:
+                candidate = doi_index[ref_doi]
+                if candidate != ck:
+                    target, match_type = candidate, "doi"
+            if target is None:
+                ref_title = str(ref.get("title") or "").strip()
+                if ref_title:
+                    norm = _normalize_title(ref_title)
+                    if norm and norm in title_index:
+                        candidate = title_index[norm]
+                        if candidate != ck:
+                            target, match_type = candidate, "title"
+            if target and target not in seen:
+                seen.add(target)
+                matched.append({
+                    "target_citekey": target,
+                    "ref_title": ref.get("title"),
+                    "ref_doi": ref.get("doi"),
+                    "match_type": match_type,
+                })
+        if matched:
+            result[ck] = matched
+    return result
+
+
+def build_corpus_for_match(cfg: BiblioConfig) -> list[dict[str, Any]]:
+    """Build a {citekey, doi, title} corpus from srcbib for reference matching."""
+    from .site import _iter_srcbib_records  # lazy to avoid circular at module load
+    records = _iter_srcbib_records(cfg)
+    if records:
+        return [
+            {"citekey": r["citekey"], "doi": r.get("doi"), "title": r.get("title")}
+            for r in records
+        ]
+    # Fallback: citekeys only — GROBID headers will fill in DOI/title via match index
+    from .citekeys import load_citekeys_md
+    keys = load_citekeys_md(cfg.citekeys_path) if cfg.citekeys_path.exists() else []
+    return [{"citekey": k, "doi": None, "title": None} for k in keys]
+
+
+def run_grobid_match(cfg: BiblioConfig) -> tuple[Path, dict[str, list[dict[str, Any]]]]:
+    """Run GROBID reference matching, write local_refs.json, return (path, matches)."""
+    corpus = build_corpus_for_match(cfg)
+    matches = match_grobid_references(cfg, corpus)
+    out_path = local_refs_path(cfg)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(matches, indent=2, ensure_ascii=False), encoding="utf-8")
+    return out_path, matches

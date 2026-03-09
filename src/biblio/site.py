@@ -520,9 +520,13 @@ def _build_site_model(cfg: BiblioConfig, options: BiblioSiteOptions) -> dict[str
     for record in source_records:
         source_by_key.setdefault(str(record["citekey"]), []).append(record)
 
-    from .grobid import grobid_out_root
+    from .grobid import grobid_out_root, local_refs_path
     docling_dirs = {p.name: p for p in sorted(cfg.out_root.glob("*")) if p.is_dir()}
     grobid_root = grobid_out_root(cfg)
+    _lr_path = local_refs_path(cfg)
+    grobid_local_refs: dict[str, list[dict[str, Any]]] = (
+        json.loads(_lr_path.read_text(encoding="utf-8")) if _lr_path.exists() else {}
+    )
     openalex_rows = _load_jsonl(cfg.openalex.out_jsonl) if options.include_openalex else []
     openalex_by_key = {str(row.get("citekey")): row for row in openalex_rows if row.get("citekey")}
 
@@ -618,7 +622,7 @@ def _build_site_model(cfg: BiblioConfig, options: BiblioSiteOptions) -> dict[str
                     "exists": openalex_row is not None,
                     "path": _safe_rel(cfg.openalex.out_jsonl, repo_root) if openalex_row is not None else None,
                 },
-                "grobid": _grobid_artifact(grobid_root, key, repo_root),
+                "grobid": _grobid_artifact(grobid_root, citekey, repo_root),
                 "notes": [
                     {"path": _safe_rel(path, repo_root), "name": path.name}
                     for path in extras["notes"]
@@ -632,12 +636,13 @@ def _build_site_model(cfg: BiblioConfig, options: BiblioSiteOptions) -> dict[str
                 "html": _minimal_markdown_to_html(docling_text) if docling_text else "",
                 "excerpt": "\n".join(docling_text.splitlines()[:20]).strip(),
             },
-            "grobid": _load_grobid_data(grobid_root, key),
+            "grobid": _load_grobid_data(grobid_root, citekey),
             "openalex": openalex_row,
             "graph": {
                 "seed_openalex_id": seed_id,
                 "outgoing": outgoing,
                 "incoming": incoming,
+                "grobid_refs": grobid_local_refs.get(citekey, []),
             },
         }
         papers.append(paper)
@@ -744,11 +749,48 @@ def _build_site_model(cfg: BiblioConfig, options: BiblioSiteOptions) -> dict[str
                         }
                     )
 
+    # Add grobid_ref edges to the graph (always local-to-local)
+    if options.include_graphs:
+        for paper in papers:
+            src_id = f"paper:{paper['citekey']}"
+            for ref in paper["graph"]["grobid_refs"]:
+                tgt_ck = str(ref.get("target_citekey") or "")
+                if not tgt_ck:
+                    continue
+                tgt_id = f"paper:{tgt_ck}"
+                if tgt_id not in seen_nodes:
+                    seen_nodes.add(tgt_id)
+                    graph_nodes.append({
+                        "id": tgt_id,
+                        "citekey": tgt_ck,
+                        "label": tgt_ck,
+                        "openalex_id": None,
+                        "kind": "local_seed",
+                        "is_local": True,
+                    })
+                edge_key = (src_id, tgt_id)
+                if edge_key not in edge_pairs:
+                    edge_pairs.add(edge_key)
+                    graph_edges.append({
+                        "source": src_id,
+                        "target": tgt_id,
+                        "kind": "grobid_ref",
+                        "source_citekey": paper["citekey"],
+                        "target_citekey": tgt_ck,
+                        "match_type": ref.get("match_type"),
+                        "direction": "references",
+                    })
+
     node_by_id = {node["id"]: node for node in graph_nodes}
     outgoing_local_by_seed: dict[str, set[str]] = {}
     incoming_local_by_seed: dict[str, set[str]] = {}
     for paper in papers:
-        outgoing_local_by_seed[paper["citekey"]] = {
+        grobid_outgoing = {
+            str(ref["target_citekey"])
+            for ref in paper["graph"]["grobid_refs"]
+            if ref.get("target_citekey")
+        }
+        outgoing_local_by_seed[paper["citekey"]] = grobid_outgoing | {
             str(item["citekey"])
             for item in paper["graph"]["outgoing"]
             if item.get("citekey")

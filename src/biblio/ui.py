@@ -18,7 +18,8 @@ from .graph import add_openalex_work_to_bib, expand_openalex_reference_graph, lo
 from .openalex.openalex_resolve import ResolveOptions, resolve_srcbib_to_openalex
 from .rag import default_biblio_rag_template, default_rag_config_path, sync_biblio_rag_config
 from .rag_support import load_raw_rag_config, write_raw_rag_config
-from .grobid import check_grobid_server_as_dict, derive_start_cmd, run_grobid_for_key
+from .grobid import check_grobid_server_as_dict, derive_start_cmd, run_grobid_for_key, run_grobid_match
+from .citekeys import load_citekeys_md
 from .site import build_biblio_site
 from .site import BiblioSiteOptions, _build_site_model, default_site_out_dir
 
@@ -629,39 +630,59 @@ def create_ui_app(cfg: BiblioConfig):
     @app.post("/api/actions/grobid-run", response_class=responses.JSONResponse)
     def action_grobid_run(payload: dict[str, Any]):
         active_cfg = current_cfg()
+        run_all = bool(payload.get("all"))
         citekey = str(payload.get("citekey") or "").strip()
-        if not citekey:
-            raise fastapi.HTTPException(status_code=400, detail="Missing citekey")
+        force = bool(payload.get("force"))
+
+        if not run_all and not citekey:
+            raise fastapi.HTTPException(status_code=400, detail="Missing citekey or all=true")
+
         with grobid_lock:
             if grobid_job["running"]:
                 return {"ok": True, "async": True, **dict(grobid_job)}
-            grobid_job.update(
-                {
-                    "running": True,
-                    "message": f"Running GROBID for {citekey}...",
-                    "error": None,
-                    "citekey": citekey,
-                    "references_path": None,
-                    "completed": 0,
-                    "total": 1,
-                }
-            )
+            if run_all:
+                keys = load_citekeys_md(active_cfg.citekeys_path) if active_cfg.citekeys_path.exists() else []
+                keys = [k for k in keys if (active_cfg.pdf_root / active_cfg.pdf_pattern.format(citekey=k)).exists()]
+                total = len(keys)
+                msg = f"Running GROBID for all {total} papers with PDFs..."
+            else:
+                keys = [citekey]
+                total = 1
+                msg = f"Running GROBID for {citekey}..."
+            grobid_job.update({
+                "running": True,
+                "message": msg,
+                "error": None,
+                "citekey": citekey if not run_all else None,
+                "references_path": None,
+                "completed": 0,
+                "total": total,
+            })
 
         def _run_grobid() -> None:
-            try:
-                out = run_grobid_for_key(active_cfg, citekey, force=bool(payload.get("force")))
-                with grobid_lock:
-                    grobid_job["running"] = False
-                    grobid_job["message"] = f"GROBID finished for {citekey}."
+            failures = 0
+            for idx, ck in enumerate(keys, start=1):
+                try:
+                    out = run_grobid_for_key(active_cfg, ck, force=force)
+                    with grobid_lock:
+                        grobid_job["completed"] = idx
+                        grobid_job["citekey"] = ck
+                        grobid_job["references_path"] = str(out.references_path)
+                        grobid_job["message"] = f"GROBID {idx}/{total}: {ck}"
+                except Exception as e:
+                    failures += 1
+                    with grobid_lock:
+                        grobid_job["completed"] = idx
+                        grobid_job["citekey"] = ck
+                        grobid_job["message"] = f"GROBID {idx}/{total}: {ck} failed: {e}"
+            with grobid_lock:
+                grobid_job["running"] = False
+                if failures == 0:
                     grobid_job["error"] = None
-                    grobid_job["references_path"] = str(out.references_path)
-                    grobid_job["completed"] = 1
-                    grobid_job["total"] = 1
-            except Exception as e:
-                with grobid_lock:
-                    grobid_job["running"] = False
-                    grobid_job["error"] = str(e)
-                    grobid_job["message"] = f"GROBID failed: {e}"
+                    grobid_job["message"] = f"GROBID finished ({total} papers, {failures} failures)."
+                else:
+                    grobid_job["error"] = f"{failures} papers failed."
+                    grobid_job["message"] = f"GROBID done with {failures} failures out of {total}."
 
         threading.Thread(target=_run_grobid, daemon=True).start()
         return {"ok": True, "async": True, **_grobid_snapshot()}
@@ -669,6 +690,46 @@ def create_ui_app(cfg: BiblioConfig):
     @app.get("/api/actions/grobid-run/status", response_class=responses.JSONResponse)
     def action_grobid_run_status():
         return _grobid_snapshot()
+
+    grobid_match_job: dict[str, Any] = {"running": False, "message": "", "error": None, "matched": 0, "links": 0}
+    grobid_match_lock = threading.Lock()
+
+    def _grobid_match_snapshot() -> dict[str, Any]:
+        with grobid_match_lock:
+            return dict(grobid_match_job)
+
+    @app.post("/api/actions/grobid-match", response_class=responses.JSONResponse)
+    def action_grobid_match():
+        active_cfg = current_cfg()
+        with grobid_match_lock:
+            if grobid_match_job["running"]:
+                return {"ok": True, "async": True, **dict(grobid_match_job)}
+            grobid_match_job.update({"running": True, "message": "Matching GROBID references...", "error": None})
+
+        def _run_match() -> None:
+            try:
+                _, matches = run_grobid_match(active_cfg)
+                total_links = sum(len(v) for v in matches.values())
+                with grobid_match_lock:
+                    grobid_match_job["running"] = False
+                    grobid_match_job["error"] = None
+                    grobid_match_job["matched"] = len(matches)
+                    grobid_match_job["links"] = total_links
+                    grobid_match_job["message"] = (
+                        f"Matched {len(matches)} papers with {total_links} local reference links."
+                    )
+            except Exception as e:
+                with grobid_match_lock:
+                    grobid_match_job["running"] = False
+                    grobid_match_job["error"] = str(e)
+                    grobid_match_job["message"] = f"GROBID match failed: {e}"
+
+        threading.Thread(target=_run_match, daemon=True).start()
+        return {"ok": True, "async": True, **_grobid_match_snapshot()}
+
+    @app.get("/api/actions/grobid-match/status", response_class=responses.JSONResponse)
+    def action_grobid_match_status():
+        return _grobid_match_snapshot()
 
     @app.post("/api/actions/site-build", response_class=responses.JSONResponse)
     def action_site_build():
