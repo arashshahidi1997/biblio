@@ -32,6 +32,7 @@ from .site import (
 from .openalex.openalex_resolve import ResolveOptions, resolve_srcbib_to_openalex
 from .ui import serve_ui_app
 from .grobid import check_grobid_server, run_grobid_for_key, run_grobid_match
+from .library import load_library, update_entry
 
 try:
     import argcomplete
@@ -291,6 +292,22 @@ def _build_parser() -> argparse.ArgumentParser:
     grobid_match = grobid_sub.add_parser("match", help="Match GROBID references against the local corpus.")
     grobid_match.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
     grobid_match.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+
+    p_lib = sub.add_parser("library", help="Manage per-paper status, tags, and priority in bib/config/library.yml.")
+    lib_sub = p_lib.add_subparsers(dest="library_cmd", required=True)
+    lib_list = lib_sub.add_parser("list", help="List all library entries.")
+    lib_list.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    lib_list.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    lib_list.add_argument("--status", help="Filter by status.")
+    lib_list.add_argument("--tag", help="Filter by tag.")
+    lib_list.add_argument("--json", action="store_true", help="Emit JSON.")
+    lib_set = lib_sub.add_parser("set", help="Set status, tags, or priority for a paper.")
+    lib_set.add_argument("key", help="Citekey (with or without leading @).")
+    lib_set.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    lib_set.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    lib_set.add_argument("--status", help="Status: unread|reading|processed|archived.")
+    lib_set.add_argument("--tags", help="Comma-separated tags (replaces existing tags).")
+    lib_set.add_argument("--priority", help="Priority: low|normal|high.")
 
     p_ui = sub.add_parser("ui", help="Serve a local interactive bibliography UI.")
     ui_sub = p_ui.add_subparsers(dest="ui_cmd", required=True)
@@ -737,6 +754,36 @@ def main(argv: Iterable[str] | None = None) -> None:
             )
             print(f"[NEXT] biblio site serve --root {repo_root} --out-dir {result.out_dir}")
             return
+
+    if args.command == "library":
+        repo_root = (args.root.expanduser().resolve() if getattr(args, "root", None) else find_repo_root())
+        cfg_path = (repo_root / args.config).resolve() if getattr(args, "config", None) else (repo_root / "bib" / "config" / "biblio.yml")
+        cfg = load_biblio_config(cfg_path, root=repo_root)
+        if args.library_cmd == "list":
+            entries = load_library(cfg)
+            status_filter = getattr(args, "status", None)
+            tag_filter = getattr(args, "tag", None)
+            filtered = {
+                k: v for k, v in entries.items()
+                if (not status_filter or v.get("status") == status_filter)
+                and (not tag_filter or tag_filter in (v.get("tags") or []))
+            }
+            if args.json:
+                print(json.dumps(filtered, indent=2))
+            else:
+                for ck, entry in sorted(filtered.items()):
+                    status = entry.get("status") or "-"
+                    tags = ",".join(entry.get("tags") or []) or "-"
+                    priority = entry.get("priority") or "-"
+                    print(f"{ck}\tstatus={status}\ttags={tags}\tpriority={priority}")
+            return
+        if args.library_cmd == "set":
+            key = args.key.lstrip("@")
+            tags = [t.strip() for t in args.tags.split(",") if t.strip()] if getattr(args, "tags", None) else None
+            entry = update_entry(cfg, key, status=args.status or None, tags=tags, priority=args.priority or None)
+            print(f"[OK] {key}: {entry}")
+            return
+        raise SystemExit(2)
 
     if args.command == "ui":
         if args.ui_cmd != "serve":

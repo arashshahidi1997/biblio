@@ -521,12 +521,14 @@ def _build_site_model(cfg: BiblioConfig, options: BiblioSiteOptions) -> dict[str
         source_by_key.setdefault(str(record["citekey"]), []).append(record)
 
     from .grobid import grobid_out_root, local_refs_path
+    from .library import load_library
     docling_dirs = {p.name: p for p in sorted(cfg.out_root.glob("*")) if p.is_dir()}
     grobid_root = grobid_out_root(cfg)
     _lr_path = local_refs_path(cfg)
     grobid_local_refs: dict[str, list[dict[str, Any]]] = (
         json.loads(_lr_path.read_text(encoding="utf-8")) if _lr_path.exists() else {}
     )
+    lib_entries = load_library(cfg)
     openalex_rows = _load_jsonl(cfg.openalex.out_jsonl) if options.include_openalex else []
     openalex_by_key = {str(row.get("citekey")): row for row in openalex_rows if row.get("citekey")}
 
@@ -637,6 +639,7 @@ def _build_site_model(cfg: BiblioConfig, options: BiblioSiteOptions) -> dict[str
                 "excerpt": "\n".join(docling_text.splitlines()[:20]).strip(),
             },
             "grobid": _load_grobid_data(grobid_root, citekey),
+            "library": lib_entries.get(citekey, {}),
             "openalex": openalex_row,
             "graph": {
                 "seed_openalex_id": seed_id,

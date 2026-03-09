@@ -46,6 +46,8 @@ class BiblioConfig:
     openalex_client: OpenAlexClientConfig
     openalex_cache: OpenAlexCache
     grobid: GrobidConfig
+    rag_python: str | None
+    rag_persist_dir: Path
 
 
 def _as_cmd(value: Any) -> list[str]:
@@ -121,6 +123,13 @@ def load_biblio_config(path: str | Path, *, root: str | Path | None = None) -> B
         consolidate_citations=bool(grobid_mapping.get("consolidate_citations", False)),
     )
 
+    rag_mapping = payload.get("rag") if isinstance(payload, dict) else None
+    if not isinstance(rag_mapping, dict):
+        rag_mapping = {}
+    raw_rag_python = rag_mapping.get("python") or None
+    raw_rag_persist = rag_mapping.get("persist_dir") or ".cache/rag/chroma_db"
+    rag_persist_dir = _abs(Path(raw_rag_persist))
+
     return BiblioConfig(
         repo_root=repo_root.resolve(),
         citekeys_path=_abs(citekeys),
@@ -137,6 +146,8 @@ def load_biblio_config(path: str | Path, *, root: str | Path | None = None) -> B
         openalex_client=openalex_cfg,
         openalex_cache=openalex_cache,
         grobid=grobid,
+        rag_python=str(raw_rag_python) if raw_rag_python else None,
+        rag_persist_dir=rag_persist_dir,
     )
 
 

@@ -428,3 +428,60 @@ def run_grobid_match(cfg: BiblioConfig) -> tuple[Path, dict[str, list[dict[str, 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(matches, indent=2, ensure_ascii=False), encoding="utf-8")
     return out_path, matches
+
+
+def get_absent_refs(cfg: BiblioConfig, citekey: str) -> list[dict[str, Any]]:
+    """Return GROBID-extracted references for citekey that have no local corpus match.
+
+    Each entry: {title, authors, year, doi, venue}.
+    """
+    refs_path = grobid_out_root(cfg) / citekey / "references.json"
+    if not refs_path.exists():
+        return []
+    try:
+        refs: list[dict[str, Any]] = json.loads(refs_path.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return []
+
+    corpus = build_corpus_for_match(cfg)
+
+    # Build DOI + title index for local corpus
+    doi_index: set[str] = set()
+    title_index: set[str] = set()
+    for record in corpus:
+        doi = str(record.get("doi") or "").strip().lower()
+        if doi:
+            doi_index.add(doi)
+        title = str(record.get("title") or "").strip()
+        if title:
+            norm = _normalize_title(title)
+            if norm:
+                title_index.add(norm)
+        # Also check GROBID header
+        ck = str(record.get("citekey") or "")
+        if ck:
+            header_path = grobid_out_root(cfg) / ck / "header.json"
+            if header_path.exists():
+                try:
+                    h = json.loads(header_path.read_text(encoding="utf-8"))
+                    h_doi = str(h.get("doi") or "").strip().lower()
+                    if h_doi:
+                        doi_index.add(h_doi)
+                    h_title = str(h.get("title") or "").strip()
+                    if h_title:
+                        norm = _normalize_title(h_title)
+                        if norm:
+                            title_index.add(norm)
+                except Exception:  # noqa: BLE001
+                    pass
+
+    absent = []
+    for ref in refs:
+        ref_doi = str(ref.get("doi") or "").strip().lower()
+        ref_title = str(ref.get("title") or "").strip()
+        matched = (ref_doi and ref_doi in doi_index) or (
+            ref_title and _normalize_title(ref_title) in title_index
+        )
+        if not matched and (ref_title or ref_doi):
+            absent.append(ref)
+    return absent

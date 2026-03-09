@@ -5,6 +5,7 @@ import json
 import shlex
 import socket
 import subprocess
+import sys
 import threading
 import shutil
 from pathlib import Path
@@ -18,8 +19,9 @@ from .graph import add_openalex_work_to_bib, expand_openalex_reference_graph, lo
 from .openalex.openalex_resolve import ResolveOptions, resolve_srcbib_to_openalex
 from .rag import default_biblio_rag_template, default_rag_config_path, sync_biblio_rag_config
 from .rag_support import load_raw_rag_config, write_raw_rag_config
-from .grobid import check_grobid_server_as_dict, derive_start_cmd, run_grobid_for_key, run_grobid_match
+from .grobid import check_grobid_server_as_dict, derive_start_cmd, get_absent_refs, run_grobid_for_key, run_grobid_match
 from .citekeys import load_citekeys_md
+from .library import load_library, notes_path, update_entry
 from .site import build_biblio_site
 from .site import BiblioSiteOptions, _build_site_model, default_site_out_dir
 
@@ -760,6 +762,186 @@ def create_ui_app(cfg: BiblioConfig):
             openalex_id=result.openalex_id,
             doi=result.doi,
         )
+
+    # ── library endpoints ─────────────────────────────────────────────────────
+
+    @app.get("/api/library", response_class=responses.JSONResponse)
+    def get_library():
+        return load_library(current_cfg())
+
+    @app.post("/api/library/{citekey}", response_class=responses.JSONResponse)
+    def update_library_entry(citekey: str, payload: dict[str, Any]):
+        active_cfg = current_cfg()
+        tags = payload.get("tags")
+        if isinstance(tags, str):
+            tags = [t.strip() for t in tags.split(",") if t.strip()] or None
+        elif isinstance(tags, list):
+            tags = [str(t).strip() for t in tags if str(t).strip()] or None
+        entry = update_entry(
+            active_cfg,
+            citekey,
+            status=payload.get("status") or None,
+            tags=tags,
+            priority=payload.get("priority") or None,
+        )
+        return {"ok": True, "citekey": citekey, "entry": entry}
+
+    # ── paper context endpoint (AI-facing) ────────────────────────────────────
+
+    @app.get("/api/papers/{citekey}/context", response_class=responses.JSONResponse)
+    def paper_context(citekey: str):
+        active_cfg = current_cfg()
+        payload = build_ui_model(active_cfg)
+        paper = payload.get("paper_lookup", {}).get(citekey)
+        if not paper:
+            raise fastapi.HTTPException(status_code=404, detail=f"Paper not found: {citekey}")
+        lib = paper.get("library") or {}
+        grobid = paper.get("grobid") or {}
+        header = grobid.get("header") or {}
+        np = notes_path(active_cfg, citekey)
+        notes_text = np.read_text(encoding="utf-8") if np.exists() else None
+        return {
+            "citekey": citekey,
+            "title": paper.get("title"),
+            "authors": paper.get("authors") or [],
+            "year": paper.get("year"),
+            "doi": paper.get("doi"),
+            "abstract": header.get("abstract"),
+            "status": lib.get("status"),
+            "tags": lib.get("tags") or [],
+            "priority": lib.get("priority"),
+            "docling_excerpt": (paper.get("docling") or {}).get("excerpt"),
+            "reference_count": grobid.get("reference_count", 0),
+            "local_refs": [r["target_citekey"] for r in (paper.get("graph") or {}).get("grobid_refs", [])],
+            "openalex_id": (paper.get("graph") or {}).get("seed_openalex_id"),
+            "notes": notes_text,
+            "artifacts": {
+                k: bool(v.get("exists"))
+                for k, v in (paper.get("artifacts") or {}).items()
+                if isinstance(v, dict) and "exists" in v
+            },
+        }
+
+    # ── absent-refs endpoint ──────────────────────────────────────────────────
+
+    @app.get("/api/papers/{citekey}/absent-refs", response_class=responses.JSONResponse)
+    def paper_absent_refs(citekey: str):
+        return {"absent_refs": get_absent_refs(current_cfg(), citekey)}
+
+    # ── RAG build endpoint ────────────────────────────────────────────────────
+
+    rag_build_job: dict[str, Any] = {
+        "running": False, "message": "", "error": None,
+        "indexed": 0, "chunks": 0, "completed": 0, "total": 0,
+    }
+    rag_build_lock = threading.Lock()
+
+    def _rag_build_snapshot() -> dict[str, Any]:
+        with rag_build_lock:
+            return dict(rag_build_job)
+
+    def _rag_python(active_cfg: BiblioConfig) -> str:
+        return active_cfg.rag_python or sys.executable
+
+    @app.post("/api/actions/rag-build", response_class=responses.JSONResponse)
+    def action_rag_build():
+        active_cfg = current_cfg()
+        with rag_build_lock:
+            if rag_build_job["running"]:
+                return {"ok": True, "async": True, **dict(rag_build_job)}
+            rag_build_job.update({
+                "running": True,
+                "message": "Building RAG index...",
+                "error": None,
+                "indexed": 0,
+                "chunks": 0,
+                "completed": 0,
+                "total": 1,
+            })
+
+        def _run_rag_build() -> None:
+            import sys as _sys  # noqa: PLC0415
+            vector_store_path = str(Path(__file__).parent / "vector_store.py")
+            python_exe = _rag_python(active_cfg)
+            try:
+                result = subprocess.run(
+                    [python_exe, vector_store_path, "build",
+                     "--root", str(active_cfg.repo_root),
+                     "--persist-dir", str(active_cfg.rag_persist_dir)],
+                    capture_output=True, text=True, timeout=600,
+                )
+                if result.returncode != 0:
+                    err = (result.stderr or result.stdout or "").strip()
+                    raise RuntimeError(f"RAG build exited {result.returncode}: {err[:500]}")
+                data = json.loads(result.stdout.strip())
+                if not data.get("ok"):
+                    raise RuntimeError(data.get("error") or "RAG build returned ok=false")
+                with rag_build_lock:
+                    rag_build_job.update({
+                        "running": False,
+                        "error": None,
+                        "indexed": data.get("indexed", 0),
+                        "chunks": data.get("chunks", 0),
+                        "completed": 1,
+                        "total": 1,
+                        "message": f"RAG index built: {data.get('indexed', 0)} papers, {data.get('chunks', 0)} chunks.",
+                    })
+            except Exception as e:
+                with rag_build_lock:
+                    rag_build_job.update({
+                        "running": False,
+                        "error": str(e),
+                        "message": f"RAG build failed: {e}",
+                        "completed": 1,
+                        "total": 1,
+                    })
+
+        threading.Thread(target=_run_rag_build, daemon=True).start()
+        return {"ok": True, "async": True, **_rag_build_snapshot()}
+
+    @app.get("/api/actions/rag-build/status", response_class=responses.JSONResponse)
+    def action_rag_build_status():
+        return _rag_build_snapshot()
+
+    # ── semantic search endpoint ──────────────────────────────────────────────
+
+    @app.post("/api/search/semantic", response_class=responses.JSONResponse)
+    def search_semantic(payload: dict[str, Any]):
+        active_cfg = current_cfg()
+        query = str(payload.get("query") or "").strip()
+        n_results = int(payload.get("n_results") or 10)
+        if not query:
+            raise fastapi.HTTPException(status_code=400, detail="Missing query")
+        vector_store_path = str(Path(__file__).parent / "vector_store.py")
+        python_exe = _rag_python(active_cfg)
+        try:
+            result = subprocess.run(
+                [python_exe, vector_store_path, "search",
+                 "--root", str(active_cfg.repo_root),
+                 "--persist-dir", str(active_cfg.rag_persist_dir),
+                 "--query", query,
+                 "--n", str(n_results)],
+                capture_output=True, text=True, timeout=60,
+            )
+            if result.returncode != 0:
+                err = (result.stderr or result.stdout or "").strip()
+                raise RuntimeError(f"RAG search exited {result.returncode}: {err[:500]}")
+            data = json.loads(result.stdout.strip())
+        except Exception as e:
+            raise fastapi.HTTPException(status_code=500, detail=str(e))
+        if not data.get("ok"):
+            raise fastapi.HTTPException(status_code=503, detail=data.get("error") or "Search failed")
+        # enrich results with paper metadata
+        model = build_ui_model(active_cfg)
+        paper_lookup = model.get("paper_lookup") or {}
+        for item in data.get("results") or []:
+            ck = item.get("citekey", "")
+            paper = paper_lookup.get(ck)
+            if paper:
+                item["title"] = paper.get("title")
+                item["year"] = paper.get("year")
+                item["authors"] = paper.get("authors") or []
+        return data
 
     @app.post("/api/setup/docling-check", response_class=responses.JSONResponse)
     def setup_docling_check():

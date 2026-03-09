@@ -42,6 +42,12 @@ export default function ActionsTab({ activePaper, actionState, triggerAction, ad
         >
           Match GROBID References
         </button>
+        <button
+          disabled={actionState.busy}
+          onClick={() => triggerAction("rag-build")}
+        >
+          Build RAG Index
+        </button>
       </div>
       <div className="field" style={{ marginTop: "1rem" }}>
         <label>Add paper by DOI</label>
@@ -64,7 +70,7 @@ export default function ActionsTab({ activePaper, actionState, triggerAction, ad
           {actionState.message}
         </div>
       )}
-      {(actionState.action === "openalex-resolve" || actionState.action === "graph-expand" || actionState.action === "docling-run" || actionState.action === "grobid-run" || actionState.action === "grobid-match") &&
+      {(actionState.action === "openalex-resolve" || actionState.action === "graph-expand" || actionState.action === "docling-run" || actionState.action === "grobid-run" || actionState.action === "grobid-match" || actionState.action === "rag-build") &&
         (actionState.progressTotal > 0 || actionState.busy) && (
           <div className="progress-wrap">
             <div className="small">

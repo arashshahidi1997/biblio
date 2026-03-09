@@ -5,6 +5,7 @@ import CorpusTab from './components/CorpusTab';
 import PaperTab from './components/PaperTab';
 import ActionsTab from './components/ActionsTab';
 import SetupTab from './components/SetupTab';
+import SearchTab from './components/SearchTab';
 
 export default function App() {
   const [payload, setPayload] = useState(null);
@@ -29,6 +30,8 @@ export default function App() {
   });
   const [activeExternalNode, setActiveExternalNode] = useState(null);
   const [addDoi, setAddDoi] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [tagFilter, setTagFilter] = useState("");
 
   const loadModel = useCallback(() => {
     fetch("/api/model").then((resp) => resp.json()).then((data) => {
@@ -75,10 +78,19 @@ export default function App() {
     if (!payload) return [];
     const q = query.trim().toLowerCase();
     return (payload.papers || []).filter((paper) => {
-      if (!q) return true;
-      return `${paper.citekey} ${paper.title}`.toLowerCase().includes(q);
+      if (q && !`${paper.citekey} ${paper.title}`.toLowerCase().includes(q)) return false;
+      if (statusFilter && (paper.library || {}).status !== statusFilter) return false;
+      if (tagFilter && !((paper.library || {}).tags || []).includes(tagFilter)) return false;
+      return true;
     });
-  }, [payload, query]);
+  }, [payload, query, statusFilter, tagFilter]);
+
+  const allTags = useMemo(() => {
+    if (!payload) return [];
+    const tags = new Set();
+    (payload.papers || []).forEach((p) => ((p.library || {}).tags || []).forEach((t) => tags.add(t)));
+    return [...tags].sort();
+  }, [payload]);
 
   const activePaper = useMemo(() => {
     if (!payload) return null;
@@ -93,6 +105,19 @@ export default function App() {
   useEffect(() => {
     setShowPdf(false);
   }, [activeKey]);
+
+  async function updateLibraryEntry(citekey, updates) {
+    try {
+      await fetch(`/api/library/${encodeURIComponent(citekey)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      });
+      loadModel();
+    } catch (err) {
+      console.error("library update failed", err);
+    }
+  }
 
   async function pollOpenAlexProgress() {
     try {
@@ -191,7 +216,7 @@ export default function App() {
         window.setTimeout(pollOpenAlexProgress, 150);
         return;
       }
-      if (data.async && (action === "graph-expand" || action === "docling-run" || action === "grobid-run" || action === "grobid-match")) {
+      if (data.async && (action === "graph-expand" || action === "docling-run" || action === "grobid-run" || action === "grobid-match" || action === "rag-build")) {
         const total = Number(data.total || 0);
         const completed = Number(data.completed || 0);
         setActionState({
@@ -275,6 +300,7 @@ export default function App() {
     ["corpus", "Corpus"],
     ["paper", "Paper"],
     ["actions", "Actions"],
+    ["search", "Search"],
     ["setup", "Setup"],
   ];
 
@@ -388,6 +414,12 @@ export default function App() {
           setActiveKey={setActiveKey}
           setActiveTab={setActiveTab}
           triggerAction={triggerAction}
+          statusFilter={statusFilter}
+          setStatusFilter={setStatusFilter}
+          tagFilter={tagFilter}
+          setTagFilter={setTagFilter}
+          allTags={allTags}
+          updateLibraryEntry={updateLibraryEntry}
         />
       )}
       {activeTab === "paper" && activePaper && (
@@ -397,6 +429,8 @@ export default function App() {
           showPdf={showPdf}
           setShowPdf={setShowPdf}
           doclingHtml={doclingHtml}
+          updateLibraryEntry={updateLibraryEntry}
+          triggerAction={triggerAction}
         />
       )}
       {activeTab === "actions" && (
@@ -406,6 +440,12 @@ export default function App() {
           triggerAction={triggerAction}
           addDoi={addDoi}
           setAddDoi={setAddDoi}
+        />
+      )}
+      {activeTab === "search" && (
+        <SearchTab
+          setActiveKey={setActiveKey}
+          setActiveTab={setActiveTab}
         />
       )}
       {activeTab === "setup" && (
