@@ -3,9 +3,13 @@ from __future__ import annotations
 import shutil
 from dataclasses import dataclass
 from importlib import resources
-from importlib.resources.abc import Traversable
 from pathlib import Path
-from typing import Iterator, Tuple
+from typing import Any, Iterator, Tuple
+
+try:  # Python >= 3.11
+    from importlib.resources.abc import Traversable
+except Exception:  # pragma: no cover
+    Traversable = Any
 
 
 TEMPLATE_PACKAGE = "biblio"

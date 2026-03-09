@@ -11,6 +11,13 @@ BibTeX imports, runs Docling, resolves OpenAlex metadata, syncs a
 bibliography-owned RAG config, expands local literature graphs, and builds a
 standalone bibliography explorer.
 
+It can also ingest structured inputs before you have `.bib` files, including:
+
+- DOI lists
+- CSL JSON
+- RIS
+- local PDFs
+
 Install for development:
 
 ```bash
@@ -29,6 +36,15 @@ Run the CLI:
 biblio --help
 ```
 
+Example ingestion flow:
+
+```bash
+biblio ingest csljson exports/library.json
+biblio ingest ris exports/library.ris
+biblio ingest dois reading-list.txt --stdout
+biblio ingest pdfs ~/Downloads/papers/
+```
+
 ## Documentation
 
 Install docs dependencies:
@@ -44,6 +60,13 @@ mkdocs serve
 ```
 
 The docs site uses a Diataxis layout and is intended for GitHub Pages deployment.
+
+Optional local UI:
+
+```bash
+pip install -e ".[ui]"
+biblio ui serve
+```
 
 ## Release workflow
 

@@ -27,6 +27,13 @@ This creates:
 
 Place one or more `.bib` files under `bib/srcbib/`.
 
+If you do not have BibTeX yet, you can import structured sources first:
+
+```bash
+biblio ingest csljson exports/library.json
+biblio ingest pdfs ~/Downloads/papers/
+```
+
 ## Merge and normalize
 
 ```bash

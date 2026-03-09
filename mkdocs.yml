@@ -37,6 +37,10 @@ nav:
       - Workspace Model: explanation/workspace.md
       - Why Docling And OpenAlex: explanation/docling-openalex.md
       - Static Site First: explanation/site-first.md
+  - Log:
+      - log/index.md
+      - Ideas:
+          - PDF Discovery Candidates: log/idea/2026-03-09-pdf-discovery.md
   - Reference:
       - reference/index.md
       - CLI: reference/cli.md

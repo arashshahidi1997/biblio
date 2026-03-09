@@ -16,6 +16,7 @@ from .openalex import resolve_openalex
 from .paths import find_repo_root
 from .rag import sync_biblio_rag_config
 from .graph import expand_openalex_reference_graph, load_openalex_seed_records
+from .ingest import default_import_bib_path, ingest_file
 from .scaffold import init_bib_scaffold
 from .pdf_fetch import fetch_pdfs
 from .site import (
@@ -27,6 +28,7 @@ from .site import (
     serve_biblio_site,
 )
 from .openalex.openalex_resolve import ResolveOptions, resolve_srcbib_to_openalex
+from .ui import serve_ui_app
 
 
 def _build_screen_bash_command(
@@ -79,6 +81,36 @@ def _build_parser() -> argparse.ArgumentParser:
     ck_rm.add_argument("keys", nargs="+", help="Keys like @foo_2020_Bar or foo_2020_Bar.")
     ck_rm.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
     ck_rm.add_argument("--path", type=Path, help="Path to citekeys.md (overrides config).")
+
+    p_ingest = sub.add_parser("ingest", help="Import non-BibTeX inputs into bib/srcbib/imported.bib.")
+    ingest_sub = p_ingest.add_subparsers(dest="ingest_cmd", required=True)
+    for name, help_text in (
+        ("dois", "Import one DOI per line from a text file."),
+        ("csljson", "Import CSL JSON records into a managed BibTeX source."),
+        ("ris", "Import RIS records into a managed BibTeX source."),
+    ):
+        p_in = ingest_sub.add_parser(name, help=help_text)
+        p_in.add_argument("input_path", type=Path, help="Input file to import.")
+        p_in.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+        p_in.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+        p_in.add_argument(
+            "--out-bib",
+            type=Path,
+            help="Managed output BibTeX file (default: bib/srcbib/imported.bib).",
+        )
+        p_in.add_argument("--dry-run", action="store_true", help="Parse and report without writing output.")
+        p_in.add_argument("--stdout", action="store_true", help="Print generated BibTeX to stdout.")
+    p_pdf = ingest_sub.add_parser("pdfs", help="Import local PDFs into bib/articles and emit managed BibTeX entries.")
+    p_pdf.add_argument("input_paths", nargs="+", type=Path, help="PDF files or directories containing PDFs.")
+    p_pdf.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    p_pdf.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    p_pdf.add_argument(
+        "--out-bib",
+        type=Path,
+        help="Managed output BibTeX file (default: bib/srcbib/imported.bib).",
+    )
+    p_pdf.add_argument("--dry-run", action="store_true", help="Parse and report without writing output.")
+    p_pdf.add_argument("--stdout", action="store_true", help="Print generated BibTeX to stdout.")
 
     p_doc = sub.add_parser("docling", help="Run Docling to generate Markdown/JSON artifacts.")
     doc_sub = p_doc.add_subparsers(dest="doc_cmd", required=True)
@@ -212,6 +244,14 @@ def _build_parser() -> argparse.ArgumentParser:
     site_doctor.add_argument("--include-openalex", dest="include_openalex", action="store_true", default=True)
     site_doctor.add_argument("--no-openalex", dest="include_openalex", action="store_false")
 
+    p_ui = sub.add_parser("ui", help="Serve a local interactive bibliography UI.")
+    ui_sub = p_ui.add_subparsers(dest="ui_cmd", required=True)
+    ui_serve = ui_sub.add_parser("serve", help="Serve the local FastAPI/React/Cytoscape UI.")
+    ui_serve.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    ui_serve.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    ui_serve.add_argument("--host", default="127.0.0.1", help="Host to bind (default: 127.0.0.1).")
+    ui_serve.add_argument("--port", type=int, default=8010, help="Port to bind (default: 8010).")
+
     return p
 
 
@@ -249,6 +289,43 @@ def main(argv: Iterable[str] | None = None) -> None:
             keys = add_citekeys_md(citekeys_path, args.keys)
             print(f"[OK] citekeys={len(keys)} path={citekeys_path}")
             return
+
+    if args.command == "ingest":
+        repo_root = (args.root.expanduser().resolve() if getattr(args, "root", None) else find_repo_root())
+        cfg = None
+        if getattr(args, "config", None):
+            cfg_path = (repo_root / args.config).resolve() if not args.config.is_absolute() else args.config.resolve()
+            cfg = load_biblio_config(cfg_path, root=repo_root)
+        else:
+            cfg = load_biblio_config(repo_root / "bib" / "config" / "biblio.yml", root=repo_root)
+        out_bib = (
+            (repo_root / args.out_bib).resolve() if getattr(args, "out_bib", None) and not args.out_bib.is_absolute()
+            else (args.out_bib.resolve() if getattr(args, "out_bib", None) else default_import_bib_path(repo_root))
+        )
+        result, bibtex_text = ingest_file(
+            repo_root=repo_root,
+            source_type=str(args.ingest_cmd),
+            input_path=getattr(args, "input_path", None),
+            input_paths=getattr(args, "input_paths", None),
+            output_path=out_bib,
+            dry_run=bool(args.dry_run),
+            stdout=bool(args.stdout),
+            pdf_root=cfg.pdf_root if cfg is not None else None,
+            pdf_pattern=cfg.pdf_pattern if cfg is not None else "{citekey}/{citekey}.pdf",
+            doi_api_base=cfg.openalex.api_base if cfg is not None else "https://api.openalex.org",
+            doi_mailto=cfg.openalex.mailto if cfg is not None else None,
+        )
+        suffix = " (dry-run)" if result.dry_run else ""
+        print(
+            f"[OK] source_type={result.source_type} parsed={result.parsed} emitted={result.emitted} output={result.output_path}{suffix}",
+            file=sys.stderr if args.stdout else sys.stdout,
+        )
+        if result.citekeys:
+            citekeys_line = ",".join(result.citekeys)
+            print(f"[OK] citekeys={citekeys_line}", file=sys.stderr if args.stdout else sys.stdout)
+        if args.stdout:
+            print(bibtex_text, end="")
+        return
         if args.citekeys_cmd == "remove":
             keys = remove_citekeys_md(citekeys_path, args.keys)
             print(f"[OK] citekeys={len(keys)} path={citekeys_path}")
@@ -488,6 +565,15 @@ def main(argv: Iterable[str] | None = None) -> None:
             )
             print(f"[NEXT] biblio site serve --root {repo_root} --out-dir {result.out_dir}")
             return
+
+    if args.command == "ui":
+        if args.ui_cmd != "serve":
+            raise SystemExit(2)
+        repo_root = (args.root.expanduser().resolve() if args.root else find_repo_root())
+        cfg_path = (repo_root / args.config).resolve() if args.config else (repo_root / "bib" / "config" / "biblio.yml")
+        cfg = load_biblio_config(cfg_path, root=repo_root)
+        serve_ui_app(cfg, host=str(args.host), port=int(args.port))
+        return
 
     raise SystemExit(2)
 

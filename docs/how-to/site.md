@@ -17,3 +17,17 @@ Clean:
 ```bash
 biblio site clean
 ```
+
+## Launch the interactive local UI
+
+Install the UI extra:
+
+```bash
+pip install "biblio-tools[ui]"
+```
+
+Then run:
+
+```bash
+biblio ui serve
+```
