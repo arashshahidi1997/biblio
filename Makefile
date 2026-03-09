@@ -2,6 +2,7 @@ PYTHON ?= /storage/share/python/environments/Anaconda3/envs/cogpy/bin/python
 PYTEST_PYTHON ?= /storage/share/python/environments/Anaconda3/envs/labpy/bin/python
 PUBLISH ?= /storage2/arash/infra/bin/publish_pypi.sh
 DATALAD ?= /storage/share/python/environments/Anaconda3/envs/cogpy/bin/datalad
+MSG ?= Update biblio
 
 .PHONY: help urls dev test test-all docs docs-serve ui-serve build check clean save push publish publish-test
 
@@ -17,7 +18,7 @@ help:
 		'make build       # build wheel and sdist' \
 		'make check       # run twine check on dist artifacts' \
 		'make clean       # remove local build artifacts' \
-		'make save        # datalad save with a default message' \
+		'make save MSG="..." # datalad save with a custom message' \
 		'make push        # datalad push --to github' \
 		'make publish     # publish to PyPI via personal helper' \
 		'make publish-test # publish to TestPyPI via personal helper'
@@ -55,7 +56,7 @@ clean:
 	rm -rf build dist site .pytest_cache .mypy_cache src/*.egg-info src/biblio_tools.egg-info
 
 save:
-	$(DATALAD) save -m "Update biblio"
+	$(DATALAD) save -m "$(MSG)"
 
 push:
 	$(DATALAD) push --to github

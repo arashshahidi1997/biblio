@@ -47,3 +47,13 @@ def test_ui_api_exposes_model_and_index(tmp_path: Path) -> None:
     data = payload.json()
     assert data["status"]["papers_total"] == 1
     assert data["papers"][0]["citekey"] == "paper2024"
+
+
+def test_ui_action_endpoint_for_docling_validates_payload(tmp_path: Path) -> None:
+    init_bib_scaffold(tmp_path, force=False)
+    cfg = load_biblio_config(tmp_path / "bib" / "config" / "biblio.yml", root=tmp_path)
+    client = TestClient(create_ui_app(cfg))
+
+    resp = client.post("/api/actions/docling-run", json={})
+    assert resp.status_code == 400
+    assert "Missing citekey" in resp.json()["detail"]

@@ -5,7 +5,12 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .bibtex import merge_srcbib
 from .config import BiblioConfig
+from .docling import run_docling_for_key
+from .graph import expand_openalex_reference_graph, load_openalex_seed_records
+from .openalex.openalex_resolve import ResolveOptions, resolve_srcbib_to_openalex
+from .site import build_biblio_site
 from .site import BiblioSiteOptions, _build_site_model, default_site_out_dir
 
 
@@ -202,6 +207,41 @@ def _index_html() -> str:
     .legend-seed::before { background: var(--accent); }
     .legend-local::before { background: var(--local); }
     .legend-external::before { background: var(--external); }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.55rem;
+      margin-top: 0.9rem;
+    }
+    .actions button {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 0.55rem 0.85rem;
+      background: white;
+      cursor: pointer;
+      font-size: 0.92rem;
+      font-family: inherit;
+    }
+    .actions button.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+    .actions button:disabled {
+      opacity: 0.55;
+      cursor: wait;
+    }
+    .action-status {
+      margin-top: 0.65rem;
+      padding: 0.7rem 0.85rem;
+      border-radius: 12px;
+      background: #eef4f1;
+      color: var(--accent);
+    }
+    .action-status.error {
+      background: #f7e8e5;
+      color: #8f3b2a;
+    }
     @media (max-width: 960px) {
       .controls, .layout, .metric-row {
         grid-template-columns: 1fr;
@@ -220,16 +260,21 @@ def _index_html() -> str:
       const [query, setQuery] = React.useState("");
       const [activeKey, setActiveKey] = React.useState("");
       const [localOnly, setLocalOnly] = React.useState(false);
+      const [actionState, setActionState] = React.useState({busy: false, message: "", error: false});
       const cyRef = React.useRef(null);
 
-      React.useEffect(() => {
+      const loadModel = React.useCallback(() => {
         fetch("/api/model").then((resp) => resp.json()).then((data) => {
           setPayload(data);
           if (data.papers && data.papers.length) {
-            setActiveKey(data.papers[0].citekey);
+            setActiveKey((prev) => prev && data.papers.some((paper) => paper.citekey === prev) ? prev : data.papers[0].citekey);
           }
         });
       }, []);
+
+      React.useEffect(() => {
+        loadModel();
+      }, [loadModel]);
 
       const papers = React.useMemo(() => {
         if (!payload) return [];
@@ -244,6 +289,25 @@ def _index_html() -> str:
         if (!payload) return null;
         return (payload.papers || []).find((paper) => paper.citekey === activeKey) || papers[0] || null;
       }, [payload, papers, activeKey]);
+
+      async function triggerAction(action, body) {
+        setActionState({busy: true, message: `Running ${action}...`, error: false});
+        try {
+          const resp = await fetch(`/api/actions/${action}`, {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(body || {}),
+          });
+          const data = await resp.json();
+          if (!resp.ok) {
+            throw new Error(data.detail || data.error || `Request failed: ${resp.status}`);
+          }
+          setActionState({busy: false, message: data.message || `${action} finished`, error: false});
+          loadModel();
+        } catch (err) {
+          setActionState({busy: false, message: String(err.message || err), error: true});
+        }
+      }
 
       React.useEffect(() => {
         if (!payload || !activePaper) return;
@@ -328,8 +392,20 @@ def _index_html() -> str:
             e("span", {className: "legend-seed"}, "active seed"),
             e("span", {className: "legend-local"}, "local paper"),
             e("span", {className: "legend-external"}, "external neighbor")
-          )
+          ),
+          e("div", {className: "actions"},
+            e("button", {disabled: actionState.busy, onClick: () => triggerAction("bibtex-merge"), className: "primary"}, "Merge BibTeX"),
+            e("button", {disabled: actionState.busy, onClick: () => triggerAction("openalex-resolve")}, "Resolve OpenAlex"),
+            e("button", {disabled: actionState.busy, onClick: () => triggerAction("graph-expand")}, "Expand Graph"),
+            e("button", {disabled: actionState.busy, onClick: () => triggerAction("site-build")}, "Build Site"),
+            e("button", {disabled: actionState.busy || !activePaper, onClick: () => activePaper && triggerAction("docling-run", {citekey: activePaper.citekey})}, "Run Docling For Selected")
+          ),
+          actionState.message && e("div", {className: `action-status ${actionState.error ? "error" : ""}`}, actionState.message)
         ),
+        e("div", {className: "small", style: {marginBottom: "0.9rem"}},
+          activePaper ? `Focused paper: ${activePaper.citekey}` : "No active paper"
+          )
+        ,
         e("div", {className: "controls"},
           e("div", {className: "field"},
             e("label", null, "Search papers"),
@@ -433,6 +509,80 @@ def create_ui_app(cfg: BiblioConfig):
         payload = build_ui_model(cfg)
         return payload["graph"]
 
+    def _action_result(message: str, **extra: Any) -> dict[str, Any]:
+        return {"ok": True, "message": message, **extra}
+
+    @app.post("/api/actions/bibtex-merge", response_class=responses.JSONResponse)
+    def action_bibtex_merge():
+        n_sources, n_entries = merge_srcbib(cfg.bibtex_merge, dry_run=False)
+        return _action_result(
+            f"Merged {n_sources} source files into {n_entries} entries.",
+            sources=n_sources,
+            entries=n_entries,
+        )
+
+    @app.post("/api/actions/docling-run", response_class=responses.JSONResponse)
+    def action_docling_run(payload: dict[str, Any]):
+        citekey = str(payload.get("citekey") or "").strip()
+        if not citekey:
+            raise fastapi.HTTPException(status_code=400, detail="Missing citekey")
+        out = run_docling_for_key(cfg, citekey, force=False)
+        return _action_result(
+            f"Docling finished for {citekey}.",
+            citekey=citekey,
+            md_path=str(out.md_path),
+        )
+
+    @app.post("/api/actions/openalex-resolve", response_class=responses.JSONResponse)
+    def action_openalex_resolve():
+        counts = resolve_srcbib_to_openalex(
+            cfg=cfg.openalex_client,
+            cache=cfg.openalex_cache,
+            src_dir=cfg.openalex.src_dir,
+            src_glob=cfg.openalex.src_glob,
+            out_path=cfg.openalex.out_jsonl,
+            out_format="jsonl",
+            limit=None,
+            opts=ResolveOptions(
+                prefer_doi=True,
+                fallback_title_search=True,
+                per_page=int(cfg.openalex_client.per_page),
+                strict=False,
+                force=False,
+            ),
+        )
+        return _action_result(
+            f"Resolved OpenAlex metadata for {counts['resolved']} entries.",
+            counts=counts,
+        )
+
+    @app.post("/api/actions/graph-expand", response_class=responses.JSONResponse)
+    def action_graph_expand():
+        input_path = cfg.openalex.out_jsonl
+        output_path = cfg.openalex.out_jsonl.parent / "graph_candidates.json"
+        records = load_openalex_seed_records(input_path)
+        result = expand_openalex_reference_graph(
+            cfg=cfg.openalex_client,
+            cache=cfg.openalex_cache,
+            records=records,
+            out_path=output_path,
+            force=False,
+        )
+        return _action_result(
+            f"Expanded {result.candidates} graph candidates.",
+            candidates=result.candidates,
+            output_path=str(result.output_path),
+        )
+
+    @app.post("/api/actions/site-build", response_class=responses.JSONResponse)
+    def action_site_build():
+        result = build_biblio_site(cfg, force=True)
+        return _action_result(
+            f"Built site with {result.papers_total} papers.",
+            out_dir=str(result.out_dir),
+            papers=result.papers_total,
+        )
+
     return app
 
 
@@ -440,4 +590,3 @@ def serve_ui_app(cfg: BiblioConfig, *, host: str = "127.0.0.1", port: int = 8010
     uvicorn = _require_uvicorn()
     app = create_ui_app(cfg)
     uvicorn.run(app, host=host, port=int(port))
-

@@ -31,3 +31,11 @@ Then run:
 ```bash
 biblio ui serve
 ```
+
+The local UI can also trigger selected `biblio` actions directly, including:
+
+- BibTeX merge
+- OpenAlex resolve
+- graph expansion
+- site rebuild
+- Docling for the currently selected paper

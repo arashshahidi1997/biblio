@@ -24,3 +24,7 @@ biblio openalex --help
 biblio site --help
 biblio ui --help
 ```
+
+The current UI command is:
+
+- `biblio ui serve`
