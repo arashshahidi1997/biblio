@@ -13,3 +13,7 @@
 	path = resources/inciteful-web
 	url = https://github.com/inciteful-xyz/inciteful-web.git
 	datalad-url = https://github.com/inciteful-xyz/inciteful-web.git
+[submodule "resources/paperscape-mapclient"]
+	path = resources/paperscape-mapclient
+	url = https://github.com/paperscape/paperscape-mapclient.git
+	datalad-url = https://github.com/paperscape/paperscape-mapclient.git
