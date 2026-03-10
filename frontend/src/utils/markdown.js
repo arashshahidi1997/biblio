@@ -5,8 +5,22 @@ export function escapeHtml(text) {
     .replace(/>/g, "&gt;");
 }
 
-export function inlineMarkdown(text) {
-  let out = escapeHtml(text);
+export function inlineMarkdown(text, { imageBase = "" } = {}) {
+  // Process images first (before escaping), then escape non-image parts
+  const imgRe = /!\[([^\]]*)\]\(([^)]+)\)/g;
+  const parts = [];
+  let last = 0;
+  let m;
+  while ((m = imgRe.exec(text)) !== null) {
+    parts.push(escapeHtml(text.slice(last, m.index)));
+    const src = imageBase && !m[2].startsWith("http") && !m[2].startsWith("/")
+      ? `${imageBase}/${m[2]}`
+      : m[2];
+    parts.push(`<img src="${escapeHtml(src)}" alt="${escapeHtml(m[1])}" style="max-width:100%;height:auto;">`);
+    last = m.index + m[0].length;
+  }
+  parts.push(escapeHtml(text.slice(last)));
+  let out = parts.join("");
   out = out.replace(/`([^`]+)`/g, "<code>$1</code>");
   out = out.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
   out = out.replace(/\*([^*]+)\*/g, "<em>$1</em>");
@@ -14,7 +28,7 @@ export function inlineMarkdown(text) {
   return out;
 }
 
-export function renderMarkdown(source) {
+export function renderMarkdown(source, { imageBase = "" } = {}) {
   const text = String(source || "").replace(/\r\n/g, "\n");
   if (!text.trim()) return "<p>No Docling content available.</p>";
   const lines = text.split("\n");
@@ -25,9 +39,11 @@ export function renderMarkdown(source) {
   let listType = null;
   let listItems = [];
 
+  const inline = (t) => inlineMarkdown(t, { imageBase });
+
   function flushParagraph() {
     if (paragraph.length) {
-      blocks.push(`<p>${inlineMarkdown(paragraph.join(" "))}</p>`);
+      blocks.push(`<p>${inline(paragraph.join(" "))}</p>`);
       paragraph = [];
     }
   }
@@ -35,7 +51,7 @@ export function renderMarkdown(source) {
   function flushList() {
     if (listItems.length && listType) {
       const tag = listType === "ol" ? "ol" : "ul";
-      blocks.push(`<${tag}>${listItems.map((item) => `<li>${inlineMarkdown(item)}</li>`).join("")}</${tag}>`);
+      blocks.push(`<${tag}>${listItems.map((item) => `<li>${inline(item)}</li>`).join("")}</${tag}>`);
       listItems = [];
       listType = null;
     }
@@ -71,10 +87,17 @@ export function renderMarkdown(source) {
       flushList();
       continue;
     }
+    // Standalone image line → render as a block element
+    if (trimmed.startsWith("![")) {
+      flushParagraph();
+      flushList();
+      blocks.push(inline(trimmed));
+      continue;
+    }
     if (trimmed.startsWith(">")) {
       flushParagraph();
       flushList();
-      blocks.push(`<blockquote>${inlineMarkdown(trimmed.replace(/^>\s?/, ""))}</blockquote>`);
+      blocks.push(`<blockquote>${inline(trimmed.replace(/^>\s?/, ""))}</blockquote>`);
       continue;
     }
     const heading = trimmed.match(/^(#{1,3})\s+(.*)$/);
@@ -82,7 +105,7 @@ export function renderMarkdown(source) {
       flushParagraph();
       flushList();
       const level = heading[1].length;
-      blocks.push(`<h${level}>${inlineMarkdown(heading[2])}</h${level}>`);
+      blocks.push(`<h${level}>${inline(heading[2])}</h${level}>`);
       continue;
     }
     const ordered = trimmed.match(/^\d+\.\s+(.*)$/);

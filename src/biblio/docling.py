@@ -120,7 +120,9 @@ def run_docling_for_key(cfg: BiblioConfig, citekey: str, *, force: bool = False)
             ]
         )
 
-        subprocess.run(cmd, cwd=str(out.outdir), check=True)
+        proc = subprocess.run(cmd, cwd=str(out.outdir), capture_output=True, text=True)
+        if proc.returncode != 0:
+            raise subprocess.CalledProcessError(proc.returncode, cmd, proc.stdout, proc.stderr)
 
     _require_nonempty(out.md_path, "Docling Markdown output")
     _require_nonempty(out.json_path, "Docling JSON output")

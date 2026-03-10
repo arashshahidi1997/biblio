@@ -1,26 +1,34 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { renderMarkdown } from './utils/markdown';
 import ExploreTab from './components/ExploreTab';
 import CorpusTab from './components/CorpusTab';
 import PaperTab from './components/PaperTab';
-import ActionsTab from './components/ActionsTab';
 import SetupTab from './components/SetupTab';
 import SearchTab from './components/SearchTab';
+import GraphInspector from './components/GraphInspector';
 
 export default function App() {
+  const urlCitekey = new URLSearchParams(window.location.search).get("paper") || "";
   const [payload, setPayload] = useState(null);
   const [query, setQuery] = useState("");
-  const [activeKey, setActiveKey] = useState("");
+  const [activeKey, setActiveKey] = useState(urlCitekey);
   const [localOnly, setLocalOnly] = useState(false);
-  const [graphMode, setGraphMode] = useState("focused");
+  const [graphMode, setGraphMode] = useState("all");
   const [graphDirection, setGraphDirection] = useState("both");
-  const [activeTab, setActiveTab] = useState("explore");
+  const [sizeBy, setSizeBy] = useState("cited_by");
+  const [colorBy, setColorBy] = useState("year");
+  const [activeTab, setActiveTab] = useState(urlCitekey ? "paper" : "library");
+  const [openPaperKeys, setOpenPaperKeys] = useState(urlCitekey ? [urlCitekey] : []);
+  const [activePaperKey, setActivePaperKey] = useState(urlCitekey);
+  const [showSearch, setShowSearch] = useState(false);
+  const [libraryMode, setLibraryMode] = useState("list"); // "list" | "split" | "graph"
+  const [showInspector, setShowInspector] = useState(false);
+  const [showSetup, setShowSetup] = useState(false);
   const [actionState, setActionState] = useState({ busy: false, message: "", error: false });
   const [setup, setSetup] = useState(null);
   const [setupError, setSetupError] = useState(null);
   const [setupCommand, setSetupCommand] = useState("");
   const [setupCondaEnv, setSetupCondaEnv] = useState("docling");
-  const [showPdf, setShowPdf] = useState(false);
   const [ragConfig, setRagConfig] = useState({
     embedding_model: "",
     chunk_size_chars: "1000",
@@ -29,7 +37,8 @@ export default function App() {
     local_persist_directory: ".cache/rag/chroma_db",
   });
   const [activeExternalNode, setActiveExternalNode] = useState(null);
-  const [addDoi, setAddDoi] = useState("");
+  const [selectedGraphNode, setSelectedGraphNode] = useState(null); // { kind: "local"|"external", citekey?, node? }
+  const cyInstanceRef = useRef(null);
   const [statusFilter, setStatusFilter] = useState("");
   const [tagFilter, setTagFilter] = useState("");
 
@@ -92,19 +101,45 @@ export default function App() {
     return [...tags].sort();
   }, [payload]);
 
+  // Paper focused in the graph/inspector
   const activePaper = useMemo(() => {
     if (!payload) return null;
     return (payload.papers || []).find((paper) => paper.citekey === activeKey) || papers[0] || null;
   }, [payload, papers, activeKey]);
 
+  // Paper shown in the paper tab strip
+  const activePaperItem = useMemo(() => {
+    if (!payload || !activePaperKey) return null;
+    return (payload.papers || []).find((p) => p.citekey === activePaperKey) || null;
+  }, [payload, activePaperKey]);
+
   const doclingHtml = useMemo(
-    () => renderMarkdown((activePaper && activePaper.docling && activePaper.docling.excerpt) || ""),
-    [activePaper]
+    () => renderMarkdown(
+      (activePaperItem && activePaperItem.docling && activePaperItem.docling.excerpt) || "",
+      { imageBase: activePaperItem ? `/api/files/docling/${activePaperItem.citekey}` : "" },
+    ),
+    [activePaperItem]
   );
 
-  useEffect(() => {
-    setShowPdf(false);
-  }, [activeKey]);
+
+  function openInPaperTab(citekey) {
+    setOpenPaperKeys((prev) => prev.includes(citekey) ? prev : [...prev, citekey]);
+    setActivePaperKey(citekey);
+    setActiveTab("paper");
+  }
+
+  function closePaperTab(citekey) {
+    setOpenPaperKeys((prev) => {
+      const next = prev.filter((k) => k !== citekey);
+      if (activePaperKey === citekey) {
+        const idx = prev.indexOf(citekey);
+        const nextKey = next[idx] ?? next[idx - 1] ?? "";
+        setActivePaperKey(nextKey);
+        if (!nextKey) setActiveTab("library");
+      }
+      return next;
+    });
+  }
 
   async function updateLibraryEntry(citekey, updates) {
     try {
@@ -165,6 +200,7 @@ export default function App() {
         busy: !!data.running,
         message: data.message || `${action} running...`,
         error: !!data.error,
+        logs: data.logs || "",
         progressCompleted: completed,
         progressTotal: total,
         progressPercent: pct,
@@ -181,6 +217,7 @@ export default function App() {
         busy: false,
         message: String(err.message || err),
         error: true,
+        logs: "",
         progressCompleted: 0,
         progressTotal: 0,
         progressPercent: 0,
@@ -216,7 +253,7 @@ export default function App() {
         window.setTimeout(pollOpenAlexProgress, 150);
         return;
       }
-      if (data.async && (action === "graph-expand" || action === "docling-run" || action === "grobid-run" || action === "grobid-match" || action === "rag-build")) {
+      if (data.async && (action === "graph-expand" || action === "docling-run" || action === "grobid-run" || action === "grobid-match" || action === "rag-build" || action === "fetch-pdfs-oa")) {
         const total = Number(data.total || 0);
         const completed = Number(data.completed || 0);
         setActionState({
@@ -292,25 +329,22 @@ export default function App() {
     );
   }
 
-  const activeArtifacts = activePaper ? activePaper.artifacts : null;
+  const activeArtifacts = activePaperItem ? activePaperItem.artifacts : null;
   const docsUrl = "https://arashshahidi1997.github.io/biblio/";
   const githubUrl = "https://github.com/arashshahidi1997/biblio";
   const tabs = [
-    ["explore", "Explore"],
-    ["corpus", "Corpus"],
+    ["library", "Library"],
     ["paper", "Paper"],
-    ["actions", "Actions"],
-    ["search", "Search"],
-    ["setup", "Setup"],
   ];
 
   return (
     <div className="app">
+      {/* Header */}
       <div className="header">
         <div className="header-bar">
           <div>
             <div className="small">Local FastAPI bibliography explorer</div>
-            <h1>biblio ui</h1>
+            <h1>BiBlio</h1>
             <div className="legend small">
               <span className="legend-seed">active seed</span>
               <span className="legend-local">local paper</span>
@@ -323,146 +357,368 @@ export default function App() {
           </div>
         </div>
       </div>
-      <div className="small" style={{ marginBottom: "0.9rem" }}>
-        {activePaper ? `Focused paper: ${activePaper.citekey}` : "No active paper"}
-      </div>
-      <div className="tabs">
-        {tabs.map(([value, label]) => (
-          <button
-            key={value}
-            className={`tab ${activeTab === value ? "active" : ""}`}
-            onClick={() => setActiveTab(value)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-      <div className="controls">
-        <div className="field">
-          <label>Search papers</label>
-          <>
-            <input
-              list="paper-search-options"
-              value={query}
-              onChange={(ev) => {
-                const value = ev.target.value;
-                setQuery(value);
-                const exact = (payload.papers || []).find((paper) => paper.citekey === value);
-                if (exact) {
-                  setActiveKey(exact.citekey);
-                }
-              }}
-              placeholder="citekey or title"
-            />
-            <datalist id="paper-search-options">
-              {papers.slice(0, 50).map((paper) => (
-                <option key={paper.citekey} value={paper.citekey} label={`${paper.citekey} — ${paper.title}`} />
-              ))}
-            </datalist>
-          </>
-        </div>
-        <div className="field">
-          <label>Focus paper</label>
-          <select value={activePaper ? activePaper.citekey : ""} onChange={(ev) => setActiveKey(ev.target.value)}>
-            {papers.map((paper) => (
-              <option key={paper.citekey} value={paper.citekey}>{`${paper.citekey} — ${paper.title}`}</option>
+
+      {/* App body: icon sidebar + main */}
+      <div className="app-layout">
+
+        {/* Vertical icon sidebar */}
+        <nav className="icon-sidebar">
+          {/* Nav: Library / Paper */}
+          <div className="sidebar-section">
+            <button
+              className={`sidebar-icon${activeTab === "library" ? " active" : ""}`}
+              onClick={() => setActiveTab("library")}
+              title="Library"
+            >
+              ☰
+            </button>
+            <button
+              className={`sidebar-icon${activeTab === "paper" ? " active" : ""}`}
+              onClick={() => setActiveTab("paper")}
+              title="Papers"
+              style={{ position: "relative" }}
+            >
+              ⊡
+              {openPaperKeys.length > 0 && (
+                <span className="sidebar-badge">{openPaperKeys.length}</span>
+              )}
+            </button>
+          </div>
+
+          <div className="sidebar-divider" />
+
+          {/* Panel toggles */}
+          <div className="sidebar-section">
+            <button
+              className={`sidebar-icon${showSearch ? " active" : ""}`}
+              onClick={() => setShowSearch((s) => !s)}
+              title="Search"
+            >
+              ⌕
+            </button>
+            {activeTab === "library" && (
+              <button
+                className={`sidebar-icon${showInspector ? " active" : ""}`}
+                onClick={() => setShowInspector((s) => !s)}
+                title="Inspector"
+              >
+                ⓘ
+              </button>
+            )}
+          </div>
+
+          {/* Spacer pushes settings to bottom */}
+          <div className="sidebar-spacer" />
+
+          <div className="sidebar-section">
+            <button
+              className={`sidebar-icon${showSetup ? " active" : ""}`}
+              onClick={() => setShowSetup((s) => !s)}
+              title="Settings"
+            >
+              ⚙
+            </button>
+          </div>
+        </nav>
+
+        {/* Main content */}
+        <div className="main-content">
+
+          {/* Settings full view */}
+          {showSetup && (
+            <div className="settings-view">
+              <div className="settings-view-header">
+                <h2 style={{ margin: 0 }}>Settings</h2>
+                <button className="icon-btn" onClick={() => setShowSetup(false)} title="Close">✕</button>
+              </div>
+              <SetupTab
+                setup={setup}
+                setupError={setupError}
+                modelStatus={payload ? payload.status : null}
+                setupCommand={setupCommand}
+                setSetupCommand={setSetupCommand}
+                setupCondaEnv={setupCondaEnv}
+                setSetupCondaEnv={setSetupCondaEnv}
+                ragConfig={ragConfig}
+                setRagConfig={setRagConfig}
+                actionState={actionState}
+                triggerSetupAction={triggerSetupAction}
+                triggerAction={triggerAction}
+              />
+            </div>
+          )}
+
+          {!showSetup && (<>
+          {/* Global tab strip: Library (fixed) + open paper tabs */}
+          <div className="global-tabstrip">
+            <div
+              className={`global-tabstrip-tab global-tabstrip-tab--library${activeTab === "library" ? " active" : ""}`}
+              onClick={() => setActiveTab("library")}
+              title="Library"
+            >
+              <span className="global-tabstrip-label">▤ Library</span>
+            </div>
+            <div className="global-tabstrip-sep" />
+            {openPaperKeys.map((ck) => (
+              <div
+                key={ck}
+                className={`global-tabstrip-tab${activeTab === "paper" && ck === activePaperKey ? " active" : ""}`}
+                onClick={() => { setActiveTab("paper"); setActivePaperKey(ck); }}
+              >
+                <span className="global-tabstrip-label">{ck}</span>
+                <button
+                  className="global-tabstrip-close"
+                  onClick={(e) => { e.stopPropagation(); closePaperTab(ck); }}
+                >×</button>
+              </div>
             ))}
-          </select>
-        </div>
-        <div className="field">
-          <label>Graph filter</label>
-          <select value={localOnly ? "local" : "all"} onChange={(ev) => setLocalOnly(ev.target.value === "local")}>
-            <option value="all">Local + external</option>
-            <option value="local">Local only</option>
-          </select>
-        </div>
-        <div className="field">
-          <label>Explore mode</label>
-          <select value={graphMode} onChange={(ev) => setGraphMode(ev.target.value)}>
-            <option value="focused">Focused neighborhood</option>
-            <option value="all">All papers in graph</option>
-          </select>
-        </div>
-        <div className="field">
-          <label>Direction</label>
-          <select value={graphDirection} onChange={(ev) => setGraphDirection(ev.target.value)}>
-            <option value="both">Past + future</option>
-            <option value="past">Past works</option>
-            <option value="future">Future works</option>
-          </select>
-        </div>
-      </div>
-      {activeTab === "explore" && (
-        <ExploreTab
-          payload={payload}
-          activePaper={activePaper}
-          activeExternalNode={activeExternalNode}
-          localOnly={localOnly}
-          graphMode={graphMode}
-          graphDirection={graphDirection}
-          actionState={actionState}
-          triggerAction={triggerAction}
-          setActiveKey={setActiveKey}
-          setActiveExternalNode={setActiveExternalNode}
-          activeTab={activeTab}
-        />
-      )}
-      {activeTab === "corpus" && (
-        <CorpusTab
-          papers={papers}
-          actionState={actionState}
-          setActiveKey={setActiveKey}
-          setActiveTab={setActiveTab}
-          triggerAction={triggerAction}
-          statusFilter={statusFilter}
-          setStatusFilter={setStatusFilter}
-          tagFilter={tagFilter}
-          setTagFilter={setTagFilter}
-          allTags={allTags}
-          updateLibraryEntry={updateLibraryEntry}
-        />
-      )}
-      {activeTab === "paper" && activePaper && (
-        <PaperTab
-          activePaper={activePaper}
-          activeArtifacts={activeArtifacts}
-          showPdf={showPdf}
-          setShowPdf={setShowPdf}
-          doclingHtml={doclingHtml}
-          updateLibraryEntry={updateLibraryEntry}
-          triggerAction={triggerAction}
-        />
-      )}
-      {activeTab === "actions" && (
-        <ActionsTab
-          activePaper={activePaper}
-          actionState={actionState}
-          triggerAction={triggerAction}
-          addDoi={addDoi}
-          setAddDoi={setAddDoi}
-        />
-      )}
-      {activeTab === "search" && (
-        <SearchTab
-          setActiveKey={setActiveKey}
-          setActiveTab={setActiveTab}
-        />
-      )}
-      {activeTab === "setup" && (
-        <SetupTab
-          setup={setup}
-          setupError={setupError}
-          modelStatus={payload ? payload.status : null}
-          setupCommand={setupCommand}
-          setSetupCommand={setSetupCommand}
-          setupCondaEnv={setupCondaEnv}
-          setSetupCondaEnv={setSetupCondaEnv}
-          ragConfig={ragConfig}
-          setRagConfig={setRagConfig}
-          actionState={actionState}
-          triggerSetupAction={triggerSetupAction}
-        />
-      )}
+          </div>
+
+          {/* Paper/graph controls */}
+          <div className="controls" style={{ marginBottom: "0.75rem" }}>
+            {activeTab !== "paper" && (
+              <div className="field">
+                <label>Search papers</label>
+                <>
+                  <input
+                    list="paper-search-options"
+                    value={query}
+                    onChange={(ev) => {
+                      const value = ev.target.value;
+                      setQuery(value);
+                      const exact = (payload.papers || []).find((paper) => paper.citekey === value);
+                      if (exact) setActiveKey(exact.citekey);
+                    }}
+                    placeholder="citekey or title"
+                  />
+                  <datalist id="paper-search-options">
+                    {papers.slice(0, 50).map((paper) => (
+                      <option key={paper.citekey} value={paper.citekey} label={`${paper.citekey} — ${paper.title}`} />
+                    ))}
+                  </datalist>
+                </>
+              </div>
+            )}
+            <div className="field">
+              <label>Focus paper</label>
+              <select value={activePaper ? activePaper.citekey : ""} onChange={(ev) => setActiveKey(ev.target.value)}>
+                {papers.map((paper) => (
+                  <option key={paper.citekey} value={paper.citekey}>{`${paper.citekey} — ${paper.title}`}</option>
+                ))}
+              </select>
+            </div>
+            {activeTab === "library" && (
+              <div className="view-mode-bar">
+                <button
+                  className={`view-mode-btn${libraryMode === "list" ? " active" : ""}`}
+                  onClick={() => setLibraryMode("list")}
+                  title="List only"
+                >
+                  <span className="vm-bars" />
+                </button>
+                <button
+                  className={`view-mode-btn${libraryMode === "split" ? " active" : ""}`}
+                  onClick={() => setLibraryMode("split")}
+                  title="List + Graph"
+                >
+                  <span className="vm-bars" /><span className="vm-dot" />
+                </button>
+                <button
+                  className={`view-mode-btn${libraryMode === "graph" ? " active" : ""}`}
+                  onClick={() => setLibraryMode("graph")}
+                  title="Graph only"
+                >
+                  <span className="vm-dot" />
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Multicolumn panels */}
+          <div className="multicolumn-layout">
+        {/* Semantic search column */}
+        {showSearch && (
+          <div className="col col-search">
+            <SearchTab
+              setActiveKey={setActiveKey}
+              setActiveTab={(t) => setActiveTab(t === "corpus" ? "library" : t)}
+            />
+          </div>
+        )}
+
+        {/* Library list column */}
+        {activeTab === "library" && libraryMode !== "graph" && (
+          <div className="col col-library">
+            <CorpusTab
+              papers={papers}
+              actionState={actionState}
+              setActiveKey={setActiveKey}
+              setActiveTab={setActiveTab}
+              openInPaperTab={openInPaperTab}
+              setLibraryMode={setLibraryMode}
+              triggerAction={triggerAction}
+              statusFilter={statusFilter}
+              setStatusFilter={setStatusFilter}
+              tagFilter={tagFilter}
+              setTagFilter={setTagFilter}
+              allTags={allTags}
+              updateLibraryEntry={updateLibraryEntry}
+              compact={libraryMode === "split"}
+            />
+          </div>
+        )}
+
+        {/* Network graph column */}
+        {activeTab === "library" && libraryMode !== "list" && (
+          <div className="col col-network">
+            <div className="graph-column-layout">
+              <div className="graph-controls-bar">
+                <select value={localOnly ? "local" : "all"} onChange={(ev) => setLocalOnly(ev.target.value === "local")} title="Graph filter">
+                  <option value="all">Local + external</option>
+                  <option value="local">Local only</option>
+                </select>
+                <select value={graphMode} onChange={(ev) => setGraphMode(ev.target.value)} title="Explore mode">
+                  <option value="focused">Focused</option>
+                  <option value="all">All papers</option>
+                </select>
+                <select value={graphDirection} onChange={(ev) => setGraphDirection(ev.target.value)} title="Direction">
+                  <option value="both">Past + future</option>
+                  <option value="past">Past works</option>
+                  <option value="future">Future works</option>
+                </select>
+                <select value={sizeBy} onChange={(ev) => setSizeBy(ev.target.value)} title="Size by">
+                  <option value="cited_by">Size: citations</option>
+                  <option value="uniform">Size: uniform</option>
+                </select>
+                <select value={colorBy} onChange={(ev) => setColorBy(ev.target.value)} title="Color by">
+                  <option value="year">Color: year</option>
+                  <option value="type">Color: type</option>
+                </select>
+              </div>
+              <div className="graph-body-row">
+              <ExploreTab
+                payload={payload}
+                activePaper={activePaper}
+                localOnly={localOnly}
+                graphMode={graphMode}
+                graphDirection={graphDirection}
+                setActiveKey={setActiveKey}
+                setActiveExternalNode={setActiveExternalNode}
+                openInPaperTab={openInPaperTab}
+                onSelectNode={setSelectedGraphNode}
+                onCyInit={(cy) => { cyInstanceRef.current = cy; }}
+                sizeBy={sizeBy}
+                colorBy={colorBy}
+                setGraphDirection={setGraphDirection}
+                setGraphMode={setGraphMode}
+              />
+              <nav className="graph-actions-bar">
+                <button
+                  className="sidebar-icon"
+                  title="Zoom in"
+                  onClick={() => cyInstanceRef.current && cyInstanceRef.current.zoom({ level: cyInstanceRef.current.zoom() * 1.25, renderedPosition: { x: cyInstanceRef.current.width() / 2, y: cyInstanceRef.current.height() / 2 } })}
+                >
+                  +
+                </button>
+                <button
+                  className="sidebar-icon"
+                  title="Zoom out"
+                  onClick={() => cyInstanceRef.current && cyInstanceRef.current.zoom({ level: cyInstanceRef.current.zoom() * 0.8, renderedPosition: { x: cyInstanceRef.current.width() / 2, y: cyInstanceRef.current.height() / 2 } })}
+                >
+                  −
+                </button>
+                <button
+                  className="sidebar-icon"
+                  title="Fit all"
+                  onClick={() => cyInstanceRef.current && cyInstanceRef.current.fit(undefined, 30)}
+                >
+                  ⤢
+                </button>
+                <div className="sidebar-divider" />
+                <button
+                  className="sidebar-icon"
+                  title="Expand graph for all papers"
+                  disabled={actionState.busy}
+                  onClick={() => triggerAction("graph-expand", {})}
+                >
+                  ⊕
+                </button>
+                <button
+                  className={`sidebar-icon${selectedGraphNode && selectedGraphNode.kind === "local" ? "" : " disabled-look"}`}
+                  title={selectedGraphNode && selectedGraphNode.kind === "local"
+                    ? `Expand graph for ${selectedGraphNode.citekey}`
+                    : "Select a local paper node first"}
+                  disabled={actionState.busy || !selectedGraphNode || selectedGraphNode.kind !== "local"}
+                  onClick={() => selectedGraphNode && triggerAction("graph-expand", { citekey: selectedGraphNode.citekey })}
+                >
+                  ⊕₁
+                </button>
+              </nav>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Paper detail column */}
+        {activeTab === "paper" && (
+          <div className="col col-paper">
+            {activePaperItem
+              ? <PaperTab
+                  activePaper={activePaperItem}
+                  activeArtifacts={activeArtifacts}
+                  doclingHtml={doclingHtml}
+                  updateLibraryEntry={updateLibraryEntry}
+                  triggerAction={triggerAction}
+                  actionState={actionState}
+                  papers={payload ? payload.papers : []}
+                />
+              : <div className="small" style={{ padding: "1rem" }}>
+                  No paper selected — double-click a row in the Library tab to open one.
+                </div>
+            }
+          </div>
+        )}
+
+        {/* Inspector column */}
+        {(activeTab === "library") && showInspector && (
+          <div className="col col-inspector">
+            <GraphInspector
+              activePaper={activePaper}
+              activeExternalNode={activeExternalNode}
+              status={payload ? payload.status : null}
+              actionState={actionState}
+              triggerAction={triggerAction}
+            />
+          </div>
+        )}
+        </div>{/* end multicolumn-layout */}
+
+          {/* Action status bar */}
+          {actionState.message && (
+            <div className={`action-status-bar${actionState.error ? " error" : actionState.busy ? " busy" : ""}`}>
+              {actionState.busy && <span className="action-spinner">⟳</span>}
+              {actionState.message}
+            </div>
+          )}
+
+          {/* Stats footer */}
+          {payload && payload.status && (
+            <div className="stats-footer">
+              <span>{payload.status.papers_total} papers</span>
+              <span className="stats-sep">·</span>
+              <span>{payload.status.papers_with_pdf ?? 0} pdf</span>
+              <span className="stats-sep">·</span>
+              <span>{payload.status.papers_with_docling ?? 0} docling</span>
+              <span className="stats-sep">·</span>
+              <span>{payload.status.papers_with_openalex ?? 0} openalex</span>
+              <span className="stats-sep">·</span>
+              <span>{payload.status.papers_with_grobid ?? 0} grobid</span>
+            </div>
+          )}
+
+          </>)}{/* end !showSetup */}
+        </div>{/* end main-content */}
+      </div>{/* end app-layout */}
     </div>
   );
 }

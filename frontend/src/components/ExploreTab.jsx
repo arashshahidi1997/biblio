@@ -1,275 +1,402 @@
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import cytoscape from 'cytoscape';
+
+// ── color / size helpers ────────────────────────────────────────────────────
+
+function yearToColor(year, minYear, maxYear) {
+  if (!year || !minYear || !maxYear || minYear === maxYear) return null;
+  const t = (Number(year) - minYear) / (maxYear - minYear);
+  const lightness = Math.round(65 - 32 * t);
+  return `hsl(218, 58%, ${lightness}%)`;
+}
+
+function citedByToSize(citedBy) {
+  return Math.max(9, Math.min(32, 9 + 7 * Math.log10(1 + (citedBy || 0))));
+}
+
+function shortLabel(citekey) {
+  if (!citekey) return "";
+  const parts = citekey.split("_");
+  if (parts.length < 2) return citekey;
+  const author = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+  return `${author} ${parts[1]}`;
+}
+
+// ── visual update helpers ───────────────────────────────────────────────────
+
+// Apply per-node size and year-color via node.style() — no layout side-effects
+function applyVisuals(cy, sizeBy, colorBy, minYear, maxYear) {
+  cy.batch(() => {
+    cy.nodes().forEach((node) => {
+      const isLocal  = !!node.data("isLocal");
+      const isActive = !!node.data("active");
+      const citedBy  = node.data("citedBy") || 0;
+      const year     = node.data("year");
+
+      if (!isActive) {
+        const size = sizeBy === "cited_by" ? citedByToSize(citedBy) : (isLocal ? 17 : 12);
+        node.style({ width: size, height: size });
+      }
+      if (!isLocal && !isActive) {
+        const color = colorBy === "year"
+          ? (yearToColor(year, minYear, maxYear) || "#7f8fa8")
+          : "#7f8fa8";
+        node.style("background-color", color);
+      }
+    });
+  });
+}
+
+// Update which node is "active" and which are "related" — no layout
+function applyActiveStyling(cy, activePaper, sizeBy, colorBy, minYear, maxYear) {
+  if (!cy || !activePaper) return;
+  const activeId = `paper:${activePaper.citekey}`;
+  const related  = new Set((activePaper.related_local || []).map((r) => `paper:${r.citekey}`));
+
+  cy.batch(() => {
+    cy.nodes().forEach((node) => {
+      const id       = node.id();
+      const isActive = id === activeId;
+      const isRel    = related.has(id);
+      node.data("active",  isActive);
+      node.data("related", isRel);
+      // reset related border
+      node.style("border-width", isRel ? 3 : 1.5);
+      node.style("border-color", isRel ? "#d4813a" : "rgba(31,36,31,0.15)");
+    });
+  });
+
+  applyVisuals(cy, sizeBy, colorBy, minYear, maxYear);
+
+  // Active node override (on top of applyVisuals)
+  const activeNode = cy.getElementById(activeId);
+  if (activeNode.length) {
+    activeNode.style({
+      "background-color": "#1a9e8a",
+      "width":  24,
+      "height": 24,
+      "border-width": 3,
+      "border-color": "#1a9e8a",
+    });
+  }
+}
+
+// ── legend ──────────────────────────────────────────────────────────────────
+
+function YearLegend({ minYear, maxYear }) {
+  if (!minYear || !maxYear || minYear === maxYear) return null;
+  const stops = Array.from({ length: 6 }, (_, i) => {
+    const lightness = Math.round(65 - 32 * (i / 5));
+    return `hsl(218, 58%, ${lightness}%)`;
+  });
+  return (
+    <div className="graph-year-legend">
+      <span className="small">{minYear}</span>
+      <div className="graph-year-gradient" style={{ background: `linear-gradient(to right, ${stops.join(", ")})` }} />
+      <span className="small">{maxYear}</span>
+    </div>
+  );
+}
+
+// ── component ───────────────────────────────────────────────────────────────
 
 export default function ExploreTab({
   payload,
   activePaper,
-  activeExternalNode,
   localOnly,
   graphMode,
   graphDirection,
-  actionState,
-  triggerAction,
+  sizeBy,
+  colorBy,
   setActiveKey,
   setActiveExternalNode,
-  activeTab,
+  openInPaperTab,
+  onSelectNode,
+  onCyInit,
+  setGraphDirection,
+  setGraphMode,
 }) {
-  const cyRef = useRef(null);
-  const status = (payload && payload.status) || {};
-  const activeArtifacts = activePaper ? activePaper.artifacts : null;
+  const cyRef         = useRef(null);
+  const tooltipRef    = useRef(null);
+  const yearRangeRef  = useRef({ minYear: null, maxYear: null });
+  const activePaperRef = useRef(activePaper);
+  const sizeByRef     = useRef(sizeBy);
+  const colorByRef    = useRef(colorBy);
+  // Bump to force a graph rebuild when focused mode needs it
+  const [rebuildKey, setRebuildKey] = useState(0);
 
+  // Keep refs in sync on every render
+  activePaperRef.current = activePaper;
+  sizeByRef.current      = sizeBy;
+  colorByRef.current     = colorBy;
+
+  // Destroy on unmount
+  useEffect(() => () => {
+    if (cyRef.current) { try { cyRef.current.destroy(); } catch (_) {} cyRef.current = null; }
+  }, []);
+
+  // ── Effect A: re-apply size/color when controls change (no layout) ──────
   useEffect(() => {
-    if (activeTab !== "explore") {
-      if (cyRef.current) {
-        try {
-          cyRef.current.destroy();
-        } catch (err) {}
-        cyRef.current = null;
+    if (!cyRef.current) return;
+    const { minYear, maxYear } = yearRangeRef.current;
+    applyVisuals(cyRef.current, sizeBy, colorBy, minYear, maxYear);
+    // Re-apply active highlight on top
+    const ap = activePaperRef.current;
+    if (ap) {
+      const activeNode = cyRef.current.getElementById(`paper:${ap.citekey}`);
+      if (activeNode.length) {
+        activeNode.style({ "background-color": "#1a9e8a", width: 32, height: 32, "border-width": 3, "border-color": "#1a9e8a" });
       }
-      return;
     }
-    if (!payload || !activePaper) return;
+  }, [sizeBy, colorBy]);
+
+  // ── Effect B: active paper changed ─────────────────────────────────────
+  // In "all" mode: just re-style. In "focused" mode: trigger a full rebuild.
+  useEffect(() => {
+    if (!activePaper) return;
+    if (graphMode !== "all") {
+      setRebuildKey((k) => k + 1);
+    } else if (cyRef.current) {
+      const { minYear, maxYear } = yearRangeRef.current;
+      applyActiveStyling(cyRef.current, activePaper, sizeBy, colorBy, minYear, maxYear);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePaper]);
+
+  // ── Effect C: full graph rebuild + layout ───────────────────────────────
+  useEffect(() => {
+    if (!payload) return;
+    const ap = activePaperRef.current;
     const container = document.getElementById("cy");
     if (!container) return;
-    const graph = payload.graph || { nodes: [], edges: [] };
-    const related = new Set((activePaper.related_local || []).map((item) => `paper:${item.citekey}`));
-    const activeNodeId = `paper:${activePaper.citekey}`;
-    const outgoing = new Set((activePaper.graph.outgoing || []).map((item) => item.citekey ? `paper:${item.citekey}` : `openalex:${item.openalex_id}`));
-    const incoming = new Set((activePaper.graph.incoming || []).map((item) => item.citekey ? `paper:${item.citekey}` : `openalex:${item.openalex_id}`));
-    const grobidRefs = new Set((activePaper.graph.grobid_refs || []).map((item) => `paper:${item.target_citekey}`));
-    const allowed = graphMode === "all"
+
+    const graph    = payload.graph || { nodes: [], edges: [] };
+    const activeId = ap ? `paper:${ap.citekey}` : null;
+    const related  = new Set((ap?.related_local || []).map((r) => `paper:${r.citekey}`));
+    const outgoing = new Set((ap?.graph?.outgoing || []).map((i) => i.citekey ? `paper:${i.citekey}` : `openalex:${i.openalex_id}`));
+    const incoming = new Set((ap?.graph?.incoming || []).map((i) => i.citekey ? `paper:${i.citekey}` : `openalex:${i.openalex_id}`));
+    const grobid   = new Set((ap?.graph?.grobid_refs || []).map((i) => `paper:${i.target_citekey}`));
+    const allowed  = graphMode === "all"
       ? null
-      : new Set([activeNodeId, ...related, ...outgoing, ...incoming, ...grobidRefs]);
-    const nodes = (graph.nodes || []).filter((node) => (!allowed || allowed.has(node.id)) && (!localOnly || node.is_local));
-    const nodeIds = new Set(nodes.map((node) => node.id));
-    const edges = (graph.edges || []).filter((edge) => {
-      if (!(nodeIds.has(edge.source) && nodeIds.has(edge.target))) return false;
-      if (graphDirection === "past") return edge.direction === "references" || edge.kind === "grobid_ref";
-      if (graphDirection === "future") return edge.direction === "citing";
+      : new Set([activeId, ...related, ...outgoing, ...incoming, ...grobid].filter(Boolean));
+
+    const nodes = (graph.nodes || []).filter((n) => (!allowed || allowed.has(n.id)) && (!localOnly || n.is_local));
+    const nodeIds = new Set(nodes.map((n) => n.id));
+    const edges = (graph.edges || []).filter((e) => {
+      if (!nodeIds.has(e.source) || !nodeIds.has(e.target)) return false;
+      if (graphDirection === "past")   return e.direction === "references" || e.kind === "grobid_ref";
+      if (graphDirection === "future") return e.direction === "citing";
       return true;
     });
+
+    const extYears = nodes.filter((n) => !n.is_local).map((n) => Number(n.year)).filter((y) => y > 1000);
+    const minYear  = extYears.length ? Math.min(...extYears) : null;
+    const maxYear  = extYears.length ? Math.max(...extYears) : null;
+    yearRangeRef.current = { minYear, maxYear };
+
     const elements = [
       ...nodes.map((node) => ({
         data: {
-          id: node.id,
-          label: node.citekey || node.label,
-          kind: node.kind,
-          isLocal: !!node.is_local,
-          active: node.id === activeNodeId,
-          related: related.has(node.id),
-        }
+          id:        node.id,
+          label:     node.is_local ? shortLabel(node.citekey) : "",
+          fullLabel: node.citekey || node.label || "",
+          isLocal:   !!node.is_local,
+          active:    node.id === activeId,
+          related:   related.has(node.id),
+          year:      node.year,
+          citedBy:   node.cited_by || 0,
+          title:     node.title || node.label || node.citekey || "",
+        },
       })),
-      ...edges.map((edge, idx) => ({
-        data: {
-          id: `edge-${idx}-${edge.source}-${edge.target}`,
-          source: edge.source,
-          target: edge.target,
-          kind: edge.kind || "openalex",
-        }
+      ...edges.map((e, i) => ({
+        data: { id: `e${i}-${e.source}-${e.target}`, source: e.source, target: e.target, kind: e.kind || "openalex" },
       })),
     ];
+
     if (!cyRef.current) {
       cyRef.current = cytoscape({
         container,
         elements,
         style: [
           { selector: "node", style: {
-            "label": "data(label)",
-            "text-valign": "bottom",
-            "text-margin-y": 10,
-            "text-wrap": "wrap",
-            "text-max-width": 90,
-            "font-size": 11,
-            "background-color": "#98a0ac",
-            "width": 18,
-            "height": 18,
+            "label":                    "data(label)",
+            "text-valign":              "bottom",
+            "text-halign":              "center",
+            "text-margin-y":            6,
+            "text-wrap":                "none",
+            "font-size":                9,
+            "font-family":              "system-ui, sans-serif",
+            "color":                    "#555",
+            "text-background-color":    "rgba(255,253,246,0.82)",
+            "text-background-opacity":  1,
+            "text-background-padding":  "2px",
+            "text-background-shape":    "roundrectangle",
+            "background-color":         "#7f8fa8",
+            "width":  12,
+            "height": 12,
             "border-width": 1.5,
-            "border-color": "rgba(31,36,31,0.18)"
+            "border-color": "rgba(31,36,31,0.15)",
+            "transition-property":      "opacity",
+            "transition-duration":      "0.12s",
           }},
-          { selector: "node[isLocal]", style: { "background-color": "#c67f27" }},
-          { selector: "node[active]", style: { "background-color": "#0d6b5f", "width": 28, "height": 28, "border-width": 3, "border-color": "#0d6b5f" }},
-          { selector: "node[related]", style: { "border-width": 3, "border-color": "#c67f27" }},
-          { selector: "edge", style: { "line-color": "rgba(92,100,92,0.35)", "width": 1.5, "curve-style": "bezier", "target-arrow-shape": "triangle", "target-arrow-color": "rgba(92,100,92,0.45)" }},
-          { selector: "edge[kind='grobid_ref']", style: { "line-color": "rgba(13,107,95,0.55)", "line-style": "dashed", "width": 1.5, "target-arrow-color": "rgba(13,107,95,0.65)" }},
+          { selector: "node[?isLocal]", style: { "background-color": "#d4813a" }},
+          { selector: "node[?active]",  style: {
+            "background-color": "#1a9e8a",
+            "width":  24, "height": 24,
+            "border-width": 3, "border-color": "#1a9e8a",
+            "label": "data(fullLabel)",
+            "font-size": 10,
+          }},
+          { selector: "node[?related]", style: { "border-width": 2.5, "border-color": "#d4813a" }},
+          { selector: "node:selected", style: {
+            "label":           "data(fullLabel)",
+            "font-size":       10,
+            "border-width":    2.5,
+            "border-color":    "#4a9eff",
+            "shadow-blur":     20,
+            "shadow-color":    "#4a9eff",
+            "shadow-opacity":  0.9,
+            "shadow-offset-x": 0,
+            "shadow-offset-y": 0,
+          }},
+          { selector: "node.faded", style: { "opacity": 0.1 }},
+          { selector: "edge", style: {
+            "line-color":          "rgba(100,110,100,0.28)",
+            "width":               1.2,
+            "curve-style":         "bezier",
+            "target-arrow-shape":  "triangle",
+            "target-arrow-color":  "rgba(100,110,100,0.38)",
+          }},
+          { selector: "edge[kind='grobid_ref']", style: {
+            "line-color":         "rgba(26,158,138,0.5)",
+            "line-style":         "dashed",
+            "width":              1.5,
+            "target-arrow-color": "rgba(26,158,138,0.6)",
+          }},
+          { selector: "edge.faded", style: { "opacity": 0.04 }},
         ],
-        layout: { name: "cose", fit: true, padding: 30, animate: false }
+        layout: { name: "cose", fit: true, padding: 36, animate: false, randomize: true },
       });
+
+      // ── events ────────────────────────────────────────────────────────
       cyRef.current.on("tap", "node", (evt) => {
         const id = evt.target.id();
+        cyRef.current.elements().addClass("faded");
+        evt.target.removeClass("faded");
+        evt.target.neighborhood().removeClass("faded");
+        cyRef.current.elements().unselect();
+        evt.target.select();
         if (id.startsWith("paper:")) {
+          const ck = id.slice("paper:".length);
           setActiveExternalNode(null);
-          setActiveKey(id.slice("paper:".length));
+          setActiveKey(ck);
+          if (onSelectNode) onSelectNode({ kind: "local", citekey: ck });
         } else if (id.startsWith("openalex:")) {
-          const node = (payload.graph.nodes || []).find((item) => item.id === id) || null;
+          const node = (payload.graph.nodes || []).find((n) => n.id === id) || null;
           setActiveExternalNode(node);
+          if (onSelectNode) onSelectNode({ kind: "external", node });
         }
       });
+
+      cyRef.current.on("tap", (evt) => {
+        if (evt.target === cyRef.current) {
+          cyRef.current.elements().removeClass("faded");
+          cyRef.current.elements().unselect();
+          if (onSelectNode) onSelectNode(null);
+        }
+      });
+
+      cyRef.current.on("dbltap", "node", (evt) => {
+        const id = evt.target.id();
+        if (id.startsWith("paper:") && openInPaperTab) openInPaperTab(id.slice("paper:".length));
+      });
+
+      cyRef.current.on("mouseover", "node", (evt) => {
+        const node = evt.target;
+        const pos  = node.renderedPosition();
+        const rect = container.getBoundingClientRect();
+        if (!tooltipRef.current) return;
+        const fullLabel = node.data("fullLabel") || "";
+        const title     = node.data("title") !== fullLabel ? node.data("title") : "";
+        const year      = node.data("year") ? `${node.data("year")}` : "";
+        const cb        = node.data("citedBy") > 0 ? `${node.data("citedBy").toLocaleString()} citations` : "";
+        tooltipRef.current.innerHTML = [fullLabel, title, year, cb].filter(Boolean).join("<br>");
+        tooltipRef.current.style.left    = `${rect.left + pos.x + 14}px`;
+        tooltipRef.current.style.top     = `${rect.top  + pos.y - 14}px`;
+        tooltipRef.current.style.display = "block";
+      });
+
+      cyRef.current.on("mouseout", "node", () => {
+        if (tooltipRef.current) tooltipRef.current.style.display = "none";
+      });
+      cyRef.current.on("pan zoom", () => {
+        if (tooltipRef.current) tooltipRef.current.style.display = "none";
+      });
+
+      if (onCyInit) onCyInit(cyRef.current);
+
     } else {
       cyRef.current.elements().remove();
       cyRef.current.add(elements);
-      cyRef.current.resize();
-      cyRef.current.layout({ name: "cose", fit: true, padding: 30, animate: false }).run();
+      cyRef.current.elements().removeClass("faded");
+      cyRef.current.layout({ name: "cose", fit: true, padding: 36, animate: false, randomize: true }).run();
       window.setTimeout(() => {
-        if (cyRef.current) {
-          cyRef.current.resize();
-          cyRef.current.fit(undefined, 30);
-        }
+        if (cyRef.current) { cyRef.current.resize(); cyRef.current.fit(undefined, 36); }
       }, 30);
     }
-  }, [payload, activePaper, localOnly, activeTab, graphMode, graphDirection]);
 
-  // Build candidates list: outgoing + incoming, local first, max 20
-  const candidates = React.useMemo(() => {
-    if (!activePaper) return [];
-    const outgoing = (activePaper.graph.outgoing || []).map((item) => ({ ...item, direction: "outgoing" }));
-    const incoming = (activePaper.graph.incoming || []).map((item) => ({ ...item, direction: "incoming" }));
-    const grobidRefs = (activePaper.graph.grobid_refs || []).map((item) => ({
-      citekey: item.target_citekey,
-      title: item.ref_title,
-      direction: "grobid_ref",
-      match_type: item.match_type,
-    }));
-    const all = [...outgoing, ...incoming, ...grobidRefs];
-    // Sort: local (has citekey) first, then external
-    all.sort((a, b) => {
-      const aLocal = a.citekey ? 1 : 0;
-      const bLocal = b.citekey ? 1 : 0;
-      return bLocal - aLocal;
-    });
-    return all.slice(0, 20);
-  }, [activePaper]);
+    applyActiveStyling(cyRef.current, ap, sizeByRef.current, colorByRef.current, minYear, maxYear);
+
+  // activePaper intentionally excluded — handled by Effect B
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [payload, localOnly, graphMode, graphDirection, rebuildKey]);
+
+  const { minYear, maxYear } = yearRangeRef.current;
 
   return (
-    <div className="layout">
+    <div style={{ position: "relative", flex: 1, minWidth: 0 }}>
       <div className="panel graph-panel">
-        <div id="cy"></div>
-      </div>
-      <div className="side">
-        <div className="panel">
-          <h3>Inspector</h3>
-          <div className="small">
-            {activeExternalNode
-              ? "External graph node selected."
-              : activePaper
-                ? `Inspecting ${activePaper.citekey}.`
-                : "No current selection."}
-          </div>
+        <div id="cy" />
+        {colorBy === "year" && <YearLegend minYear={minYear} maxYear={maxYear} />}
+
+        {/* Top-right overlay */}
+        <div className="graph-overlay-toolbar">
+          <button
+            className={`graph-overlay-btn${graphMode === "focused" ? " active" : ""}`}
+            title="Focused neighborhood"
+            onClick={() => setGraphMode(graphMode === "focused" ? "all" : "focused")}
+          >
+            ⊙
+          </button>
+          <div className="graph-overlay-sep" />
+          <button
+            className={`graph-overlay-btn${graphDirection === "past" ? " active" : ""}`}
+            title="Past works (references)"
+            onClick={() => setGraphDirection("past")}
+          >
+            ←
+          </button>
+          <button
+            className={`graph-overlay-btn${graphDirection === "both" ? " active" : ""}`}
+            title="Past + future"
+            onClick={() => setGraphDirection("both")}
+          >
+            ⟷
+          </button>
+          <button
+            className={`graph-overlay-btn${graphDirection === "future" ? " active" : ""}`}
+            title="Future works (citing)"
+            onClick={() => setGraphDirection("future")}
+          >
+            →
+          </button>
         </div>
-        <div className="panel">
-          <div className="metric-row">
-            <div className="metric">
-              <span className="small">papers</span>
-              <strong>{String(status.papers_total || 0)}</strong>
-            </div>
-            <div className="metric">
-              <span className="small">docling</span>
-              <strong>{String(status.papers_with_docling || 0)}</strong>
-            </div>
-            <div className="metric">
-              <span className="small">openalex</span>
-              <strong>{String(status.papers_with_openalex || 0)}</strong>
-            </div>
-            <div className="metric">
-              <span className="small">grobid</span>
-              <strong>{String(status.papers_with_grobid || 0)}</strong>
-            </div>
-          </div>
-        </div>
-        {activePaper && (
-          <div className="panel">
-            <div className="paper-card-title">
-              <h2>{activePaper.citekey}</h2>
-              <span className="small">{activePaper.year || "n.d."}</span>
-            </div>
-            <div className="small">{activePaper.title}</div>
-            <p>{(activePaper.authors || []).join(", ") || "Unknown authors"}</p>
-            <div>
-              <span className={`badge ${activeArtifacts && activeArtifacts.pdf.exists ? "ok" : ""}`}>
-                {activeArtifacts && activeArtifacts.pdf.exists ? "pdf" : "no pdf"}
-              </span>
-              <span className={`badge ${activeArtifacts && activeArtifacts.docling_md.exists ? "ok" : ""}`}>
-                {activeArtifacts && activeArtifacts.docling_md.exists ? "docling" : "no docling"}
-              </span>
-              <span className={`badge ${activeArtifacts && activeArtifacts.openalex.exists ? "ok" : ""}`}>
-                {activeArtifacts && activeArtifacts.openalex.exists ? "openalex" : "no openalex"}
-              </span>
-            </div>
-          </div>
-        )}
-        {activePaper && (
-          <div className="panel">
-            <h3>Related local papers</h3>
-            <ul className="list-clean">
-              {((activePaper.related_local || []).length ? activePaper.related_local : [{ citekey: null }]).map((item, idx) =>
-                item.citekey
-                  ? (
-                    <li key={`${item.citekey}-${idx}`}>
-                      <strong>{item.citekey}</strong>
-                      <span className="small"> score {item.score}, shared outgoing {item.shared_outgoing}, shared incoming {item.shared_incoming}</span>
-                    </li>
-                  )
-                  : <li key="none" className="small">No related local papers yet.</li>
-              )}
-            </ul>
-          </div>
-        )}
-        {activePaper && (
-          <div className="panel">
-            <h3>Candidates</h3>
-            <div className="small" style={{ marginBottom: "0.5rem" }}>
-              {(activePaper.graph.outgoing || []).length} outgoing (refs), {(activePaper.graph.incoming || []).length} incoming (citing)
-              {(activePaper.graph.grobid_refs || []).length > 0 && `, ${activePaper.graph.grobid_refs.length} grobid refs`}
-            </div>
-            {candidates.length === 0 && (
-              <div className="small">No candidates yet. Run Resolve OpenAlex + Expand Graph first.</div>
-            )}
-            {candidates.map((item, idx) => (
-              <div key={`cand-${idx}`} className="candidate-item">
-                <div className="candidate-title">
-                  {item.title || item.openalex_id || "Unknown"}
-                </div>
-                <div className="candidate-meta">
-                  {item.year && <span className="badge">{item.year}</span>}
-                  <span className="badge">
-                    {item.direction === "outgoing" ? "→ ref" : item.direction === "grobid_ref" ? `↗ grobid (${item.match_type})` : "← citing"}
-                  </span>
-                  {item.citekey
-                    ? <span className="badge ok">in corpus</span>
-                    : (
-                      <button
-                        className="candidate-add"
-                        disabled={actionState.busy}
-                        onClick={() => triggerAction("add-paper", { openalex_id: item.openalex_id })}
-                      >
-                        Add to Bib
-                      </button>
-                    )
-                  }
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-        {activeExternalNode && (
-          <div className="panel">
-            <h3>Selected external paper</h3>
-            <div className="small">{activeExternalNode.title || activeExternalNode.label || activeExternalNode.openalex_id}</div>
-            <p>{activeExternalNode.openalex_id}</p>
-            <div>
-              <span className="badge">{activeExternalNode.year || "n.d."}</span>
-              <span className="badge">{activeExternalNode.doi || "no doi"}</span>
-            </div>
-            <div className="actions">
-              <button
-                disabled={actionState.busy}
-                onClick={() => triggerAction("add-paper", { openalex_id: activeExternalNode.openalex_id })}
-              >
-                Add To Bib
-              </button>
-            </div>
-          </div>
-        )}
       </div>
+      <div
+        ref={tooltipRef}
+        className="graph-tooltip"
+        style={{ display: "none", position: "fixed", pointerEvents: "none", zIndex: 9999 }}
+      />
     </div>
   );
 }

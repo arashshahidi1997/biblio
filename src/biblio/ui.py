@@ -4,6 +4,7 @@ import importlib
 import json
 import shlex
 import socket
+import struct
 import subprocess
 import sys
 import threading
@@ -19,11 +20,74 @@ from .graph import add_openalex_work_to_bib, expand_openalex_reference_graph, lo
 from .openalex.openalex_resolve import ResolveOptions, resolve_srcbib_to_openalex
 from .rag import default_biblio_rag_template, default_rag_config_path, sync_biblio_rag_config
 from .rag_support import load_raw_rag_config, write_raw_rag_config
+from .crossref import resolve_doi_by_title
 from .grobid import check_grobid_server_as_dict, derive_start_cmd, get_absent_refs, run_grobid_for_key, run_grobid_match
+from .pdf_fetch_oa import fetch_pdfs_oa
 from .citekeys import load_citekeys_md
 from .library import load_library, notes_path, update_entry
 from .site import build_biblio_site
 from .site import BiblioSiteOptions, _build_site_model, default_site_out_dir
+
+
+def _try_import_indexio():
+    try:
+        import indexio  # noqa: PLC0415
+        return indexio
+    except ImportError:
+        return None
+
+
+_indexio_mod = _try_import_indexio()
+
+
+def _rag_build_indexio(repo_root: Path) -> dict[str, Any]:
+    """Build RAG index in-process using indexio. Auto-creates rag.yaml if needed."""
+    sync_biblio_rag_config(repo_root)
+    rag_cfg_path = default_rag_config_path(repo_root)
+    result = _indexio_mod.build_index(
+        config_path=rag_cfg_path,
+        root=repo_root,
+        sources_filter=["biblio_docling"],
+    )
+    source_stats = result.get("source_stats") or {}
+    total_files = sum(s.get("files", 0) for s in source_stats.values())
+    total_chunks = sum(s.get("chunks", 0) for s in source_stats.values())
+    return {
+        "ok": True,
+        "indexed": total_files,
+        "chunks": total_chunks,
+        "collection": result.get("store"),
+        "persist_dir": result.get("persist_directory"),
+    }
+
+
+def _rag_search_indexio(repo_root: Path, query: str, n_results: int) -> dict[str, Any]:
+    """Search RAG index in-process using indexio."""
+    rag_cfg_path = default_rag_config_path(repo_root)
+    if not rag_cfg_path.exists():
+        return {"ok": False, "error": "RAG config not found. Run 'Build RAG Index' first.", "results": []}
+    try:
+        data = _indexio_mod.query_index(
+            config_path=rag_cfg_path,
+            root=repo_root,
+            query=query,
+            k=n_results,
+            corpus="bib",
+        )
+    except FileNotFoundError:
+        return {"ok": False, "error": "RAG index not built yet. Run 'Build RAG Index' first.", "results": []}
+    results = []
+    for item in data.get("results") or []:
+        source_path = item.get("source_path") or ""
+        citekey = Path(source_path).stem if source_path else ""
+        results.append({
+            "id": f"{source_path}::{item.get('chunk_index', 0)}",
+            "citekey": citekey,
+            "chunk_index": item.get("chunk_index", 0),
+            "text": item.get("snippet", ""),
+            "distance": None,
+        })
+    return {"ok": True, "query": query, "results": results}
 
 
 def _require_fastapi():
@@ -120,6 +184,7 @@ def build_setup_report(cfg: BiblioConfig) -> dict[str, Any]:
                 if isinstance(item, dict) and isinstance(item.get("id"), str)
             ],
             "follow_up_build_cmd": "rag build --config bib/config/rag.yaml --sources biblio_docling",
+            "backend": "indexio" if _indexio_mod is not None else "vector_store",
         },
         "paths": {
             "citekeys": str(cfg.citekeys_path),
@@ -326,6 +391,23 @@ def create_ui_app(cfg: BiblioConfig):
         headers = {"Content-Disposition": f'inline; filename="{pdf_path.name}"'}
         return responses.FileResponse(str(pdf_path), media_type="application/pdf", headers=headers)
 
+    @app.get("/api/files/docling/{citekey}/{path:path}")
+    def file_docling_artifact(citekey: str, path: str):
+        """Serve a file from the docling output directory for a citekey.
+
+        Used to resolve relative image paths in rendered docling markdown, e.g.
+        peyrache_2011_..._artifacts/image_000000_....png
+        """
+        active_cfg = current_cfg()
+        # Resolve and jail to the docling output root to prevent path traversal
+        out_root = active_cfg.out_root.resolve()
+        artifact_path = (out_root / citekey / path).resolve()
+        if not str(artifact_path).startswith(str(out_root)):
+            raise fastapi.HTTPException(status_code=403, detail="Path traversal denied")
+        if not artifact_path.exists() or not artifact_path.is_file():
+            raise fastapi.HTTPException(status_code=404, detail=f"Artifact not found: {path}")
+        return responses.FileResponse(str(artifact_path))
+
     @app.get("/api/setup", response_class=responses.JSONResponse)
     def setup():
         return build_setup_report(current_cfg())
@@ -400,6 +482,7 @@ def create_ui_app(cfg: BiblioConfig):
         "error": None,
         "citekey": None,
         "md_path": None,
+        "logs": "",
     }
     grobid_job: dict[str, Any] = {
         "running": False,
@@ -409,6 +492,7 @@ def create_ui_app(cfg: BiblioConfig):
         "completed": 0,
         "total": 0,
         "references_path": None,
+        "logs": "",
     }
     openalex_lock = threading.Lock()
     graph_lock = threading.Lock()
@@ -472,17 +556,21 @@ def create_ui_app(cfg: BiblioConfig):
                     docling_job["md_path"] = str(out.md_path)
                     docling_job["completed"] = 1
                     docling_job["total"] = 1
+                    docling_job["logs"] = ""
             except subprocess.CalledProcessError as e:
                 cmd = " ".join(str(part) for part in e.cmd) if isinstance(e.cmd, (list, tuple)) else str(e.cmd)
+                logs = "\n".join(filter(None, [e.stdout, e.stderr])).strip()
                 with docling_lock:
                     docling_job["running"] = False
                     docling_job["error"] = f"Docling command failed with exit code {e.returncode}: {cmd}"
                     docling_job["message"] = docling_job["error"]
+                    docling_job["logs"] = logs
             except Exception as e:
                 with docling_lock:
                     docling_job["running"] = False
                     docling_job["error"] = str(e)
                     docling_job["message"] = f"Docling failed: {e}"
+                    docling_job["logs"] = ""
 
         threading.Thread(target=_run_docling, daemon=True).start()
         return {"ok": True, "async": True, **_docling_snapshot()}
@@ -566,8 +654,10 @@ def create_ui_app(cfg: BiblioConfig):
         return _openalex_snapshot()
 
     @app.post("/api/actions/graph-expand", response_class=responses.JSONResponse)
-    def action_graph_expand():
+    def action_graph_expand(payload: dict[str, Any] = {}):
         active_cfg = current_cfg()
+        citekey_filter = str(payload.get("citekey") or "").strip() or None
+        merge = bool(payload.get("merge", True))
         with graph_lock:
             if graph_job["running"]:
                 return {"ok": True, "async": True, **dict(graph_job)}
@@ -577,7 +667,7 @@ def create_ui_app(cfg: BiblioConfig):
                     "completed": 0,
                     "total": 0,
                     "seed_openalex_id": None,
-                    "message": "Starting graph expansion...",
+                    "message": f"Starting graph expansion{f' for {citekey_filter}' if citekey_filter else ''}...",
                     "error": None,
                     "candidates": 0,
                 }
@@ -585,14 +675,15 @@ def create_ui_app(cfg: BiblioConfig):
 
         input_path = active_cfg.openalex.out_jsonl
         output_path = active_cfg.openalex.out_jsonl.parent / "graph_candidates.json"
-        records = load_openalex_seed_records(input_path)
+        # Always load full records so all_seed_ids covers the whole corpus
+        all_records = load_openalex_seed_records(input_path)
 
-        def _progress(payload: dict[str, Any]) -> None:
+        def _progress(p: dict[str, Any]) -> None:
             with graph_lock:
-                graph_job["completed"] = int(payload.get("completed") or 0)
-                graph_job["total"] = int(payload.get("total") or 0)
-                graph_job["seed_openalex_id"] = payload.get("seed_openalex_id")
-                graph_job["candidates"] = int(payload.get("candidates") or 0)
+                graph_job["completed"] = int(p.get("completed") or 0)
+                graph_job["total"] = int(p.get("total") or 0)
+                graph_job["seed_openalex_id"] = p.get("seed_openalex_id")
+                graph_job["candidates"] = int(p.get("candidates") or 0)
                 base = f"Expanding graph {graph_job['completed']}/{graph_job['total']}" if graph_job["total"] else "Expanding graph..."
                 seed = graph_job["seed_openalex_id"]
                 graph_job["message"] = f"{base}" + (f" ({seed})" if seed else "")
@@ -602,19 +693,24 @@ def create_ui_app(cfg: BiblioConfig):
                 result = expand_openalex_reference_graph(
                     cfg=active_cfg.openalex_client,
                     cache=active_cfg.openalex_cache,
-                    records=records,
+                    records=all_records,
                     out_path=output_path,
                     direction="both",
                     force=False,
+                    merge=merge,
+                    seed_citekeys=[citekey_filter] if citekey_filter else None,
                     progress_cb=_progress,
                 )
                 with graph_lock:
                     graph_job["running"] = False
-                    graph_job["completed"] = len(records)
-                    graph_job["total"] = len(records)
+                    graph_job["completed"] = result.total_inputs
+                    graph_job["total"] = result.total_inputs
                     graph_job["seed_openalex_id"] = None
                     graph_job["candidates"] = result.candidates
-                    graph_job["message"] = f"Expanded {result.candidates} graph candidates."
+                    graph_job["message"] = (
+                        f"Graph expanded: {result.candidates} total candidates"
+                        + (f" (added for {citekey_filter})" if citekey_filter else "") + "."
+                    )
                     graph_job["error"] = None
             except Exception as e:
                 with graph_lock:
@@ -742,6 +838,30 @@ def create_ui_app(cfg: BiblioConfig):
             papers=result.papers_total,
         )
 
+    @app.post("/api/actions/add-papers-bulk", response_class=responses.JSONResponse)
+    def action_add_papers_bulk(payload: dict[str, Any]):
+        active_cfg = current_cfg()
+        dois: list[str] = [str(d).strip() for d in (payload.get("dois") or []) if str(d).strip()]
+        if not dois:
+            raise fastapi.HTTPException(status_code=400, detail="Missing dois list")
+        added, failed = [], []
+        for doi in dois:
+            try:
+                result = add_openalex_work_to_bib(
+                    cfg=active_cfg.openalex_client,
+                    cache=active_cfg.openalex_cache,
+                    repo_root=active_cfg.repo_root,
+                    doi=doi,
+                )
+                added.append(result.citekey)
+            except Exception as e:
+                failed.append({"doi": doi, "error": str(e)})
+        return _action_result(
+            f"Bulk add: {len(added)} added, {len(failed)} failed.",
+            added=added,
+            failed=failed,
+        )
+
     @app.post("/api/actions/add-paper", response_class=responses.JSONResponse)
     def action_add_paper(payload: dict[str, Any]):
         active_cfg = current_cfg()
@@ -828,11 +948,172 @@ def create_ui_app(cfg: BiblioConfig):
     def paper_absent_refs(citekey: str):
         return {"absent_refs": get_absent_refs(current_cfg(), citekey)}
 
+    # ── ref-resolved markdown endpoint ────────────────────────────────────────
+
+    @app.get("/api/papers/{citekey}/ref-md", response_class=responses.PlainTextResponse)
+    def paper_ref_md(citekey: str):
+        key = citekey.lstrip("@")
+        md_path = current_cfg().out_root / key / f"{key}_ref_resolved.md"
+        if not md_path.exists():
+            return responses.PlainTextResponse("", status_code=200)
+        return responses.PlainTextResponse(md_path.read_text(encoding="utf-8", errors="replace"))
+
+    # ── figures endpoint ──────────────────────────────────────────────────────
+
+    def _read_image_dimensions(path: Path) -> tuple[int, int]:
+        """Read (width, height) from a PNG or JPEG file without external deps."""
+        try:
+            with open(path, "rb") as f:
+                header = f.read(24)
+            if header[:8] == b"\x89PNG\r\n\x1a\n":
+                w, h = struct.unpack(">II", header[16:24])
+                return w, h
+            # JPEG: scan for SOF0/SOF1/SOF2 markers
+            with open(path, "rb") as f:
+                f.seek(2)
+                while True:
+                    marker = f.read(2)
+                    if len(marker) < 2 or marker[0] != 0xFF:
+                        break
+                    if marker[1] in (0xC0, 0xC1, 0xC2):
+                        f.read(3)  # length + precision
+                        h, w = struct.unpack(">HH", f.read(4))
+                        return w, h
+                    length = struct.unpack(">H", f.read(2))[0]
+                    f.seek(length - 2, 1)
+        except Exception:
+            pass
+        return 0, 0
+
+    @app.get("/api/papers/{citekey}/figures", response_class=responses.JSONResponse)
+    def paper_figures(citekey: str):
+        import json as _json
+        from pathlib import Path as _Path
+        key = citekey.lstrip("@")
+        out_dir = current_cfg().out_root / key
+        artifacts_dir = out_dir / f"{key}_artifacts"
+        if not artifacts_dir.exists():
+            return {"figures": []}
+
+        # Build stem -> caption map from Docling JSON if available
+        caption_map: dict[str, str] = {}
+        docling_json = out_dir / f"{key}.json"
+        if docling_json.exists():
+            try:
+                doc = _json.loads(docling_json.read_text())
+                texts = doc.get("texts", [])
+                for pic in doc.get("pictures", []):
+                    uri = (pic.get("image") or {}).get("uri", "")
+                    stem = _Path(uri).name if uri else ""
+                    captions = pic.get("captions", [])
+                    if stem and captions:
+                        ref = captions[0].get("$ref", "")
+                        # ref format: '#/texts/44'
+                        parts = ref.split("/")
+                        if len(parts) == 3 and parts[1] == "texts":
+                            idx = int(parts[2])
+                            if 0 <= idx < len(texts):
+                                caption_map[stem] = texts[idx].get("text", "")
+            except Exception:
+                pass
+
+        figures = []
+        for fpath in sorted(artifacts_dir.iterdir()):
+            if fpath.suffix.lower() not in {".png", ".jpg", ".jpeg"}:
+                continue
+            w, h = _read_image_dimensions(fpath)
+            figures.append({
+                "path": f"{key}_artifacts/{fpath.name}",
+                "name": fpath.name,
+                "width": w,
+                "height": h,
+                "size_bytes": fpath.stat().st_size,
+                "caption": caption_map.get(fpath.stem, ""),
+            })
+        return {"figures": figures}
+
+    @app.post("/api/resolve-doi", response_class=responses.JSONResponse)
+    def api_resolve_doi(payload: dict[str, Any]):
+        title = str(payload.get("title") or "").strip()
+        if not title:
+            raise fastapi.HTTPException(status_code=400, detail="Missing title")
+        return resolve_doi_by_title(title)
+
+    # ── fetch OA PDFs endpoint ───────────────────────────────────────────────
+
+    fetch_oa_job: dict[str, Any] = {
+        "running": False, "message": "", "error": None,
+        "completed": 0, "total": 0,
+        "downloaded": 0, "skipped": 0, "no_url": 0, "errors": 0, "logs": "",
+    }
+    fetch_oa_lock = threading.Lock()
+
+    def _fetch_oa_snapshot() -> dict[str, Any]:
+        with fetch_oa_lock:
+            return dict(fetch_oa_job)
+
+    @app.post("/api/actions/fetch-pdfs-oa", response_class=responses.JSONResponse)
+    def action_fetch_pdfs_oa(payload: dict[str, Any]):
+        active_cfg = current_cfg()
+        force = bool(payload.get("force"))
+        with fetch_oa_lock:
+            if fetch_oa_job["running"]:
+                return {"ok": True, "async": True, **dict(fetch_oa_job)}
+            fetch_oa_job.update({
+                "running": True, "message": "Fetching OA PDFs...", "error": None,
+                "completed": 0, "total": 0,
+                "downloaded": 0, "skipped": 0, "no_url": 0, "errors": 0, "logs": "",
+            })
+
+        def _progress(p: dict[str, Any]) -> None:
+            with fetch_oa_lock:
+                fetch_oa_job["completed"] = int(p.get("completed") or 0)
+                fetch_oa_job["total"] = int(p.get("total") or 0)
+                ck = p.get("citekey")
+                fetch_oa_job["message"] = (
+                    f"Fetching OA PDFs {fetch_oa_job['completed']}/{fetch_oa_job['total']}"
+                    + (f" ({ck})" if ck else "")
+                )
+
+        def _run() -> None:
+            try:
+                results = fetch_pdfs_oa(active_cfg, force=force, progress_cb=_progress)
+                counts = {s: sum(1 for r in results if r.status == s) for s in ("downloaded", "skipped", "no_url", "error")}
+                error_lines = [f"{r.citekey}: {r.error}" for r in results if r.status == "error"]
+                with fetch_oa_lock:
+                    fetch_oa_job.update({
+                        "running": False, "error": None,
+                        "completed": len(results), "total": len(results),
+                        "downloaded": counts["downloaded"],
+                        "skipped": counts["skipped"],
+                        "no_url": counts["no_url"],
+                        "errors": counts["error"],
+                        "logs": "\n".join(error_lines),
+                        "message": (
+                            f"OA fetch done: {counts['downloaded']} downloaded, "
+                            f"{counts['no_url']} no URL, {counts['skipped']} skipped, "
+                            f"{counts['error']} errors."
+                        ),
+                    })
+            except Exception as e:
+                with fetch_oa_lock:
+                    fetch_oa_job.update({
+                        "running": False, "error": str(e),
+                        "message": f"OA PDF fetch failed: {e}", "logs": str(e),
+                    })
+
+        threading.Thread(target=_run, daemon=True).start()
+        return {"ok": True, "async": True, **_fetch_oa_snapshot()}
+
+    @app.get("/api/actions/fetch-pdfs-oa/status", response_class=responses.JSONResponse)
+    def action_fetch_pdfs_oa_status():
+        return _fetch_oa_snapshot()
+
     # ── RAG build endpoint ────────────────────────────────────────────────────
 
     rag_build_job: dict[str, Any] = {
         "running": False, "message": "", "error": None,
-        "indexed": 0, "chunks": 0, "completed": 0, "total": 0,
+        "indexed": 0, "chunks": 0, "completed": 0, "total": 0, "logs": "",
     }
     rag_build_lock = threading.Lock()
 
@@ -860,20 +1141,22 @@ def create_ui_app(cfg: BiblioConfig):
             })
 
         def _run_rag_build() -> None:
-            import sys as _sys  # noqa: PLC0415
-            vector_store_path = str(Path(__file__).parent / "vector_store.py")
-            python_exe = _rag_python(active_cfg)
             try:
-                result = subprocess.run(
-                    [python_exe, vector_store_path, "build",
-                     "--root", str(active_cfg.repo_root),
-                     "--persist-dir", str(active_cfg.rag_persist_dir)],
-                    capture_output=True, text=True, timeout=600,
-                )
-                if result.returncode != 0:
-                    err = (result.stderr or result.stdout or "").strip()
-                    raise RuntimeError(f"RAG build exited {result.returncode}: {err[:500]}")
-                data = json.loads(result.stdout.strip())
+                if _indexio_mod is not None:
+                    data = _rag_build_indexio(active_cfg.repo_root)
+                else:
+                    vector_store_path = str(Path(__file__).parent / "vector_store.py")
+                    python_exe = _rag_python(active_cfg)
+                    proc = subprocess.run(
+                        [python_exe, vector_store_path, "build",
+                         "--root", str(active_cfg.repo_root),
+                         "--persist-dir", str(active_cfg.rag_persist_dir)],
+                        capture_output=True, text=True, timeout=600,
+                    )
+                    if proc.returncode != 0:
+                        err = (proc.stderr or proc.stdout or "").strip()
+                        raise RuntimeError(f"RAG build exited {proc.returncode}: {err[:500]}")
+                    data = json.loads(proc.stdout.strip())
                 if not data.get("ok"):
                     raise RuntimeError(data.get("error") or "RAG build returned ok=false")
                 with rag_build_lock:
@@ -885,6 +1168,7 @@ def create_ui_app(cfg: BiblioConfig):
                         "completed": 1,
                         "total": 1,
                         "message": f"RAG index built: {data.get('indexed', 0)} papers, {data.get('chunks', 0)} chunks.",
+                        "logs": "",
                     })
             except Exception as e:
                 with rag_build_lock:
@@ -894,6 +1178,7 @@ def create_ui_app(cfg: BiblioConfig):
                         "message": f"RAG build failed: {e}",
                         "completed": 1,
                         "total": 1,
+                        "logs": str(e),
                     })
 
         threading.Thread(target=_run_rag_build, daemon=True).start()
@@ -912,21 +1197,24 @@ def create_ui_app(cfg: BiblioConfig):
         n_results = int(payload.get("n_results") or 10)
         if not query:
             raise fastapi.HTTPException(status_code=400, detail="Missing query")
-        vector_store_path = str(Path(__file__).parent / "vector_store.py")
-        python_exe = _rag_python(active_cfg)
         try:
-            result = subprocess.run(
-                [python_exe, vector_store_path, "search",
-                 "--root", str(active_cfg.repo_root),
-                 "--persist-dir", str(active_cfg.rag_persist_dir),
-                 "--query", query,
-                 "--n", str(n_results)],
-                capture_output=True, text=True, timeout=60,
-            )
-            if result.returncode != 0:
-                err = (result.stderr or result.stdout or "").strip()
-                raise RuntimeError(f"RAG search exited {result.returncode}: {err[:500]}")
-            data = json.loads(result.stdout.strip())
+            if _indexio_mod is not None:
+                data = _rag_search_indexio(active_cfg.repo_root, query, n_results)
+            else:
+                vector_store_path = str(Path(__file__).parent / "vector_store.py")
+                python_exe = _rag_python(active_cfg)
+                proc = subprocess.run(
+                    [python_exe, vector_store_path, "search",
+                     "--root", str(active_cfg.repo_root),
+                     "--persist-dir", str(active_cfg.rag_persist_dir),
+                     "--query", query,
+                     "--n", str(n_results)],
+                    capture_output=True, text=True, timeout=60,
+                )
+                if proc.returncode != 0:
+                    err = (proc.stderr or proc.stdout or "").strip()
+                    raise RuntimeError(f"RAG search exited {proc.returncode}: {err[:500]}")
+                data = json.loads(proc.stdout.strip())
         except Exception as e:
             raise fastapi.HTTPException(status_code=500, detail=str(e))
         if not data.get("ok"):

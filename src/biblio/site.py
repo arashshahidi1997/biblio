@@ -155,32 +155,63 @@ def _find_optional_derivatives(docling_dir: Path) -> dict[str, list[Path]]:
     return found
 
 
-def _minimal_markdown_to_html(text: str) -> str:
+def _minimal_markdown_to_html(text: str, *, image_url_prefix: str = "") -> str:
+    """Convert a minimal subset of Markdown to HTML.
+
+    image_url_prefix: prepended to relative image src paths, e.g.
+    "/api/files/docling/mypaper" so that ![alt](img.png) becomes
+    <img src="/api/files/docling/mypaper/img.png" alt="alt">.
+    """
     blocks: list[str] = []
     lines = text.splitlines()
     in_code = False
     paragraph: list[str] = []
     list_items: list[str] = []
 
+    def _inline(line: str) -> str:
+        """Apply inline formatting: images, bold, italic, code, links."""
+        # Images: ![alt](src)
+        def _img(m: re.Match) -> str:  # type: ignore[type-arg]
+            alt = escape(m.group(1))
+            src = m.group(2)
+            if image_url_prefix and not src.startswith(("http://", "https://", "/")):
+                src = f"{image_url_prefix}/{src}"
+            return f'<img src="{escape(src)}" alt="{alt}" style="max-width:100%;height:auto;">'
+        out = re.sub(r"!\[([^\]]*)\]\(([^)]+)\)", _img, line)
+        # Inline code
+        out = re.sub(r"`([^`]+)`", lambda m: f"<code>{escape(m.group(1))}</code>", out)
+        # Bold
+        out = re.sub(r"\*\*([^*]+)\*\*", lambda m: f"<strong>{escape(m.group(1))}</strong>", out)
+        # Italic
+        out = re.sub(r"\*([^*]+)\*", lambda m: f"<em>{escape(m.group(1))}</em>", out)
+        # Links
+        out = re.sub(
+            r"\[([^\]]+)\]\(([^)]+)\)",
+            lambda m: f'<a href="{escape(m.group(2))}" target="_blank" rel="noreferrer">{escape(m.group(1))}</a>',
+            out,
+        )
+        return out
+
     def flush_paragraph() -> None:
         nonlocal paragraph
         if paragraph:
             joined = " ".join(part.strip() for part in paragraph if part.strip())
             if joined:
-                blocks.append(f"<p>{escape(joined)}</p>")
+                blocks.append(f"<p>{_inline(joined)}</p>")
             paragraph = []
 
     def flush_list() -> None:
         nonlocal list_items
         if list_items:
-            items = "".join(f"<li>{escape(item)}</li>" for item in list_items)
+            items = "".join(f"<li>{_inline(item)}</li>" for item in list_items)
             blocks.append(f"<ul>{items}</ul>")
             list_items = []
 
     code_lines: list[str] = []
     for raw_line in lines:
         line = raw_line.rstrip("\n")
-        if line.strip().startswith("```"):
+        trimmed = line.strip()
+        if trimmed.startswith("```"):
             flush_paragraph()
             flush_list()
             if in_code:
@@ -193,24 +224,30 @@ def _minimal_markdown_to_html(text: str) -> str:
         if in_code:
             code_lines.append(line)
             continue
-        if not line.strip():
+        if not trimmed:
             flush_paragraph()
             flush_list()
+            continue
+        # Standalone image line → render directly as a block
+        if re.match(r"^!\[", trimmed):
+            flush_paragraph()
+            flush_list()
+            blocks.append(_inline(trimmed))
             continue
         if line.startswith("### "):
             flush_paragraph()
             flush_list()
-            blocks.append(f"<h3>{escape(line[4:].strip())}</h3>")
+            blocks.append(f"<h3>{_inline(line[4:].strip())}</h3>")
             continue
         if line.startswith("## "):
             flush_paragraph()
             flush_list()
-            blocks.append(f"<h2>{escape(line[3:].strip())}</h2>")
+            blocks.append(f"<h2>{_inline(line[3:].strip())}</h2>")
             continue
         if line.startswith("# "):
             flush_paragraph()
             flush_list()
-            blocks.append(f"<h1>{escape(line[2:].strip())}</h1>")
+            blocks.append(f"<h1>{_inline(line[2:].strip())}</h1>")
             continue
         if re.match(r"^\s*[-*]\s+", line):
             flush_paragraph()
@@ -578,6 +615,7 @@ def _build_site_model(cfg: BiblioConfig, options: BiblioSiteOptions) -> dict[str
                             "title": item.get("display_name"),
                             "year": item.get("publication_year"),
                             "doi": item.get("doi"),
+                            "cited_by_count": item.get("cited_by_count"),
                             "direction": "references",
                         }
                     )
@@ -591,6 +629,7 @@ def _build_site_model(cfg: BiblioConfig, options: BiblioSiteOptions) -> dict[str
                             "title": item.get("display_name"),
                             "year": item.get("publication_year"),
                             "doi": item.get("doi"),
+                            "cited_by_count": item.get("cited_by_count"),
                             "direction": "citing",
                         }
                     )
@@ -635,7 +674,10 @@ def _build_site_model(cfg: BiblioConfig, options: BiblioSiteOptions) -> dict[str
                 ],
             },
             "docling": {
-                "html": _minimal_markdown_to_html(docling_text) if docling_text else "",
+                "html": _minimal_markdown_to_html(
+                    docling_text,
+                    image_url_prefix=f"/api/files/docling/{citekey}",
+                ) if docling_text else "",
                 "excerpt": "\n".join(docling_text.splitlines()[:20]).strip(),
             },
             "grobid": _load_grobid_data(grobid_root, citekey),
@@ -685,6 +727,8 @@ def _build_site_model(cfg: BiblioConfig, options: BiblioSiteOptions) -> dict[str
                         "openalex_id": paper["graph"]["seed_openalex_id"],
                         "kind": "seed",
                         "is_local": True,
+                        "year": paper.get("year"),
+                        "cited_by": (paper.get("openalex") or {}).get("cited_by_count"),
                     }
                 )
             for neighbor in paper["graph"]["outgoing"]:
@@ -703,6 +747,7 @@ def _build_site_model(cfg: BiblioConfig, options: BiblioSiteOptions) -> dict[str
                             "doi": neighbor.get("doi"),
                             "kind": "local_seed" if target_citekey else "neighbor",
                             "is_local": bool(target_citekey),
+                            "cited_by": neighbor.get("cited_by_count"),
                         }
                     )
                 edge_key = (node_id, target_id)
@@ -735,6 +780,7 @@ def _build_site_model(cfg: BiblioConfig, options: BiblioSiteOptions) -> dict[str
                             "doi": neighbor.get("doi"),
                             "kind": "local_seed" if source_citekey else "neighbor",
                             "is_local": bool(source_citekey),
+                            "cited_by": neighbor.get("cited_by_count"),
                         }
                     )
                 edge_key = (source_id, node_id)

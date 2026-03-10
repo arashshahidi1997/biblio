@@ -90,6 +90,7 @@ def _work_to_candidate(*, seed_id: str, work: dict[str, Any], direction: str) ->
         "direction": direction,
         "display_name": work.get("display_name"),
         "publication_year": work.get("publication_year"),
+        "cited_by_count": work.get("cited_by_count"),
         "doi": doi,
     }
 
@@ -210,6 +211,30 @@ def add_openalex_work_to_bib(
     )
 
 
+def _load_existing_candidates(output_path: Path) -> tuple[list[dict[str, Any]], set[str], int]:
+    """Load existing graph_candidates.json.
+
+    Returns (existing_items, existing_keys, max_hop).
+    existing_keys is the set of "{seed}|{direction}|{target}" strings already stored.
+    """
+    if not output_path.exists():
+        return [], set(), 0
+    try:
+        payload = json.loads(output_path.read_text(encoding="utf-8"))
+    except Exception:
+        return [], set(), 0
+    if not isinstance(payload, list):
+        return [], set(), 0
+    items = [item for item in payload if isinstance(item, dict)]
+    keys = {
+        f"{item.get('seed_openalex_id')}|{item.get('direction', 'references')}|{item.get('openalex_id')}"
+        for item in items
+        if item.get("seed_openalex_id") and item.get("openalex_id")
+    }
+    max_hop = max((int(item.get("hop", 1)) for item in items), default=0)
+    return items, keys, max_hop
+
+
 def expand_openalex_reference_graph(
     *,
     cfg: OpenAlexClientConfig,
@@ -218,35 +243,60 @@ def expand_openalex_reference_graph(
     out_path: str | Path,
     direction: str = "references",
     force: bool = False,
+    merge: bool = True,
+    seed_citekeys: list[str] | None = None,
     progress_cb: Callable[[dict[str, Any]], None] | None = None,
 ) -> GraphExpandResult:
+    """Expand the OpenAlex reference graph.
+
+    Args:
+        merge: If True, load existing graph_candidates.json and append new results
+               without re-processing already-seen (seed, direction, target) triples.
+               Hop number is auto-incremented from the max hop in the existing file.
+        seed_citekeys: If given, only expand seeds whose citekey is in this list.
+                       Useful for per-paper expansion without touching the full corpus.
+    """
     client = OpenAlexClient(cfg)
     output_path = Path(out_path).expanduser().resolve()
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    seed_ids = {
-        seed_id
+    # Optionally filter to specific seeds
+    active_records = records
+    if seed_citekeys:
+        wanted = set(seed_citekeys)
+        active_records = [r for r in records if str(r.get("citekey") or "") in wanted]
+
+    # All openalex IDs in the full corpus (not just active seeds) — used to skip known papers
+    all_seed_ids = {
+        sid
         for record in records
-        for seed_id in [_normalize_openalex_id(record.get("openalex_id"))]
-        if seed_id is not None
+        for sid in [_normalize_openalex_id(record.get("openalex_id"))]
+        if sid is not None
     }
+    active_seed_ids = {
+        sid
+        for record in active_records
+        for sid in [_normalize_openalex_id(record.get("openalex_id"))]
+        if sid is not None
+    }
+
+    # Load existing candidates for merge mode
+    existing_items: list[dict[str, Any]] = []
     candidates_seen: set[str] = set()
+    current_hop = 1
+    if merge:
+        existing_items, candidates_seen, max_hop = _load_existing_candidates(output_path)
+        current_hop = max_hop + 1
+
     discovered: list[dict[str, Any]] = []
-    total = sum(1 for record in records if _normalize_openalex_id(record.get("openalex_id")) is not None)
+    total = len(active_seed_ids)
+
     if progress_cb is not None:
-        progress_cb(
-            {
-                "phase": "start",
-                "completed": 0,
-                "total": total,
-                "seed_openalex_id": None,
-                "candidates": 0,
-            }
-        )
+        progress_cb({"phase": "start", "completed": 0, "total": total, "seed_openalex_id": None, "candidates": len(existing_items)})
 
     try:
         completed = 0
-        for record in records:
+        for record in active_records:
             seed_id = _normalize_openalex_id(record.get("openalex_id"))
             if seed_id is None:
                 continue
@@ -259,18 +309,19 @@ def expand_openalex_reference_graph(
                         if not isinstance(raw_ref, str):
                             continue
                         ref_id = _normalize_openalex_id(raw_ref)
-                        if ref_id is None or ref_id in seed_ids:
+                        if ref_id is None or ref_id in all_seed_ids:
                             continue
-                        try:
-                            ref_work = _load_or_fetch_work(client=client, cache=cache, openalex_id=ref_id, force=force)
-                        except Exception:
-                            ref_work = {"id": _openalex_url(ref_id)}
                         key = f"{seed_id}|references|{ref_id}"
                         if key in candidates_seen:
                             continue
                         candidates_seen.add(key)
+                        try:
+                            ref_work = _load_or_fetch_work(client=client, cache=cache, openalex_id=ref_id, force=force)
+                        except Exception:
+                            ref_work = {"id": _openalex_url(ref_id)}
                         candidate = _work_to_candidate(seed_id=seed_id, work=ref_work, direction="references")
                         if candidate is not None:
+                            candidate["hop"] = current_hop
                             discovered.append(candidate)
             if direction in {"citing", "both"}:
                 citing_works = client.filter_works(filter_expr=f"cites:{seed_id}", per_page=cfg.per_page)
@@ -279,42 +330,28 @@ def expand_openalex_reference_graph(
                     if candidate is None:
                         continue
                     ref_id = str(candidate["openalex_id"])
-                    if ref_id in seed_ids:
+                    if ref_id in all_seed_ids:
                         continue
                     key = f"{seed_id}|citing|{ref_id}"
                     if key in candidates_seen:
                         continue
                     candidates_seen.add(key)
+                    candidate["hop"] = current_hop
                     discovered.append(candidate)
             completed += 1
             if progress_cb is not None:
-                progress_cb(
-                    {
-                        "phase": "expand",
-                        "completed": completed,
-                        "total": total,
-                        "seed_openalex_id": seed_id,
-                        "candidates": len(discovered),
-                    }
-                )
+                progress_cb({"phase": "expand", "completed": completed, "total": total, "seed_openalex_id": seed_id, "candidates": len(existing_items) + len(discovered)})
     finally:
         client.close()
 
-    discovered.sort(key=lambda item: (str(item["seed_openalex_id"]), str(item.get("direction") or ""), str(item["openalex_id"])))
-    output_path.write_text(json.dumps(discovered, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    all_items = existing_items + discovered
+    all_items.sort(key=lambda item: (int(item.get("hop", 1)), str(item.get("seed_openalex_id")), str(item.get("direction") or ""), str(item.get("openalex_id"))))
+    output_path.write_text(json.dumps(all_items, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     if progress_cb is not None:
-        progress_cb(
-            {
-                "phase": "done",
-                "completed": total,
-                "total": total,
-                "seed_openalex_id": None,
-                "candidates": len(discovered),
-            }
-        )
+        progress_cb({"phase": "done", "completed": total, "total": total, "seed_openalex_id": None, "candidates": len(all_items)})
     return GraphExpandResult(
-        total_inputs=len(records),
-        seeds_with_openalex=len(seed_ids),
-        candidates=len(discovered),
+        total_inputs=len(active_records),
+        seeds_with_openalex=len(active_seed_ids),
+        candidates=len(all_items),
         output_path=output_path,
     )

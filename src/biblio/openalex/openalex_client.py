@@ -44,6 +44,9 @@ DEFAULT_SELECT: tuple[str, ...] = (
     "topics",
     "referenced_works",
     "ids",
+    "open_access",
+    "best_oa_location",
+    "primary_location",
 )
 
 

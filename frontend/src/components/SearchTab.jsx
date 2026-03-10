@@ -95,9 +95,11 @@ export default function SearchTab({ setActiveKey, setActiveTab }) {
                     {item.year && <span className="small" style={{ marginLeft: "0.4rem" }}>({item.year})</span>}
                   </div>
                   <div style={{ display: "flex", gap: "0.4rem", flexShrink: 0 }}>
-                    <span className="badge ok" style={{ fontSize: "0.7rem" }}>
-                      dist {item.distance}
-                    </span>
+                    {item.distance != null && (
+                      <span className="badge ok" style={{ fontSize: "0.7rem" }}>
+                        dist {item.distance}
+                      </span>
+                    )}
                     <span className="badge" style={{ fontSize: "0.7rem" }}>
                       chunk {item.chunk_index}
                     </span>

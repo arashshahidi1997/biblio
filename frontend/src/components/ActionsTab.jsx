@@ -48,6 +48,12 @@ export default function ActionsTab({ activePaper, actionState, triggerAction, ad
         >
           Build RAG Index
         </button>
+        <button
+          disabled={actionState.busy}
+          onClick={() => triggerAction("fetch-pdfs-oa")}
+        >
+          Fetch OA PDFs
+        </button>
       </div>
       <div className="field" style={{ marginTop: "1rem" }}>
         <label>Add paper by DOI</label>
@@ -70,7 +76,24 @@ export default function ActionsTab({ activePaper, actionState, triggerAction, ad
           {actionState.message}
         </div>
       )}
-      {(actionState.action === "openalex-resolve" || actionState.action === "graph-expand" || actionState.action === "docling-run" || actionState.action === "grobid-run" || actionState.action === "grobid-match" || actionState.action === "rag-build") &&
+      {actionState.logs && (
+        <pre style={{
+          marginTop: "0.5rem",
+          padding: "0.5rem",
+          background: "var(--bg2, #1a1a1a)",
+          border: "1px solid var(--border, #333)",
+          borderRadius: "4px",
+          fontSize: "0.72rem",
+          maxHeight: "12rem",
+          overflowY: "auto",
+          whiteSpace: "pre-wrap",
+          wordBreak: "break-all",
+          color: actionState.error ? "var(--error, #e06c75)" : "var(--fg2, #aaa)",
+        }}>
+          {actionState.logs}
+        </pre>
+      )}
+      {(actionState.action === "openalex-resolve" || actionState.action === "graph-expand" || actionState.action === "docling-run" || actionState.action === "grobid-run" || actionState.action === "grobid-match" || actionState.action === "rag-build" || actionState.action === "fetch-pdfs-oa") &&
         (actionState.progressTotal > 0 || actionState.busy) && (
           <div className="progress-wrap">
             <div className="small">

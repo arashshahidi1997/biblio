@@ -33,6 +33,7 @@ from .openalex.openalex_resolve import ResolveOptions, resolve_srcbib_to_openale
 from .ui import serve_ui_app
 from .grobid import check_grobid_server, run_grobid_for_key, run_grobid_match
 from .library import load_library, update_entry
+from .ref_md import run_ref_md_for_key
 
 try:
     import argcomplete
@@ -308,6 +309,16 @@ def _build_parser() -> argparse.ArgumentParser:
     lib_set.add_argument("--status", help="Status: unread|reading|processed|archived.")
     lib_set.add_argument("--tags", help="Comma-separated tags (replaces existing tags).")
     lib_set.add_argument("--priority", help="Priority: low|normal|high.")
+
+    p_ref_md = sub.add_parser("ref-md", help="Produce reference-resolved markdown from docling+GROBID outputs.")
+    ref_md_sub = p_ref_md.add_subparsers(dest="ref_md_cmd", required=True)
+    ref_md_run = ref_md_sub.add_parser("run", help="Resolve in-text citations for one key or all keys.")
+    ref_md_run.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    ref_md_run.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    ref_md_run_group = ref_md_run.add_mutually_exclusive_group(required=True)
+    ref_md_run_group.add_argument("--key", help="Single citekey (with or without leading @).")
+    ref_md_run_group.add_argument("--all", action="store_true", help="Run for all citekeys in citekeys.md.")
+    ref_md_run.add_argument("--force", action="store_true", help="Re-run even if outputs already exist.")
 
     p_ui = sub.add_parser("ui", help="Serve a local interactive bibliography UI.")
     ui_sub = p_ui.add_subparsers(dest="ui_cmd", required=True)
@@ -784,6 +795,38 @@ def main(argv: Iterable[str] | None = None) -> None:
             print(f"[OK] {key}: {entry}")
             return
         raise SystemExit(2)
+
+    if args.command == "ref-md":
+        repo_root = (args.root.expanduser().resolve() if args.root else find_repo_root())
+        cfg_path = (repo_root / args.config).resolve() if args.config else (repo_root / "bib" / "config" / "biblio.yml")
+        cfg = load_biblio_config(cfg_path, root=repo_root)
+        if args.ref_md_cmd == "run":
+            if args.all:
+                try:
+                    keys = load_citekeys_md(cfg.citekeys_path)
+                except FileNotFoundError:
+                    print(f"Missing citekeys file: {cfg.citekeys_path}", file=sys.stderr)
+                    raise SystemExit(2)
+                if not keys:
+                    print(f"No citekeys found in {cfg.citekeys_path}", file=sys.stderr)
+                    raise SystemExit(2)
+                print(f"[INFO] repo_root={repo_root} keys={len(keys)}", file=sys.stderr, flush=True)
+                failures = 0
+                for idx, key in enumerate(keys, start=1):
+                    try:
+                        print(f"[RUN {idx}/{len(keys)}] {key}", file=sys.stderr, flush=True)
+                        out = run_ref_md_for_key(cfg, key, force=args.force)
+                    except Exception as e:
+                        failures += 1
+                        print(f"[FAIL {idx}/{len(keys)}] {key}: {e}", file=sys.stderr)
+                    else:
+                        print(f"[OK {idx}/{len(keys)}] {key}: {out.md_path}", flush=True)
+                raise SystemExit(0 if failures == 0 else 1)
+            else:
+                print(f"[RUN] {args.key.lstrip('@')}", file=sys.stderr, flush=True)
+                out = run_ref_md_for_key(cfg, args.key, force=args.force)
+                print(f"[OK] {args.key.lstrip('@')}: {out.md_path}")
+        return
 
     if args.command == "ui":
         if args.ui_cmd != "serve":
