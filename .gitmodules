@@ -5,3 +5,11 @@
 [submodule "resources/local-citation-network"]
 	path = resources/local-citation-network
 	url = https://github.com/LocalCitationNetwork/LocalCitationNetwork.github.io.git
+	datalad-url = https://github.com/LocalCitationNetwork/LocalCitationNetwork.github.io.git
+[submodule "resources/gecko-react"]
+	path = resources/gecko-react
+	url = https://github.com/CitationGecko/gecko-react.git
+[submodule "resources/inciteful-web"]
+	path = resources/inciteful-web
+	url = https://github.com/inciteful-xyz/inciteful-web.git
+	datalad-url = https://github.com/inciteful-xyz/inciteful-web.git
