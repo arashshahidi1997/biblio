@@ -17,3 +17,7 @@
 	path = resources/paperscape-mapclient
 	url = https://github.com/paperscape/paperscape-mapclient.git
 	datalad-url = https://github.com/paperscape/paperscape-mapclient.git
+[submodule "resources/academic-citation-network"]
+	path = resources/academic-citation-network
+	url = https://github.com/huangy22/Academic_Citation_Network.git
+	datalad-url = https://github.com/huangy22/Academic_Citation_Network.git
