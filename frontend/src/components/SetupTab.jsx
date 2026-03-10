@@ -1,4 +1,71 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+
+function NormalizeKeysTool({ actionState }) {
+  const [preview, setPreview] = useState(null); // null | []
+  const [loading, setLoading] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [applied, setApplied] = useState(false);
+
+  const fetchPreview = useCallback(() => {
+    setLoading(true);
+    setPreview(null);
+    setApplied(false);
+    fetch("/api/actions/normalize-citekeys", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ apply: false }),
+    })
+      .then((r) => r.json())
+      .then((data) => { setPreview(data.renames || []); setLoading(false); })
+      .catch(() => { setPreview([]); setLoading(false); });
+  }, []);
+
+  const applyRenames = useCallback(() => {
+    setApplying(true);
+    fetch("/api/actions/normalize-citekeys", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ apply: true }),
+    })
+      .then((r) => r.json())
+      .then(() => { setApplied(true); setPreview(null); setApplying(false); })
+      .catch(() => setApplying(false));
+  }, []);
+
+  return (
+    <div style={{ marginTop: "0.6rem" }}>
+      <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
+        <button disabled={loading || actionState.busy} onClick={fetchPreview}>
+          {loading ? "Scanning…" : "Preview renames"}
+        </button>
+        {preview && preview.length > 0 && (
+          <button
+            disabled={applying}
+            onClick={applyRenames}
+            style={{ background: "var(--accent, #4a9eff22)", border: "1px solid var(--accent, #4a9eff)" }}
+          >
+            {applying ? "Applying…" : `Apply ${preview.length} rename${preview.length !== 1 ? "s" : ""}`}
+          </button>
+        )}
+        {preview && preview.length === 0 && (
+          <span className="small" style={{ opacity: 0.6 }}>All citekeys already standard.</span>
+        )}
+        {applied && <span className="small" style={{ opacity: 0.6 }}>Applied. Re-run pipeline steps to regenerate derivatives.</span>}
+      </div>
+      {preview && preview.length > 0 && (
+        <div style={{ marginTop: "0.5rem", maxHeight: "200px", overflowY: "auto", fontSize: "0.76rem", fontFamily: "monospace" }}>
+          {preview.map((r, i) => (
+            <div key={i} style={{ padding: "0.15rem 0", opacity: 0.85 }}>
+              <span style={{ color: "var(--error, #e06c75)" }}>{r.old}</span>
+              {" → "}
+              <span style={{ color: "var(--ok, #98c379)" }}>{r.new}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function GrobidConfigForm({ setup, actionState, triggerSetupAction }) {
   const [url, setUrl] = useState(setup.grobid.url || "http://127.0.0.1:8070");
@@ -145,6 +212,14 @@ export default function SetupTab({
                 <button disabled={actionState.busy} onClick={() => triggerAction("grobid-match", {})}>GROBID Match</button>
               </div>
             </div>
+          </div>
+          <div className="panel">
+            <h3>Normalize citekeys</h3>
+            <div className="small" style={{ marginBottom: "0.4rem" }}>
+              Rename existing BibTeX citekeys to the standard <code>author_year_Title</code> format.
+              Preview first, then apply. Derived artifacts (Docling, GROBID) will need to be re-run after.
+            </div>
+            <NormalizeKeysTool actionState={actionState} />
           </div>
         </>
       )}

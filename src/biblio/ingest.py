@@ -99,6 +99,23 @@ def _title_token(title: str | None, doi: str | None) -> str:
     return "record"
 
 
+def _title_camel_token(title: str | None, doi: str | None, n_words: int = 2) -> str:
+    """Return first N significant words of title, each capitalized, concatenated."""
+    if title:
+        words = []
+        for raw in re.split(r"[^A-Za-z0-9]+", title):
+            if raw and raw.lower() not in _STOPWORDS and len(words) < n_words:
+                words.append(raw.capitalize())
+        if words:
+            return "".join(words)
+    if doi:
+        tail = doi.rstrip("/").split("/")[-1]
+        token = re.sub(r"[^A-Za-z0-9]+", "", tail)
+        if token:
+            return token[:20].capitalize()
+    return "Record"
+
+
 def _first_author_token(authors: Iterable[str]) -> str:
     first = next(iter(authors), None)
     if not first:
@@ -121,12 +138,20 @@ def assign_citekeys(records: Iterable[IngestRecord]) -> list[tuple[str, IngestRe
     seen: dict[str, int] = {}
     assigned: list[tuple[str, IngestRecord]] = []
     for record in records:
-        base = f"{_first_author_token(record.authors)}{_year_token(record.year)}{_title_token(record.title, record.doi)}"
+        author = _first_author_token(record.authors)
+        year = _year_token(record.year)
+        title = _title_camel_token(record.title, record.doi)
+        base = f"{author}_{year}_{title}"
         count = seen.get(base, 0)
         seen[base] = count + 1
         citekey = base if count == 0 else f"{base}{count + 1}"
         assigned.append((citekey, record))
     return assigned
+
+
+def canonical_citekey(record: IngestRecord) -> str:
+    """Return the canonical author_year_Title citekey for a record (no dedup suffix)."""
+    return f"{_first_author_token(record.authors)}_{_year_token(record.year)}_{_title_camel_token(record.title, record.doi)}"
 
 
 def parse_doi_file(path: str | Path) -> list[IngestRecord]:

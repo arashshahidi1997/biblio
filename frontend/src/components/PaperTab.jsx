@@ -91,13 +91,51 @@ function AbsentRefsPanel({ citekey, triggerAction }) {
   const [resolved, setResolved] = useState({});
   const [threshold, setThreshold] = useState(70);
   const [copied, setCopied] = useState(false);
+  const saveTimer = useRef(null);
+  const loadedFor = useRef(null);
+
+  function fetchAll() {
+    setLoading(true);
+    Promise.all([
+      fetch(`/api/papers/${encodeURIComponent(citekey)}/absent-refs`).then((r) => r.json()),
+      fetch(`/api/papers/${encodeURIComponent(citekey)}/ref-resolutions`).then((r) => r.json()),
+    ])
+      .then(([absentData, cacheData]) => {
+        setRefs(absentData.absent_refs || []);
+        setResolved(cacheData.resolutions || {});
+        setLoading(false);
+      })
+      .catch(() => { setRefs([]); setLoading(false); });
+  }
+
+  // Auto-load on mount / citekey change, also restore cached resolutions
+  useEffect(() => {
+    if (loadedFor.current === citekey) return;
+    loadedFor.current = citekey;
+    setRefs(null);
+    setResolved({});
+    fetchAll();
+  }, [citekey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Persist resolutions to backend (debounced 1s)
+  useEffect(() => {
+    if (!refs || Object.keys(resolved).length === 0) return;
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      fetch(`/api/papers/${encodeURIComponent(citekey)}/ref-resolutions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resolutions: resolved }),
+      }).catch(() => {});
+    }, 1000);
+    return () => clearTimeout(saveTimer.current);
+  }, [resolved, citekey, refs]);
 
   function load() {
-    setLoading(true);
-    fetch(`/api/papers/${encodeURIComponent(citekey)}/absent-refs`)
-      .then((r) => r.json())
-      .then((data) => { setRefs(data.absent_refs || []); setLoading(false); })
-      .catch(() => { setRefs([]); setLoading(false); });
+    loadedFor.current = null; // force reload
+    setRefs(null);
+    setResolved({});
+    fetchAll();
   }
 
   function resolveDoi(idx, title) {
@@ -120,6 +158,7 @@ function AbsentRefsPanel({ citekey, triggerAction }) {
 
   function resolveAll() {
     if (!refs) return;
+    // Only resolve refs above/at threshold that are unresolved
     refs.forEach((ref, idx) => {
       if (!ref.doi && !resolved[idx] && !resolving[idx] && ref.title) {
         resolveDoi(idx, ref.title);
@@ -159,8 +198,11 @@ function AbsentRefsPanel({ citekey, triggerAction }) {
   }
 
   const qualifiedDois = getQualifiedDois();
-  const pendingResolve = refs ? refs.filter((r, idx) => !r.doi && !resolved[idx] && !resolving[idx] && r.title).length : 0;
+  const pendingResolve = refs
+    ? refs.filter((r, idx) => !r.doi && !resolved[idx] && !resolving[idx] && r.title).length
+    : 0;
   const resolveInProgress = Object.values(resolving).filter(Boolean).length;
+  const hasResolved = Object.keys(resolved).some((k) => resolved[k] && !resolved[k].error);
 
   return (
     <div className="panel absent-refs-panel">
@@ -175,13 +217,13 @@ function AbsentRefsPanel({ citekey, triggerAction }) {
               className="absent-refs-btn-small"
               onClick={resolveAll}
               disabled={resolveInProgress > 0}
-              title="Resolve DOIs for all unresolved refs"
+              title="Resolve DOIs via CrossRef for all unresolved refs"
             >
               {resolveInProgress > 0 ? `Resolving ${resolveInProgress}…` : `Resolve all (${pendingResolve})`}
             </button>
           )}
           {qualifiedDois.length > 0 && (
-            <button className="absent-refs-btn-small" onClick={copyAll} title="Copy all qualified DOIs to clipboard">
+            <button className="absent-refs-btn-small" onClick={copyAll} title="Copy qualified DOIs to clipboard">
               {copied ? "Copied!" : `Copy DOIs (${qualifiedDois.length})`}
             </button>
           )}
@@ -196,13 +238,13 @@ function AbsentRefsPanel({ citekey, triggerAction }) {
             disabled={loading}
             title="Reload absent references"
           >
-            {loading ? "Loading…" : refs === null ? "Load" : "↺"}
+            {loading ? "Loading…" : "↺"}
           </button>
         </div>
       </div>
 
-      {/* Threshold slider — only shown once we have some resolved results */}
-      {refs !== null && Object.keys(resolved).some((k) => resolved[k] && resolved[k].doi) && (
+      {/* Threshold slider — always shown once refs are loaded */}
+      {refs !== null && (
         <div className="absent-refs-threshold">
           <label className="absent-refs-threshold-label">
             Min match
@@ -217,6 +259,11 @@ function AbsentRefsPanel({ citekey, triggerAction }) {
             className="absent-refs-slider"
           />
           <span className="absent-refs-threshold-val">{threshold}%</span>
+          {hasResolved && (
+            <span style={{ fontSize: "0.72rem", opacity: 0.5, marginLeft: "0.3rem" }}>
+              ({qualifiedDois.length} pass)
+            </span>
+          )}
         </div>
       )}
 
@@ -339,38 +386,64 @@ function addCitationLinks(html) {
   });
 }
 
-function CitationTooltip({ paper, x, y }) {
+function CitationTooltip({ paper, x, y, onOpen }) {
   if (!paper) return null;
+  const left = Math.min(x + 12, window.innerWidth - 340);
+  const top = Math.min(y + 16, window.innerHeight - 160);
+  const oa = paper.openalex || {};
+  const topics = oa.topics || [];
+  const firstTopic = topics[0]?.display_name;
+  const citedBy = oa.cited_by_count;
   const style = {
     position: "fixed",
-    left: Math.min(x + 12, window.innerWidth - 320),
-    top: y + 16,
+    left,
+    top,
     zIndex: 9999,
-    maxWidth: 300,
-    background: "var(--bg2, #1e2230)",
-    border: "1px solid var(--border, #333)",
+    maxWidth: 320,
+    background: "var(--panel)",
+    border: "1px solid var(--line)",
     borderRadius: 6,
-    padding: "0.6rem 0.8rem",
-    boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
-    pointerEvents: "none",
+    padding: "0.65rem 0.85rem",
+    boxShadow: "0 4px 18px rgba(0,0,0,0.55)",
+    pointerEvents: onOpen ? "auto" : "none",
+    cursor: "default",
   };
   return (
     <div style={style}>
-      <div style={{ fontWeight: 600, fontSize: "0.82rem", marginBottom: "0.25rem", lineHeight: 1.3 }}>
+      <div style={{ fontWeight: 600, fontSize: "0.82rem", marginBottom: "0.2rem", lineHeight: 1.35 }}>
         {paper.title || paper.citekey}
       </div>
-      <div style={{ fontSize: "0.76rem", opacity: 0.7 }}>
+      <div style={{ fontSize: "0.76rem", opacity: 0.72, marginBottom: "0.2rem" }}>
         {(paper.authors || []).slice(0, 3).join(", ")}{(paper.authors || []).length > 3 ? " et al." : ""}
         {paper.year ? ` · ${paper.year}` : ""}
       </div>
+      {(firstTopic || citedBy != null) && (
+        <div style={{ fontSize: "0.72rem", opacity: 0.55, marginBottom: "0.25rem" }}>
+          {firstTopic && <span>{firstTopic}</span>}
+          {firstTopic && citedBy != null && <span> · </span>}
+          {citedBy != null && <span>{citedBy.toLocaleString()} citations</span>}
+        </div>
+      )}
+      {onOpen && (
+        <button
+          style={{
+            fontSize: "0.72rem", marginTop: "0.3rem", padding: "0.15rem 0.5rem",
+            background: "var(--accent-soft)", border: "1px solid var(--accent)",
+            borderRadius: 4, color: "var(--accent)", cursor: "pointer",
+          }}
+          onClick={onOpen}
+        >
+          Open paper
+        </button>
+      )}
     </div>
   );
 }
 
-function StandardizedTab({ citekey, papers }) {
+function StandardizedTab({ citekey, papers, openInPaperTab }) {
   const [text, setText] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [tooltip, setTooltip] = useState(null); // { paper, x, y }
+  const [tooltip, setTooltip] = useState(null); // { paper, x, y, key }
   const loadedFor = useRef(null);
 
   const paperMap = useMemo(() => {
@@ -403,8 +476,16 @@ function StandardizedTab({ citekey, papers }) {
       return;
     }
     const key = a.dataset.key;
+    if (tooltip?.key === key) return;
     const paper = paperMap[key] || null;
-    setTooltip({ paper: paper || { citekey: key, title: key }, x: e.clientX, y: e.clientY });
+    setTooltip({ paper: paper || { citekey: key, title: key }, x: e.clientX, y: e.clientY, key });
+  }
+
+  function handleClick(e) {
+    const a = e.target.closest(".cite-link");
+    if (!a || !openInPaperTab) return;
+    const key = a.dataset.key;
+    if (paperMap[key]) openInPaperTab(key);
   }
 
   if (loading || text === null) {
@@ -418,9 +499,22 @@ function StandardizedTab({ citekey, papers }) {
     );
   }
   return (
-    <div onMouseMove={handleMouseMove} onMouseLeave={() => setTooltip(null)}>
+    <div
+      onMouseMove={handleMouseMove}
+      onMouseLeave={() => setTooltip(null)}
+      onClick={handleClick}
+    >
       <div className="docling-box docling-box-full" dangerouslySetInnerHTML={{ __html: html }} />
-      {tooltip && <CitationTooltip paper={tooltip.paper} x={tooltip.x} y={tooltip.y} />}
+      {tooltip && (
+        <CitationTooltip
+          paper={tooltip.paper}
+          x={tooltip.x}
+          y={tooltip.y}
+          onOpen={tooltip.paper && paperMap[tooltip.key] && openInPaperTab
+            ? () => { openInPaperTab(tooltip.key); setTooltip(null); }
+            : null}
+        />
+      )}
     </div>
   );
 }
@@ -513,11 +607,11 @@ function FiguresTab({ citekey }) {
   );
 }
 
-const CONTENT_SUBTABS = ["PDF", "Docling", "Standardized", "Figures", "GROBID"];
+const CONTENT_SUBTABS = ["PDF", "Markdown", "Figures", "Refs"];
 
 export default function PaperTab({
-  activePaper, activeArtifacts, doclingHtml,
-  updateLibraryEntry, triggerAction, actionState, papers,
+  activePaper, activeArtifacts,
+  updateLibraryEntry, triggerAction, actionState, papers, openInPaperTab,
 }) {
   const [contentTab, setContentTab] = useState("PDF");
   const [fullscreen, setFullscreen] = useState(false);
@@ -622,18 +716,9 @@ export default function PaperTab({
             </div>
           )}
 
-          {contentTab === "Docling" && (
+          {contentTab === "Markdown" && (
             <div className="panel paper-content-panel">
-              {hasDocling && activePaper.docling && activePaper.docling.html
-                ? <div className="docling-box docling-box-full" dangerouslySetInnerHTML={{ __html: activePaper.docling.html }} />
-                : <div className="small">No Docling output available for this paper.</div>
-              }
-            </div>
-          )}
-
-          {contentTab === "Standardized" && (
-            <div className="panel paper-content-panel">
-              <StandardizedTab citekey={activePaper.citekey} papers={papers} />
+              <StandardizedTab citekey={activePaper.citekey} papers={papers} openInPaperTab={openInPaperTab} />
             </div>
           )}
 
@@ -643,7 +728,7 @@ export default function PaperTab({
             </div>
           )}
 
-          {contentTab === "GROBID" && (
+          {contentTab === "Refs" && (
             <div className="panel paper-content-panel">
               {activePaper.grobid && activePaper.grobid.header && Object.keys(activePaper.grobid.header).length > 0 ? (
                 <>
@@ -723,7 +808,9 @@ export default function PaperTab({
           </div>
 
           {hasGrobid && (
-            <AbsentRefsPanel citekey={activePaper.citekey} triggerAction={triggerAction} />
+            <div className="panel small" style={{ opacity: 0.65 }}>
+              {activePaper.grobid?.reference_count ?? 0} refs extracted — see Refs tab to resolve absent references.
+            </div>
           )}
         </div>
       </div>

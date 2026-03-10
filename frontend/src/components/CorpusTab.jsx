@@ -28,7 +28,7 @@ export default function CorpusTab({
   papers, actionState, setActiveKey, setActiveTab, openInPaperTab,
   setLibraryMode, triggerAction,
   statusFilter, setStatusFilter, tagFilter, setTagFilter, allTags,
-  updateLibraryEntry, compact,
+  updateLibraryEntry, compact, onRowContextMenu,
 }) {
   const busy = actionState.busy;
   return (
@@ -81,6 +81,7 @@ export default function CorpusTab({
                 key={paper.citekey}
                 onClick={() => setActiveKey(paper.citekey)}
                 onDoubleClick={() => openInPaperTab(paper.citekey)}
+                onContextMenu={onRowContextMenu ? (e) => onRowContextMenu(e, paper.citekey) : undefined}
                 title="Double-click to open in new tab"
               >
                 <td>

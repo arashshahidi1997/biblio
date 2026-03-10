@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { renderMarkdown } from './utils/markdown';
 import ExploreTab from './components/ExploreTab';
 import CorpusTab from './components/CorpusTab';
 import PaperTab from './components/PaperTab';
 import SetupTab from './components/SetupTab';
 import SearchTab from './components/SearchTab';
 import GraphInspector from './components/GraphInspector';
+import CollectionTree from './components/CollectionTree';
 
 export default function App() {
   const urlCitekey = new URLSearchParams(window.location.search).get("paper") || "";
@@ -41,6 +41,15 @@ export default function App() {
   const cyInstanceRef = useRef(null);
   const [statusFilter, setStatusFilter] = useState("");
   const [tagFilter, setTagFilter] = useState("");
+  const [collections, setCollections] = useState([]);
+  const [activeCollectionId, setActiveCollectionId] = useState(null);
+  const [contextMenu, setContextMenu] = useState(null); // {x, y, citekey}
+  // Navigation history: stack of {activeTab, activePaperKey}
+  const navHistoryRef = useRef([]);
+  const navFutureRef = useRef([]);
+  const navSkipRef = useRef(false); // skip recording when navigating via back/forward
+  const [navCanBack, setNavCanBack] = useState(false);
+  const [navCanForward, setNavCanForward] = useState(false);
 
   const loadModel = useCallback(() => {
     fetch("/api/model").then((resp) => resp.json()).then((data) => {
@@ -83,16 +92,32 @@ export default function App() {
     loadSetup();
   }, [loadSetup]);
 
+  const loadCollections = useCallback(() => {
+    fetch("/api/collections").then((r) => r.json()).then((d) => setCollections(d.collections || []));
+  }, []);
+
+  useEffect(() => { loadCollections(); }, [loadCollections]);
+
+  // Close context menu on outside click
+  useEffect(() => {
+    if (!contextMenu) return;
+    const close = () => setContextMenu(null);
+    window.addEventListener("click", close);
+    return () => window.removeEventListener("click", close);
+  }, [contextMenu]);
+
   const papers = useMemo(() => {
     if (!payload) return [];
     const q = query.trim().toLowerCase();
+    const activeCol = activeCollectionId ? collections.find((c) => c.id === activeCollectionId) : null;
     return (payload.papers || []).filter((paper) => {
       if (q && !`${paper.citekey} ${paper.title}`.toLowerCase().includes(q)) return false;
       if (statusFilter && (paper.library || {}).status !== statusFilter) return false;
       if (tagFilter && !((paper.library || {}).tags || []).includes(tagFilter)) return false;
+      if (activeCol && !activeCol.citekeys.includes(paper.citekey)) return false;
       return true;
     });
-  }, [payload, query, statusFilter, tagFilter]);
+  }, [payload, query, statusFilter, tagFilter, activeCollectionId, collections]);
 
   const allTags = useMemo(() => {
     if (!payload) return [];
@@ -113,19 +138,54 @@ export default function App() {
     return (payload.papers || []).find((p) => p.citekey === activePaperKey) || null;
   }, [payload, activePaperKey]);
 
-  const doclingHtml = useMemo(
-    () => renderMarkdown(
-      (activePaperItem && activePaperItem.docling && activePaperItem.docling.excerpt) || "",
-      { imageBase: activePaperItem ? `/api/files/docling/${activePaperItem.citekey}` : "" },
-    ),
-    [activePaperItem]
-  );
 
+
+  // Record a navigation step (tab + optional paperKey) into history
+  function navPush(tab, paperKey) {
+    if (navSkipRef.current) return;
+    const entry = { tab, paperKey: paperKey || "" };
+    navHistoryRef.current = [...navHistoryRef.current, entry];
+    navFutureRef.current = [];
+    setNavCanBack(navHistoryRef.current.length > 1);
+    setNavCanForward(false);
+  }
+
+  function navApply(entry) {
+    navSkipRef.current = true;
+    setActiveTab(entry.tab);
+    if (entry.paperKey) {
+      setActivePaperKey(entry.paperKey);
+      setOpenPaperKeys((prev) => prev.includes(entry.paperKey) ? prev : [...prev, entry.paperKey]);
+    }
+    navSkipRef.current = false;
+  }
+
+  function navBack() {
+    if (navHistoryRef.current.length <= 1) return;
+    const current = navHistoryRef.current[navHistoryRef.current.length - 1];
+    navFutureRef.current = [current, ...navFutureRef.current];
+    navHistoryRef.current = navHistoryRef.current.slice(0, -1);
+    const entry = navHistoryRef.current[navHistoryRef.current.length - 1];
+    setNavCanBack(navHistoryRef.current.length > 1);
+    setNavCanForward(true);
+    navApply(entry);
+  }
+
+  function navForward() {
+    if (navFutureRef.current.length === 0) return;
+    const entry = navFutureRef.current[0];
+    navFutureRef.current = navFutureRef.current.slice(1);
+    navHistoryRef.current = [...navHistoryRef.current, entry];
+    setNavCanBack(true);
+    setNavCanForward(navFutureRef.current.length > 0);
+    navApply(entry);
+  }
 
   function openInPaperTab(citekey) {
     setOpenPaperKeys((prev) => prev.includes(citekey) ? prev : [...prev, citekey]);
     setActivePaperKey(citekey);
     setActiveTab("paper");
+    navPush("paper", citekey);
   }
 
   function closePaperTab(citekey) {
@@ -152,6 +212,41 @@ export default function App() {
     } catch (err) {
       console.error("library update failed", err);
     }
+  }
+
+  async function createCollection(name, parentId) {
+    await fetch("/api/collections", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, parent: parentId || null }),
+    });
+    loadCollections();
+  }
+
+  async function renameCollection(id, name) {
+    await fetch(`/api/collections/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    loadCollections();
+  }
+
+  async function deleteCollection(id) {
+    await fetch(`/api/collections/${id}`, { method: "DELETE" });
+    loadCollections();
+  }
+
+  async function togglePaperInCollection(colId, citekey) {
+    const col = collections.find((c) => c.id === colId);
+    if (!col) return;
+    const method = col.citekeys.includes(citekey) ? "DELETE" : "POST";
+    await fetch(`/api/collections/${colId}/papers`, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ citekeys: [citekey] }),
+    });
+    loadCollections();
   }
 
   async function pollOpenAlexProgress() {
@@ -210,7 +305,7 @@ export default function App() {
         window.setTimeout(() => pollJobStatus(action), 400);
       } else if (!data.error) {
         loadModel();
-        if (loadSetup) loadSetup();
+        if (action === "docling-run" || action === "rag-build") loadSetup();
       }
     } catch (err) {
       setActionState({
@@ -291,6 +386,13 @@ export default function App() {
     }
   }
 
+  async function cancelAction(action) {
+    if (!action) return;
+    try {
+      await fetch(`/api/actions/${action}/cancel`, { method: "POST" });
+    } catch (_) {}
+  }
+
   async function triggerSetupAction(endpoint, body) {
     setActionState({ busy: true, message: `Running ${endpoint}...`, error: false });
     try {
@@ -345,11 +447,6 @@ export default function App() {
           <div>
             <div className="small">Local FastAPI bibliography explorer</div>
             <h1>BiBlio</h1>
-            <div className="legend small">
-              <span className="legend-seed">active seed</span>
-              <span className="legend-local">local paper</span>
-              <span className="legend-external">external neighbor</span>
-            </div>
           </div>
           <div className="header-links">
             <a href={docsUrl} target="_blank" rel="noreferrer">Docs</a>
@@ -363,28 +460,6 @@ export default function App() {
 
         {/* Vertical icon sidebar */}
         <nav className="icon-sidebar">
-          {/* Nav: Library / Paper */}
-          <div className="sidebar-section">
-            <button
-              className={`sidebar-icon${activeTab === "library" ? " active" : ""}`}
-              onClick={() => setActiveTab("library")}
-              title="Library"
-            >
-              ☰
-            </button>
-            <button
-              className={`sidebar-icon${activeTab === "paper" ? " active" : ""}`}
-              onClick={() => setActiveTab("paper")}
-              title="Papers"
-              style={{ position: "relative" }}
-            >
-              ⊡
-              {openPaperKeys.length > 0 && (
-                <span className="sidebar-badge">{openPaperKeys.length}</span>
-              )}
-            </button>
-          </div>
-
           <div className="sidebar-divider" />
 
           {/* Panel toggles */}
@@ -449,11 +524,25 @@ export default function App() {
           )}
 
           {!showSetup && (<>
-          {/* Global tab strip: Library (fixed) + open paper tabs */}
+          {/* Global tab strip: nav buttons + Library (fixed) + open paper tabs */}
           <div className="global-tabstrip">
+            {/* Back / Forward */}
+            <button
+              className="global-tabstrip-nav-btn"
+              disabled={!navCanBack}
+              onClick={navBack}
+              title="Navigate back"
+            >‹</button>
+            <button
+              className="global-tabstrip-nav-btn"
+              disabled={!navCanForward}
+              onClick={navForward}
+              title="Navigate forward"
+            >›</button>
+            <div className="global-tabstrip-sep" />
             <div
               className={`global-tabstrip-tab global-tabstrip-tab--library${activeTab === "library" ? " active" : ""}`}
-              onClick={() => setActiveTab("library")}
+              onClick={() => { setActiveTab("library"); navPush("library", ""); }}
               title="Library"
             >
               <span className="global-tabstrip-label">▤ Library</span>
@@ -463,7 +552,7 @@ export default function App() {
               <div
                 key={ck}
                 className={`global-tabstrip-tab${activeTab === "paper" && ck === activePaperKey ? " active" : ""}`}
-                onClick={() => { setActiveTab("paper"); setActivePaperKey(ck); }}
+                onClick={() => { setActiveTab("paper"); setActivePaperKey(ck); navPush("paper", ck); }}
               >
                 <span className="global-tabstrip-label">{ck}</span>
                 <button
@@ -475,7 +564,7 @@ export default function App() {
           </div>
 
           {/* Paper/graph controls */}
-          <div className="controls" style={{ marginBottom: "0.75rem" }}>
+          <div className="controls">
             {activeTab !== "paper" && (
               <div className="field">
                 <label>Search papers</label>
@@ -546,6 +635,20 @@ export default function App() {
           </div>
         )}
 
+        {/* Collections tree column */}
+        {activeTab === "library" && (
+          <div className="col col-collections">
+            <CollectionTree
+              collections={collections}
+              activeCollectionId={activeCollectionId}
+              setActiveCollectionId={setActiveCollectionId}
+              onCreateCollection={createCollection}
+              onRenameCollection={renameCollection}
+              onDeleteCollection={deleteCollection}
+            />
+          </div>
+        )}
+
         {/* Library list column */}
         {activeTab === "library" && libraryMode !== "graph" && (
           <div className="col col-library">
@@ -564,6 +667,7 @@ export default function App() {
               allTags={allTags}
               updateLibraryEntry={updateLibraryEntry}
               compact={libraryMode === "split"}
+              onRowContextMenu={(e, citekey) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, citekey }); }}
             />
           </div>
         )}
@@ -666,11 +770,11 @@ export default function App() {
               ? <PaperTab
                   activePaper={activePaperItem}
                   activeArtifacts={activeArtifacts}
-                  doclingHtml={doclingHtml}
                   updateLibraryEntry={updateLibraryEntry}
                   triggerAction={triggerAction}
                   actionState={actionState}
                   papers={payload ? payload.papers : []}
+                  openInPaperTab={openInPaperTab}
                 />
               : <div className="small" style={{ padding: "1rem" }}>
                   No paper selected — double-click a row in the Library tab to open one.
@@ -691,11 +795,71 @@ export default function App() {
             />
           </div>
         )}
+        {/* Paper context menu */}
+        {contextMenu && (
+          <div
+            className="col-context-menu"
+            style={{ position: "fixed", top: contextMenu.y, left: contextMenu.x }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="col-context-menu-header">{contextMenu.citekey}</div>
+
+            {/* Paper actions */}
+            <div
+              className="col-context-menu-item"
+              onClick={() => {
+                fetch(`/api/papers/${encodeURIComponent(contextMenu.citekey)}/refresh-metadata`, { method: "POST" })
+                  .then((r) => r.json())
+                  .then(() => loadModel())
+                  .catch(() => {});
+                setContextMenu(null);
+              }}
+            >
+              ↻ Refresh metadata from DOI
+            </div>
+            <div
+              className="col-context-menu-item col-context-menu-danger"
+              onClick={() => {
+                if (!window.confirm(`Remove "${contextMenu.citekey}" from library? (Files are kept, only removes from citekeys list)`)) return;
+                fetch(`/api/papers/${encodeURIComponent(contextMenu.citekey)}`, { method: "DELETE" })
+                  .then((r) => r.json())
+                  .then(() => { loadModel(); closePaperTab(contextMenu.citekey); })
+                  .catch(() => {});
+                setContextMenu(null);
+              }}
+            >
+              ✕ Drop from library
+            </div>
+
+            <div className="col-context-menu-sep" />
+            <div className="col-context-menu-header" style={{ fontSize: "0.7rem" }}>Add to collection</div>
+            {collections.length === 0 && (
+              <div className="col-context-menu-empty">No collections yet</div>
+            )}
+            {collections.map((col) => (
+              <div
+                key={col.id}
+                className="col-context-menu-item"
+                onClick={() => { togglePaperInCollection(col.id, contextMenu.citekey); setContextMenu(null); }}
+              >
+                <span className="col-context-check">{col.citekeys.includes(contextMenu.citekey) ? "✓" : "\u00a0"}</span>
+                {col.name}
+              </div>
+            ))}
+          </div>
+        )}
         </div>{/* end multicolumn-layout */}
 
           {/* Action status bar */}
           {actionState.message && (
             <div className={`action-status-bar${actionState.error ? " error" : actionState.busy ? " busy" : ""}`}>
+              {actionState.busy && actionState.action && (
+                <button
+                  className="action-cancel-btn"
+                  onClick={() => cancelAction(actionState.action)}
+                  title="Cancel operation"
+                >✕</button>
+              )}
               {actionState.busy && <span className="action-spinner">⟳</span>}
               {actionState.message}
             </div>

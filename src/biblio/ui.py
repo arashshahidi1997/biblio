@@ -1,19 +1,26 @@
 from __future__ import annotations
 
 import importlib
+import io
 import json
+import re
 import shlex
+import shutil
 import socket
 import struct
 import subprocess
 import sys
 import threading
-import shutil
 from pathlib import Path
 from typing import Any
 import yaml
 
+class _JobCancelledError(Exception):
+    """Raised inside a background job when the user requests cancellation."""
+
+
 from .bibtex import merge_srcbib
+from .ingest import IngestRecord, canonical_citekey
 from .config import BiblioConfig, load_biblio_config
 from .docling import run_docling_for_key
 from .graph import add_openalex_work_to_bib, expand_openalex_reference_graph, load_openalex_seed_records
@@ -21,10 +28,14 @@ from .openalex.openalex_resolve import ResolveOptions, resolve_srcbib_to_openale
 from .rag import default_biblio_rag_template, default_rag_config_path, sync_biblio_rag_config
 from .rag_support import load_raw_rag_config, write_raw_rag_config
 from .crossref import resolve_doi_by_title
-from .grobid import check_grobid_server_as_dict, derive_start_cmd, get_absent_refs, run_grobid_for_key, run_grobid_match
+from .grobid import check_grobid_server_as_dict, derive_start_cmd, get_absent_refs, grobid_out_root, run_grobid_for_key, run_grobid_match
 from .pdf_fetch_oa import fetch_pdfs_oa
 from .citekeys import load_citekeys_md
 from .library import load_library, notes_path, update_entry
+from .collections import (
+    load_collections, create_collection, rename_collection, move_collection,
+    delete_collection, add_papers as col_add_papers, remove_papers as col_remove_papers,
+)
 from .site import build_biblio_site
 from .site import BiblioSiteOptions, _build_site_model, default_site_out_dir
 
@@ -475,6 +486,7 @@ def create_ui_app(cfg: BiblioConfig):
         "message": "",
         "error": None,
         "candidates": 0,
+        "cancelled": False,
     }
     docling_job: dict[str, Any] = {
         "running": False,
@@ -493,6 +505,7 @@ def create_ui_app(cfg: BiblioConfig):
         "total": 0,
         "references_path": None,
         "logs": "",
+        "cancelled": False,
     }
     openalex_lock = threading.Lock()
     graph_lock = threading.Lock()
@@ -579,6 +592,15 @@ def create_ui_app(cfg: BiblioConfig):
     def action_docling_run_status():
         return _docling_snapshot()
 
+    @app.post("/api/actions/docling-run/cancel", response_class=responses.JSONResponse)
+    def action_docling_run_cancel():
+        with docling_lock:
+            if docling_job["running"]:
+                docling_job["running"] = False
+                docling_job["error"] = None
+                docling_job["message"] = "Docling cancelled."
+        return _docling_snapshot()
+
     @app.post("/api/actions/openalex-resolve", response_class=responses.JSONResponse)
     def action_openalex_resolve():
         with openalex_lock:
@@ -653,6 +675,15 @@ def create_ui_app(cfg: BiblioConfig):
     def action_openalex_resolve_status():
         return _openalex_snapshot()
 
+    @app.post("/api/actions/openalex-resolve/cancel", response_class=responses.JSONResponse)
+    def action_openalex_resolve_cancel():
+        with openalex_lock:
+            if openalex_job["running"]:
+                openalex_job["running"] = False
+                openalex_job["error"] = None
+                openalex_job["message"] = "OpenAlex resolve cancelled."
+        return _openalex_snapshot()
+
     @app.post("/api/actions/graph-expand", response_class=responses.JSONResponse)
     def action_graph_expand(payload: dict[str, Any] = {}):
         active_cfg = current_cfg()
@@ -680,6 +711,8 @@ def create_ui_app(cfg: BiblioConfig):
 
         def _progress(p: dict[str, Any]) -> None:
             with graph_lock:
+                if graph_job.get("cancelled"):
+                    raise _JobCancelledError("Graph expansion cancelled by user")
                 graph_job["completed"] = int(p.get("completed") or 0)
                 graph_job["total"] = int(p.get("total") or 0)
                 graph_job["seed_openalex_id"] = p.get("seed_openalex_id")
@@ -703,6 +736,7 @@ def create_ui_app(cfg: BiblioConfig):
                 )
                 with graph_lock:
                     graph_job["running"] = False
+                    graph_job["cancelled"] = False
                     graph_job["completed"] = result.total_inputs
                     graph_job["total"] = result.total_inputs
                     graph_job["seed_openalex_id"] = None
@@ -712,9 +746,16 @@ def create_ui_app(cfg: BiblioConfig):
                         + (f" (added for {citekey_filter})" if citekey_filter else "") + "."
                     )
                     graph_job["error"] = None
+            except _JobCancelledError:
+                with graph_lock:
+                    graph_job["running"] = False
+                    graph_job["cancelled"] = False
+                    graph_job["error"] = None
+                    graph_job["message"] = "Graph expansion cancelled."
             except Exception as e:
                 with graph_lock:
                     graph_job["running"] = False
+                    graph_job["cancelled"] = False
                     graph_job["error"] = str(e)
                     graph_job["message"] = f"Graph expansion failed: {e}"
 
@@ -723,6 +764,14 @@ def create_ui_app(cfg: BiblioConfig):
 
     @app.get("/api/actions/graph-expand/status", response_class=responses.JSONResponse)
     def action_graph_expand_status():
+        return _graph_snapshot()
+
+    @app.post("/api/actions/graph-expand/cancel", response_class=responses.JSONResponse)
+    def action_graph_expand_cancel():
+        with graph_lock:
+            if graph_job["running"]:
+                graph_job["cancelled"] = True
+                graph_job["message"] = "Cancelling graph expansion..."
         return _graph_snapshot()
 
     @app.post("/api/actions/grobid-run", response_class=responses.JSONResponse)
@@ -755,11 +804,17 @@ def create_ui_app(cfg: BiblioConfig):
                 "references_path": None,
                 "completed": 0,
                 "total": total,
+                "cancelled": False,
             })
 
         def _run_grobid() -> None:
             failures = 0
+            cancelled = False
             for idx, ck in enumerate(keys, start=1):
+                with grobid_lock:
+                    if grobid_job.get("cancelled"):
+                        cancelled = True
+                        break
                 try:
                     out = run_grobid_for_key(active_cfg, ck, force=force)
                     with grobid_lock:
@@ -775,7 +830,11 @@ def create_ui_app(cfg: BiblioConfig):
                         grobid_job["message"] = f"GROBID {idx}/{total}: {ck} failed: {e}"
             with grobid_lock:
                 grobid_job["running"] = False
-                if failures == 0:
+                grobid_job["cancelled"] = False
+                if cancelled:
+                    grobid_job["error"] = None
+                    grobid_job["message"] = f"GROBID cancelled after {grobid_job['completed']}/{total} papers."
+                elif failures == 0:
                     grobid_job["error"] = None
                     grobid_job["message"] = f"GROBID finished ({total} papers, {failures} failures)."
                 else:
@@ -787,6 +846,14 @@ def create_ui_app(cfg: BiblioConfig):
 
     @app.get("/api/actions/grobid-run/status", response_class=responses.JSONResponse)
     def action_grobid_run_status():
+        return _grobid_snapshot()
+
+    @app.post("/api/actions/grobid-run/cancel", response_class=responses.JSONResponse)
+    def action_grobid_run_cancel():
+        with grobid_lock:
+            if grobid_job["running"]:
+                grobid_job["cancelled"] = True
+                grobid_job["message"] = "Cancelling GROBID..."
         return _grobid_snapshot()
 
     grobid_match_job: dict[str, Any] = {"running": False, "message": "", "error": None, "matched": 0, "links": 0}
@@ -883,6 +950,128 @@ def create_ui_app(cfg: BiblioConfig):
             doi=result.doi,
         )
 
+    # ── drop paper from library (remove from citekeys.md) ────────────────────
+
+    @app.delete("/api/papers/{citekey}", response_class=responses.JSONResponse)
+    def drop_paper(citekey: str):
+        from .citekeys import load_citekeys_md, remove_citekeys_md
+        cfg = current_cfg()
+        if not cfg.citekeys_path or not Path(cfg.citekeys_path).exists():
+            raise fastapi.HTTPException(status_code=404, detail="citekeys.md not found")
+        before = load_citekeys_md(cfg.citekeys_path)
+        if citekey not in before:
+            raise fastapi.HTTPException(status_code=404, detail=f"{citekey} not in citekeys.md")
+        remove_citekeys_md(cfg.citekeys_path, [citekey])
+        return {"ok": True, "removed": citekey}
+
+    # ── refresh paper metadata from OpenAlex by DOI ───────────────────────────
+
+    @app.post("/api/papers/{citekey}/refresh-metadata", response_class=responses.JSONResponse)
+    def refresh_paper_metadata(citekey: str):
+        """Re-fetch OpenAlex metadata for a single paper via its DOI."""
+        cfg = current_cfg()
+        # Find the paper's DOI from the resolved.jsonl or BibTeX
+        doi = None
+        if cfg.openalex.out_jsonl.exists():
+            for line in cfg.openalex.out_jsonl.read_text(encoding="utf-8").splitlines():
+                try:
+                    row = json.loads(line)
+                    if row.get("citekey") == citekey and row.get("doi"):
+                        doi = row["doi"]
+                        break
+                except Exception:
+                    pass
+        if not doi:
+            # Fall back to BibTeX
+            from ._pybtex_utils import parse_bibtex_file, require_pybtex
+            require_pybtex("refresh-metadata")
+            src_dir = cfg.bibtex_merge.src_dir
+            src_glob = cfg.bibtex_merge.src_glob
+            for bib_path in sorted(p for p in src_dir.glob(src_glob) if p.is_file()):
+                db = parse_bibtex_file(bib_path)
+                if citekey in db.entries:
+                    doi = str(db.entries[citekey].fields.get("doi") or "").strip() or None
+                    break
+        if not doi:
+            raise fastapi.HTTPException(status_code=400, detail=f"No DOI found for {citekey}")
+        try:
+            result = add_openalex_work_to_bib(
+                cfg=cfg.openalex_client, cache=cfg.openalex_cache,
+                repo_root=cfg.repo_root, doi=doi,
+            )
+            return {"ok": True, "citekey": citekey, "openalex_id": result.openalex_id}
+        except Exception as exc:
+            raise fastapi.HTTPException(status_code=500, detail=str(exc))
+
+    # ── normalize-citekeys action ─────────────────────────────────────────────
+
+    @app.post("/api/actions/normalize-citekeys", response_class=responses.JSONResponse)
+    def action_normalize_citekeys(payload: dict[str, Any]):
+        """Preview or apply citekey normalization to author_year_Title format."""
+        from ._pybtex_utils import parse_bibtex_file, require_pybtex
+        require_pybtex("normalize-citekeys")
+        apply = bool(payload.get("apply", False))
+        active_cfg = current_cfg()
+        src_dir = active_cfg.bibtex_merge.src_dir
+        src_glob = active_cfg.bibtex_merge.src_glob
+        bib_files = sorted(p for p in src_dir.glob(src_glob) if p.is_file())
+        renames: list[dict[str, str]] = []
+        seen_new: dict[str, str] = {}  # new_key -> old_key (dedup)
+        _STANDARD = re.compile(r"^[a-z]+_\d{4}_[A-Za-z]")
+        for bib_path in bib_files:
+            db = parse_bibtex_file(bib_path)
+            for old_key, entry in sorted(db.entries.items()):
+                if _STANDARD.match(old_key):
+                    continue  # already standard
+                fields = entry.fields
+                authors_raw = str(fields.get("author") or "")
+                authors = [a.strip() for a in authors_raw.split(" and ") if a.strip()]
+                year = str(fields.get("year") or "")
+                title = str(fields.get("title") or "")
+                rec = IngestRecord(
+                    source_type="bibtex", source_ref=str(bib_path),
+                    entry_type=entry.type, title=title or None,
+                    authors=tuple(authors), year=year or None,
+                    doi=str(fields.get("doi") or "") or None,
+                    url=None, journal=None, booktitle=None, raw_id=old_key,
+                )
+                new_key = canonical_citekey(rec)
+                if new_key == old_key:
+                    continue
+                # dedup suffix
+                base = new_key
+                idx = 2
+                while new_key in seen_new and seen_new[new_key] != old_key:
+                    new_key = f"{base}{idx}"
+                    idx += 1
+                seen_new[new_key] = old_key
+                renames.append({"old": old_key, "new": new_key, "source_bib": str(bib_path)})
+        if apply and renames:
+            from pybtex.database.output.bibtex import Writer as BibWriter
+            from pybtex.database import BibliographyData
+            import copy as _copy
+            rename_map = {r["old"]: r["new"] for r in renames}
+            for bib_path_str in {r["source_bib"] for r in renames}:
+                bib_path = Path(bib_path_str)
+                db = parse_bibtex_file(bib_path)
+                new_entries = {}
+                for k, e in db.entries.items():
+                    new_k = rename_map.get(k, k)
+                    new_entries[new_k] = _copy.deepcopy(e)
+                new_db = BibliographyData(entries=new_entries)
+                buf = io.StringIO()
+                BibWriter().write_stream(new_db, buf)
+                bib_path.write_text(buf.getvalue(), encoding="utf-8")
+            # update citekeys.md
+            from .citekeys import load_citekeys_md, add_citekeys_md, remove_citekeys_md
+            ck_path = active_cfg.citekeys_path
+            if ck_path and Path(ck_path).exists():
+                existing = load_citekeys_md(ck_path)
+                updated = [rename_map.get(k, k) for k in existing]
+                from .citekeys import _render_citekeys_md
+                Path(ck_path).write_text(_render_citekeys_md(updated), encoding="utf-8")
+        return {"ok": True, "renames": renames, "applied": apply and bool(renames)}
+
     # ── library endpoints ─────────────────────────────────────────────────────
 
     @app.get("/api/library", response_class=responses.JSONResponse)
@@ -948,6 +1137,29 @@ def create_ui_app(cfg: BiblioConfig):
     def paper_absent_refs(citekey: str):
         return {"absent_refs": get_absent_refs(current_cfg(), citekey)}
 
+    # ── ref-resolutions cache (persist CrossRef DOI lookups) ──────────────────
+
+    @app.get("/api/papers/{citekey}/ref-resolutions", response_class=responses.JSONResponse)
+    def get_ref_resolutions(citekey: str):
+        key = citekey.lstrip("@")
+        cache_path = grobid_out_root(current_cfg()) / key / "_ref_resolutions.json"
+        if not cache_path.exists():
+            return {"resolutions": {}}
+        try:
+            return json.loads(cache_path.read_text(encoding="utf-8"))
+        except Exception:
+            return {"resolutions": {}}
+
+    @app.post("/api/papers/{citekey}/ref-resolutions", response_class=responses.JSONResponse)
+    def save_ref_resolutions(citekey: str, payload: dict[str, Any]):
+        key = citekey.lstrip("@")
+        cache_dir = grobid_out_root(current_cfg()) / key
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        cache_path = cache_dir / "_ref_resolutions.json"
+        data = json.dumps({"resolutions": payload.get("resolutions", {})}, indent=2)
+        cache_path.write_text(data, encoding="utf-8")
+        return {"ok": True}
+
     # ── ref-resolved markdown endpoint ────────────────────────────────────────
 
     @app.get("/api/papers/{citekey}/ref-md", response_class=responses.PlainTextResponse)
@@ -965,11 +1177,10 @@ def create_ui_app(cfg: BiblioConfig):
         try:
             with open(path, "rb") as f:
                 header = f.read(24)
-            if header[:8] == b"\x89PNG\r\n\x1a\n":
-                w, h = struct.unpack(">II", header[16:24])
-                return w, h
-            # JPEG: scan for SOF0/SOF1/SOF2 markers
-            with open(path, "rb") as f:
+                if header[:8] == b"\x89PNG\r\n\x1a\n":
+                    w, h = struct.unpack(">II", header[16:24])
+                    return w, h
+                # JPEG: scan for SOF0/SOF1/SOF2 markers
                 f.seek(2)
                 while True:
                     marker = f.read(2)
@@ -987,8 +1198,6 @@ def create_ui_app(cfg: BiblioConfig):
 
     @app.get("/api/papers/{citekey}/figures", response_class=responses.JSONResponse)
     def paper_figures(citekey: str):
-        import json as _json
-        from pathlib import Path as _Path
         key = citekey.lstrip("@")
         out_dir = current_cfg().out_root / key
         artifacts_dir = out_dir / f"{key}_artifacts"
@@ -1000,11 +1209,11 @@ def create_ui_app(cfg: BiblioConfig):
         docling_json = out_dir / f"{key}.json"
         if docling_json.exists():
             try:
-                doc = _json.loads(docling_json.read_text())
+                doc = json.loads(docling_json.read_text())
                 texts = doc.get("texts", [])
                 for pic in doc.get("pictures", []):
                     uri = (pic.get("image") or {}).get("uri", "")
-                    stem = _Path(uri).name if uri else ""
+                    stem = Path(uri).name if uri else ""
                     captions = pic.get("captions", [])
                     if stem and captions:
                         ref = captions[0].get("$ref", "")
@@ -1031,6 +1240,58 @@ def create_ui_app(cfg: BiblioConfig):
                 "caption": caption_map.get(fpath.stem, ""),
             })
         return {"figures": figures}
+
+    # ── collections endpoints ─────────────────────────────────────────────────
+
+    @app.get("/api/collections", response_class=responses.JSONResponse)
+    def api_get_collections():
+        return load_collections(current_cfg())
+
+    @app.post("/api/collections", response_class=responses.JSONResponse)
+    def api_create_collection(payload: dict[str, Any]):
+        name = str(payload.get("name") or "").strip()
+        if not name:
+            raise fastapi.HTTPException(status_code=400, detail="Missing name")
+        col = create_collection(current_cfg(), name, payload.get("parent") or None)
+        return col
+
+    @app.patch("/api/collections/{col_id}", response_class=responses.JSONResponse)
+    def api_update_collection(col_id: str, payload: dict[str, Any]):
+        cfg = current_cfg()
+        if "name" in payload:
+            if not rename_collection(cfg, col_id, str(payload["name"]).strip()):
+                raise fastapi.HTTPException(status_code=404, detail="Collection not found")
+        if "parent" in payload:
+            result = move_collection(cfg, col_id, payload["parent"] or None)
+            if result is None:
+                raise fastapi.HTTPException(status_code=400, detail="Move would create cycle or collection not found")
+        return load_collections(cfg)
+
+    @app.delete("/api/collections/{col_id}", response_class=responses.JSONResponse)
+    def api_delete_collection(col_id: str):
+        if not delete_collection(current_cfg(), col_id):
+            raise fastapi.HTTPException(status_code=404, detail="Collection not found")
+        return {"ok": True}
+
+    @app.post("/api/collections/{col_id}/papers", response_class=responses.JSONResponse)
+    def api_collection_add_papers(col_id: str, payload: dict[str, Any]):
+        citekeys = payload.get("citekeys") or []
+        if isinstance(citekeys, str):
+            citekeys = [citekeys]
+        col = col_add_papers(current_cfg(), col_id, [str(k) for k in citekeys])
+        if col is None:
+            raise fastapi.HTTPException(status_code=404, detail="Collection not found")
+        return col
+
+    @app.delete("/api/collections/{col_id}/papers", response_class=responses.JSONResponse)
+    def api_collection_remove_papers(col_id: str, payload: dict[str, Any]):
+        citekeys = payload.get("citekeys") or []
+        if isinstance(citekeys, str):
+            citekeys = [citekeys]
+        col = col_remove_papers(current_cfg(), col_id, [str(k) for k in citekeys])
+        if col is None:
+            raise fastapi.HTTPException(status_code=404, detail="Collection not found")
+        return col
 
     @app.post("/api/resolve-doi", response_class=responses.JSONResponse)
     def api_resolve_doi(payload: dict[str, Any]):

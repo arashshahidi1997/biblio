@@ -33,19 +33,47 @@ cd frontend && npm run dev
 This starts a Vite dev server at `http://localhost:5173`, proxying API calls to
 the FastAPI backend at `http://localhost:8010`.
 
+---
+
 ## Layout
 
-The UI is organized as three columns:
+The UI fills the full browser viewport with no side margins — each column scrolls
+independently.
 
-- **Left sidebar** — icon buttons to toggle the network graph, inspector, and setup panels
-- **Main area** — a global tab strip along the top; content fills the area below
-- **Right column** — shown when the inspector is enabled
+```
+┌─ title bar ──────────────────────────────────────────────┐
+│ BiBlio                                          Docs  ⚙  │
+├─ sidebar ─┬─ main content ───────────────────────────────┤
+│  ⌕        │  ‹  ›  ▤ Library  │  paper…  │  paper…  ×  │
+│  ⓘ        ├──────────────────────────────────────────────┤
+│           │  [controls bar]                              │
+│  ⚙        │  ┌─ col ──┐  ┌─ col ──┐  ┌─ col ──┐        │
+│           │  │library │  │ graph  │  │ paper  │        │
+│           │  │ (scrolls│  │(scrolls│  │(scrolls│        │
+└───────────┴──┴────────┴──┴────────┴──┴────────┴─────────┘
+```
+
+### Left sidebar
+
+Slim icon rail with:
+
+| Icon | Function |
+|------|----------|
+| **⌕** | Toggle the Search panel |
+| **ⓘ** | Toggle the Graph Inspector (Library tab only) |
+| **⚙** | Open Settings |
 
 ### Global tab strip
 
-The leftmost tab is the **▤ Library** tab (earthy warm color). Paper tabs open
-to its right when you double-click a row in the Library or click **Open** in
-the Corpus table. Each paper tab has a `×` close button.
+Sits above the content area. Navigation buttons `‹` and `›` let you move
+back and forward through your navigation history.
+
+The leftmost tab is the **▤ Library** tab (warm earthy color). Paper tabs open
+to its right when you double-click a row in the Library or click **↗ Open**.
+Each paper tab has a `×` close button.
+
+Clicking any tab records a navigation history entry; `‹` / `›` let you retrace
+your path without losing open tabs.
 
 ---
 
@@ -53,7 +81,7 @@ the Corpus table. Each paper tab has a `×` close button.
 
 ### Library
 
-A filterable list of all local papers (those with a configured citekey). Each
+A filterable table of all local papers (those with a configured citekey). Each
 row shows the citekey, title, year, and artifact badges (`pdf`, `docling`,
 `openalex`, `grobid`).
 
@@ -63,20 +91,31 @@ row shows the citekey, title, year, and artifact badges (`pdf`, `docling`,
 - **Status** — filter by library status (unread / reading / processed / archived)
 - **Tags** — filter by tag
 
-Double-click a row to open its Paper tab.
+Double-click a row to open its Paper tab. Click **↗** to open the tab or **◎**
+to focus the network graph on that paper.
+
+**Right-click a row** to open a context menu with:
+
+| Action | Effect |
+|--------|--------|
+| **↻ Refresh metadata from DOI** | Re-fetches OpenAlex metadata for the paper using its recorded DOI |
+| **✕ Drop from library** | Removes the paper from `citekeys.md` (files are kept; confirm required) |
+| **Add to collection** | Add/remove the paper from any collection |
 
 When the **Network** sidebar is enabled, the Library tab also shows the
-Cytoscape graph and controls (see [Explore / Network graph](#network-graph) below).
+Cytoscape graph and controls (see [Network graph](#network-graph) below).
+
+---
 
 ### Paper tab
 
-Opened per paper by double-clicking in the Library or clicking **Open** in
-the Corpus. Multiple paper tabs can be open simultaneously.
+Opened per paper by double-clicking in the Library or clicking **↗ Open**.
+Multiple paper tabs can be open simultaneously.
 
 #### Header
 
-Shows the citekey, year, title, authors, and artifact badges. Badges without
-an artifact become action buttons:
+Shows citekey, year, title, authors, and artifact badges. Badges without an
+artifact become action buttons:
 
 | Badge | Action on click |
 |-------|-----------------|
@@ -88,17 +127,20 @@ an artifact become action buttons:
 
 #### Content subtabs
 
+A `⛶` / `⊠` button at the far right of the subtab bar toggles **fullscreen**
+for the content column.
+
 **PDF** — inline PDF viewer (requires a PDF artifact).
 
-**Docling** — the full Docling-generated HTML content rendered in the browser.
+**Markdown** — the GROBID-resolved Pandoc markdown for this paper, rendered
+as HTML. In-text citations (`[@citekey]`) become clickable links:
 
-**Standardized** — the GROBID-resolved Pandoc markdown for this paper.
-In-text citations (`[@citekey]`) are rendered as clickable links. Hovering
-a citation link shows a tooltip with the cited paper's title, authors, and year.
-Papers not yet in your local library are still linked (the tooltip shows the
-citekey).
+- **Hover** — tooltip shows the cited paper's title, authors, year,
+  citation count (from OpenAlex), and first research topic.
+- **Click** — opens the cited paper in a new tab (only works for papers
+  already in your local library).
 
-To generate the standardized markdown:
+To generate the Markdown:
 
 ```bash
 biblio ref-md run --key <citekey>
@@ -107,36 +149,46 @@ biblio ref-md run --key <citekey>
 **Figures** — image gallery for figures extracted by Docling.
 
 - Navigate with `←` / `→` buttons.
-- Captions extracted from the Docling JSON are shown below each figure (when
-  available).
-- **Filter logos** checkbox hides small or very wide images (icons, headers)
-  that are unlikely to be content figures.
+- Captions from the Docling JSON are shown below each figure when available.
+- **Filter logos** checkbox hides small or very wide images unlikely to be
+  content figures.
 
-**GROBID** — GROBID header metadata (title, authors, year, DOI, abstract) and
+**Refs** — GROBID header metadata (title, authors, year, DOI, abstract) and
 the **Absent refs** panel.
 
 #### Absent refs panel
 
-Lists GROBID-extracted references that are not yet in your local library.
+Lists GROBID-extracted references not yet in your local library. Loads
+automatically when you open the Refs subtab. Previous CrossRef resolutions
+are cached on disk and restored immediately.
 
-- **Resolve all** — look up CrossRef DOIs for all unresolved titles in one go.
-- **Min match slider** — threshold for accepting fuzzy-matched DOIs (default 70%).
-- **Copy DOIs** — copy all qualifying DOIs to the clipboard.
-- **Add all (N)** — add all qualifying papers to your library via OpenAlex.
-- Per-row **Resolve** and **Add** buttons for individual references.
+| Control | Effect |
+|---------|--------|
+| **Resolve all (N)** | Look up CrossRef DOIs for all unresolved titles in one pass |
+| **Min match slider** | Threshold for accepting a fuzzy-matched DOI (default 70 %) — always visible; shows how many resolved refs pass |
+| **Copy DOIs** | Copy all qualifying DOIs to the clipboard |
+| **Add all (N)** | Add all qualifying papers to your library via OpenAlex |
+| **↺** | Reload absent refs from disk |
+| Per-row **Resolve** | Look up CrossRef for that reference |
+| Per-row **Add** | Add one paper by DOI |
 
-#### Sidebar info
+Resolution results are saved automatically to
+`bib/derivatives/grobid/<citekey>/_ref_resolutions.json` so they survive
+page reloads.
+
+#### Sidebar
 
 - **Library** — set status, priority, and tags; click **Save**.
 - **Related local papers** — papers sharing references (by overlap score).
 - **Neighborhood** — outgoing reference count and incoming citation count.
+- A compact note below Neighborhood shows how many GROBID refs were extracted;
+  open the **Refs** subtab to resolve absent ones.
 
 ---
 
 ### Network graph
 
-Enable the graph with the **◎** button in the left sidebar (visible on the
-Library tab).
+Enable with the **◎** button in the left sidebar (visible on the Library tab).
 
 **Controls bar** (above the graph):
 
@@ -148,38 +200,36 @@ Library tab).
 | Explore mode | Focused neighborhood / All papers | limit to active paper's neighbors or show all |
 | Direction | Past + future / Past works / Future works | filter edge direction |
 | Size by | cited\_by / uniform | scale node size by citation count |
-| Color by | year / uniform | color nodes by publication year (blue→light gradient) |
+| Color by | year / uniform | color nodes by year (blue gradient) |
 
 **Overlay toolbar** (top-right inside the graph canvas):
 
-- **⊙** — toggle between Focused and All mode
+- **⊙** — toggle Focused / All mode
 - **← ⟷ →** — switch direction filter
 
 **Node style:**
 
-- Local papers: sized by citation count (when Size by = cited\_by), colored by
-  year (when Color by = year). Label shows `Author Year` (e.g. `Battaglia 2004`).
-- External (OpenAlex) nodes: smaller, dimmed, no label (shown in hover tooltip).
-- Selected node: blue glow highlight.
-- When a node is selected, its direct neighbors remain fully visible and all
-  other nodes fade.
+- Local papers — sized by citation count (Size by = cited\_by), colored by year
+  (Color by = year). Label shows `Author Year` (e.g. `Battaglia 2004`).
+- External (OpenAlex) nodes — smaller, dimmed, no label (label shown in hover tooltip).
+- Selected node — blue glow.
+- Selecting a node fades all non-neighbor nodes.
 
-**Graph actions sidebar** (right of graph):
+**Graph actions sidebar** (to the right of the graph):
 
 - **+** / **−** — zoom in/out
 - **⤢** — fit graph to view
-- **Expand graph ↻** — expand the citation graph for the selected paper
+- **↻** — expand the citation graph for the selected paper
 
-**Year legend** — shown below the graph when Color by = year; displays the
-gradient from oldest to newest paper.
+**Year legend** — shown below the graph when Color by = year; gradient from
+oldest to newest paper.
 
-**Inspector** — enable with the **ⓘ** button in the left sidebar; shows the
-selected paper's metadata and candidates panel (see below).
+**Inspector** — enable with **ⓘ** in the left sidebar; shows the selected
+paper's metadata and candidates panel (papers discovered by graph expansion).
 
 #### Candidates panel
 
-Lists papers discovered by graph expansion for the active paper (references and
-citing works not yet in your library). Each entry shows:
+Lists papers from graph expansion not yet in your library. Each entry shows:
 
 - Title, year
 - Direction badge: `→ ref` (paper references it) or `← citing` (it cites the paper)
@@ -188,27 +238,15 @@ citing works not yet in your library). Each entry shows:
 
 ---
 
-### Corpus
-
-A table of all discovered papers (configured citekeys plus candidates from
-srcbib). Each row shows artifact status and per-row actions:
-
-- **Open** — open the Paper tab for that paper
-- **Explore** — switch to the graph focused on that paper
-- **Docling** — trigger Docling for that paper
-
----
-
 ### Setup
 
 Subtabs: **Overview**, **Docling**, **GROBID**, **RAG**.
 
-**Overview — Workspace** shows all configured paths (citekeys, srcbib, pdf
-root, Docling output, OpenAlex out) and a readiness summary (paper/pdf/docling/
-openalex counts).
+**Overview — Workspace** shows all configured paths and a readiness summary
+(paper / pdf / docling / openalex counts).
 
-**Overview — Pipeline** provides numbered one-click buttons to run the full
-data pipeline in order:
+**Overview — Pipeline** provides numbered one-click buttons for the full data
+pipeline:
 
 | Step | Action |
 |------|--------|
@@ -218,21 +256,38 @@ data pipeline in order:
 | 4 | Run GROBID (all PDFs) |
 | 5 | Match GROBID references to local library |
 
+**Overview — Normalize citekeys** — renames existing BibTeX keys that do not
+match the standard `author_year_Title` format (e.g. `battaglia_2004_Hippocampal`).
+Click **Preview renames** to see proposed changes, then **Apply N renames** to
+write them. Derived artifacts (Docling, GROBID) will need re-running after.
+
 **Docling** — view and change the Docling executable command. Options:
 
 - Save a raw command string
 - Use a conda environment by name
 - Install Docling into a local `uv`-managed environment
 
-**GROBID** — view GROBID server status (URL, latency, reachable badge) and
-configure the server URL and optional installation path.
+**GROBID** — view GROBID server status and configure the server URL and optional
+installation path.
 
 **RAG** — edit `bib/config/rag.yaml` (embedding model, chunk size/overlap,
 default store, persist directory) and sync owned sources.
 
 !!! note
     The Setup tab manages `bib/config/rag.yaml` only. Building the RAG index
-    itself requires the `rag` tool: `rag build --config bib/config/rag.yaml`.
+    requires the `rag` tool: `rag build --config bib/config/rag.yaml`.
+
+---
+
+## Citekey format
+
+Papers added via DOI or OpenAlex are assigned citekeys in the form
+`author_year_TitleWords`, e.g. `battaglia_2004_HippocampalSharp`. The author
+token is the first author's lowercase family name; the title token is the first
+two significant words of the title in CamelCase.
+
+Existing citekeys that do not follow this format can be renamed using
+**Setup → Normalize citekeys**.
 
 ---
 
@@ -249,10 +304,9 @@ default store, persist directory) and sync owned sources.
 ## Typical per-paper reading workflow
 
 1. Double-click a paper in the Library to open its tab.
-2. Check artifact badges — click any missing artifact button to generate it.
-3. Read the **Docling** or **Standardized** subtab.
-4. In the **Standardized** subtab, hover over `[@citekey]` links to preview
-   cited papers. Click nothing required — tooltip appears on hover.
-5. Browse **Figures** to see extracted figures with captions.
-6. Go to **GROBID → Absent refs**, resolve DOIs, and add missing references
-   in bulk.
+2. Check artifact badges — click any missing one to generate it.
+3. Read the **Markdown** subtab. Hover `[@citekey]` links for cited-paper
+   previews (title, authors, year, citation count); click to open that paper.
+4. Browse **Figures** for extracted figures with captions.
+5. Go to **Refs → Absent refs** — resolutions load automatically. Resolve
+   remaining DOIs, adjust the match threshold, and add missing references in bulk.
