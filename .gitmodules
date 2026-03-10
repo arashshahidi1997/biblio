@@ -1,0 +1,4 @@
+[submodule "resources/zotero"]
+	path = resources/zotero
+	url = git@github.com:zotero/zotero.git
+	datalad-url = git@github.com:zotero/zotero.git
