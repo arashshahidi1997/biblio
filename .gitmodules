@@ -2,3 +2,6 @@
 	path = resources/zotero
 	url = git@github.com:zotero/zotero.git
 	datalad-url = git@github.com:zotero/zotero.git
+[submodule "resources/local-citation-network"]
+	path = resources/local-citation-network
+	url = https://github.com/LocalCitationNetwork/LocalCitationNetwork.github.io.git
