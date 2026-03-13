@@ -25,3 +25,5 @@ Start here:
 - [Demo workspace](tutorials/demo-workspace.md)
 - [Initialize a workspace](how-to/init.md)
 - [CLI reference](reference/cli.md)
+
+For ecosystem cross-links, see [Ecosystem Links](explanation/ecosystem-links.md).
