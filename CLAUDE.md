@@ -1,6 +1,5 @@
 # biblio
 
-<<<<<<< HEAD
 ## Projio workspace
 
 This project uses **projio** — a project-centric research assistance ecosystem.
@@ -49,34 +48,11 @@ and `runtime_conventions()` to see available Makefile targets.
 1. **Search first** — check existing knowledge before creating new content
 2. **Ingest pipeline** — after `biblio_ingest`, run `biblio_merge` → `biblio_docling` → `biblio_grobid` → `indexio_build`
 3. **Record decisions** — create notes to capture analysis and decisions
-=======
-
-
-## Project structure
-
-<!-- Describe key directories and files here -->
->>>>>>> origin/master
 
 ## Development
 
 ```bash
-<<<<<<< HEAD
 make         # see available targets
 make save    # datalad save
 make push    # datalad push
 ```
-=======
-# Install
-pip install -e .
-
-# Test
-pytest
-
-# Lint
-make lint
-```
-
-## Conventions
-
-<!-- Add project-specific conventions, patterns, or rules here -->
->>>>>>> origin/master
