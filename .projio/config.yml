@@ -44,9 +44,12 @@ site:
     title: "Docs Assistant"
     storage_key: "biblio_chat_v1"
 
+<<<<<<< HEAD
 runtime:
   python_bin: null
 
+=======
+>>>>>>> origin/master
 helpers:
   sibling:
     github:

@@ -3,13 +3,22 @@
     "Read",
     "Glob",
     "Grep",
+<<<<<<< HEAD
     "Edit(/storage2/arash/projects/projio/packages/biblio/**)",
     "Write(/storage2/arash/projects/projio/packages/biblio/**)",
+=======
+    "Edit",
+    "Write",
+>>>>>>> origin/master
     "Bash(git:*)",
     "Bash(python:*)",
     "Bash(pip:*)",
     "Bash(pytest:*)",
+<<<<<<< HEAD
     "Bash(make:*)",
     "mcp__projio__*"
+=======
+    "Bash(make:*)"
+>>>>>>> origin/master
   ]
 }
