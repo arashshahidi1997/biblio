@@ -14,3 +14,10 @@ venv/
 frontend/node_modules/
 frontend/dist/
 .cache/
+
+# >>> projio >>>
+.projio.mkdocs.yml
+.projio/servers.json
+.projio/site/
+site/
+# <<< projio <<<
