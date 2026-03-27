@@ -443,6 +443,7 @@ function CitationTooltip({ paper, x, y, onOpen }) {
 function StandardizedTab({ citekey, papers, openInPaperTab }) {
   const [text, setText] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [isRawDocling, setIsRawDocling] = useState(false);
   const [tooltip, setTooltip] = useState(null); // { paper, x, y, key }
   const loadedFor = useRef(null);
 
@@ -456,11 +457,15 @@ function StandardizedTab({ citekey, papers, openInPaperTab }) {
     if (loadedFor.current === citekey) return;
     loadedFor.current = citekey;
     setText(null);
+    setIsRawDocling(false);
     setLoading(true);
     fetch(`/api/papers/${encodeURIComponent(citekey)}/ref-md`)
-      .then((r) => r.text())
-      .then((t) => { setText(t); setLoading(false); })
-      .catch(() => { setText(""); setLoading(false); });
+      .then((r) => {
+        const raw = r.headers.get("X-Biblio-Ref-Md-Status") === "raw-docling";
+        return r.text().then((t) => ({ t, raw }));
+      })
+      .then(({ t, raw }) => { setText(t); setIsRawDocling(raw); setLoading(false); })
+      .catch(() => { setText(""); setIsRawDocling(false); setLoading(false); });
   }, [citekey]);
 
   const html = useMemo(() => {
@@ -504,6 +509,11 @@ function StandardizedTab({ citekey, papers, openInPaperTab }) {
       onMouseLeave={() => setTooltip(null)}
       onClick={handleClick}
     >
+      {isRawDocling && (
+        <div className="small" style={{ padding: "0.4rem 1rem", opacity: 0.55, borderBottom: "1px solid #ddd" }}>
+          Raw docling output — citations not yet resolved. Run: <code>biblio ref-md run --key {citekey}</code>
+        </div>
+      )}
       <div className="docling-box docling-box-full" dangerouslySetInnerHTML={{ __html: html }} />
       {tooltip && (
         <CitationTooltip

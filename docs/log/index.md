@@ -1,5 +1,8 @@
-# Log
+# Project Logs
 
-Working notes and forward-looking design ideas.
+## Contents
 
-- [PDF discovery candidates](idea/2026-03-09-pdf-discovery.md)
+- [Idea](idea/index.md)
+- [Issue](issue/index.md)
+- [Meeting](meeting/index.md)
+- [Task](task/index.md)

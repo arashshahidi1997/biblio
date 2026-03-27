@@ -22,7 +22,7 @@ class _JobCancelledError(Exception):
 from .bibtex import merge_srcbib
 from .ingest import IngestRecord, canonical_citekey
 from .config import BiblioConfig, load_biblio_config
-from .docling import run_docling_for_key
+from .docling import outputs_for_key as docling_outputs_for_key, run_docling_for_key
 from .graph import add_openalex_work_to_bib, expand_openalex_reference_graph, load_openalex_seed_records
 from .openalex.openalex_resolve import ResolveOptions, resolve_srcbib_to_openalex
 from .rag import default_biblio_rag_template, default_rag_config_path, sync_biblio_rag_config
@@ -395,8 +395,15 @@ def create_ui_app(cfg: BiblioConfig):
     @app.get("/api/files/pdf/{citekey}")
     def file_pdf(citekey: str):
         active_cfg = current_cfg()
-        paper_path = active_cfg.pdf_root / Path(active_cfg.pdf_pattern.format(citekey=citekey))
-        pdf_path = paper_path.resolve()
+        # Validate the *logical* (pre-resolve) path to prevent path traversal,
+        # then resolve symlinks for serving (handles git-annex → RIA store chains).
+        pdf_root = active_cfg.pdf_root.resolve()
+        logical_path = pdf_root / Path(active_cfg.pdf_pattern.format(citekey=citekey))
+        try:
+            logical_path.relative_to(pdf_root)
+        except ValueError:
+            raise fastapi.HTTPException(status_code=403, detail="Path traversal denied")
+        pdf_path = logical_path.resolve()
         if not pdf_path.exists() or not pdf_path.is_file():
             raise fastapi.HTTPException(status_code=404, detail=f"PDF not found for {citekey}")
         headers = {"Content-Disposition": f'inline; filename="{pdf_path.name}"'}
@@ -410,11 +417,17 @@ def create_ui_app(cfg: BiblioConfig):
         peyrache_2011_..._artifacts/image_000000_....png
         """
         active_cfg = current_cfg()
-        # Resolve and jail to the docling output root to prevent path traversal
+        # Jail to the docling output root to prevent path traversal.
+        # Validate the *logical* (pre-resolve) path so that git-annex symlinks
+        # (which resolve outside out_root into a RIA store) are still allowed.
         out_root = active_cfg.out_root.resolve()
-        artifact_path = (out_root / citekey / path).resolve()
-        if not str(artifact_path).startswith(str(out_root)):
+        logical_path = out_root / citekey / path
+        try:
+            logical_path.relative_to(out_root)
+        except ValueError:
             raise fastapi.HTTPException(status_code=403, detail="Path traversal denied")
+        # Resolve symlinks only for serving (handles git-annex → RIA store chains)
+        artifact_path = logical_path.resolve()
         if not artifact_path.exists() or not artifact_path.is_file():
             raise fastapi.HTTPException(status_code=404, detail=f"Artifact not found: {path}")
         return responses.FileResponse(str(artifact_path))
@@ -1166,9 +1179,17 @@ def create_ui_app(cfg: BiblioConfig):
     def paper_ref_md(citekey: str):
         key = citekey.lstrip("@")
         md_path = current_cfg().out_root / key / f"{key}_ref_resolved.md"
-        if not md_path.exists():
-            return responses.PlainTextResponse("", status_code=200)
-        return responses.PlainTextResponse(md_path.read_text(encoding="utf-8", errors="replace"))
+        if md_path.exists():
+            return responses.PlainTextResponse(md_path.read_text(encoding="utf-8", errors="replace"))
+        # Fallback: serve raw docling markdown with a status header so the UI
+        # can show a subtle indicator that citation resolution hasn't run yet.
+        docling_out = docling_outputs_for_key(current_cfg(), key)
+        if docling_out.md_path.exists():
+            return responses.PlainTextResponse(
+                docling_out.md_path.read_text(encoding="utf-8", errors="replace"),
+                headers={"X-Biblio-Ref-Md-Status": "raw-docling"},
+            )
+        return responses.PlainTextResponse("", status_code=200)
 
     # ── figures endpoint ──────────────────────────────────────────────────────
 

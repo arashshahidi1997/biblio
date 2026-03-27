@@ -81,6 +81,43 @@ def test_ui_can_serve_pdf_for_paper(tmp_path: Path) -> None:
     assert "inline" in resp.headers.get("content-disposition", "").lower()
 
 
+def test_ui_serves_docling_artifact_via_symlink(tmp_path: Path) -> None:
+    """Symlinked files (git-annex style) must be served, not rejected with 403."""
+    init_bib_scaffold(tmp_path, force=False)
+    cfg = load_biblio_config(tmp_path / "bib" / "config" / "biblio.yml", root=tmp_path)
+
+    # Simulate an annex-style symlink: real file lives outside out_root
+    annex_store = tmp_path / "annex" / "objects"
+    annex_store.mkdir(parents=True)
+    real_file = annex_store / "image_000000.png"
+    real_file.write_bytes(b"\x89PNG\r\n")
+
+    artifact_dir = cfg.out_root / "paper2024" / "paper2024_artifacts"
+    artifact_dir.mkdir(parents=True)
+    symlink = artifact_dir / "image_000000.png"
+    symlink.symlink_to(real_file)
+
+    client = TestClient(create_ui_app(cfg))
+    resp = client.get("/api/files/docling/paper2024/paper2024_artifacts/image_000000.png")
+    assert resp.status_code == 200
+
+
+def test_ui_docling_artifact_rejects_path_traversal(tmp_path: Path) -> None:
+    """Path traversal attempts must not return 200 (file not served)."""
+    init_bib_scaffold(tmp_path, force=False)
+    cfg = load_biblio_config(tmp_path / "bib" / "config" / "biblio.yml", root=tmp_path)
+
+    # Write a sensitive file one level above out_root
+    secret = cfg.out_root.parent / "secret.txt"
+    secret.parent.mkdir(parents=True, exist_ok=True)
+    secret.write_text("secret", encoding="utf-8")
+
+    client = TestClient(create_ui_app(cfg))
+    # Framework normalizes ../ before the handler, so the file is never served
+    resp = client.get("/api/files/docling/paper2024/../../secret.txt")
+    assert resp.status_code != 200
+
+
 def test_ui_action_endpoint_for_docling_validates_payload(tmp_path: Path) -> None:
     init_bib_scaffold(tmp_path, force=False)
     cfg = load_biblio_config(tmp_path / "bib" / "config" / "biblio.yml", root=tmp_path)

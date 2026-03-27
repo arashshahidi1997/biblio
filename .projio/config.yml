@@ -1,6 +1,7 @@
 # projio workspace config
 project_name: biblio
 project_kind: tool
+push_sibling: github
 description: ""
 
 indexio:
