@@ -1165,6 +1165,18 @@ a.cite-link:hover {
   font-size: 0.95rem;
   line-height: 1.55;
 }
+.slides-pre {
+  max-height: 75vh;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fafafa;
+  padding: 0.9rem 1rem;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
 .docling-box p,
 .docling-box ul,
 .docling-box ol,

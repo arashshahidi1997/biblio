@@ -55,3 +55,10 @@ Session: `0b5a94ba` | Task: `task-arash-20260328-210152-348312.md`
 **Tests**: 130 passed. Saved with datalad.
 
 Session: `a3c281ce` | Task: `task-arash-20260328-210153-600539.md`
+
+## 2026-03-28 21:25 | biblio | opus | 1 steps
+
+### CSS (`App.css`)
+- `.col-tree-smart-form`, `.col-tree-query-editor`, `.col-tree-query-input`, `.col-tree-query-help` styles
+
+Session: `9536f3ab` | Task: `task-arash-20260328-210154-791668.md`

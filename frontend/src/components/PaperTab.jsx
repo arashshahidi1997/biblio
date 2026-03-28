@@ -22,7 +22,7 @@ function ArtifactBadge({ exists, label, onAction, busy, actionLabel }) {
   return <span className="badge">{`no ${label}`}</span>;
 }
 
-function LibraryPanel({ activePaper, updateLibraryEntry }) {
+function LibraryPanel({ activePaper, updateLibraryEntry, triggerAction, busy }) {
   const lib = activePaper.library || {};
   const [status, setStatus] = useState(lib.status || "");
   const [priority, setPriority] = useState(lib.priority || "");
@@ -57,8 +57,16 @@ function LibraryPanel({ activePaper, updateLibraryEntry }) {
         <div className="small">Tags</div>
         <TagInput tags={tags} onChange={setTags} placeholder="Add tags..." />
       </div>
-      <div className="actions" style={{ marginTop: "0.6rem" }}>
+      <div className="actions" style={{ marginTop: "0.6rem", display: "flex", gap: "0.4rem" }}>
         <button onClick={save} disabled={saving}>{saving ? "Saving..." : "Save"}</button>
+        <button
+          className="badge-action"
+          disabled={busy}
+          onClick={() => triggerAction("autotag", { citekey: activePaper.citekey })}
+          title="Auto-tag this paper using LLM"
+        >
+          Auto-tag
+        </button>
       </div>
     </div>
   );
@@ -612,7 +620,152 @@ function FiguresTab({ citekey }) {
   );
 }
 
-const CONTENT_SUBTABS = ["PDF", "Markdown", "Figures", "Refs"];
+const CONTENT_SUBTABS = ["PDF", "Markdown", "Summary", "Slides", "Figures", "Refs"];
+
+const SLIDE_TEMPLATES = [
+  { value: "journal-club", label: "Journal Club" },
+  { value: "conference-talk", label: "Conference Talk" },
+  { value: "lab-meeting", label: "Lab Meeting" },
+];
+
+function SummaryTab({ citekey, hasSummary, triggerAction, busy }) {
+  const [text, setText] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const loadedFor = useRef(null);
+
+  useEffect(() => {
+    if (loadedFor.current === citekey) return;
+    loadedFor.current = citekey;
+    setText(null);
+    if (!hasSummary) { setLoading(false); return; }
+    setLoading(true);
+    fetch(`/api/papers/${encodeURIComponent(citekey)}/summary`)
+      .then((r) => {
+        if (!r.ok) throw new Error("not found");
+        return r.text();
+      })
+      .then((t) => { setText(t); setLoading(false); })
+      .catch(() => { setText(null); setLoading(false); });
+  }, [citekey, hasSummary]);
+
+  // Reset cache when citekey changes
+  useEffect(() => {
+    loadedFor.current = null;
+  }, [citekey]);
+
+  if (loading) {
+    return <div className="small" style={{ padding: "1rem", opacity: 0.6 }}>Loading summary…</div>;
+  }
+
+  if (text) {
+    const html = renderMarkdown(text);
+    return (
+      <div>
+        <div style={{ display: "flex", gap: "0.4rem", padding: "0.5rem 0.8rem", borderBottom: "1px solid var(--line, #ddd)" }}>
+          <button
+            className="absent-refs-btn-small"
+            disabled={busy}
+            onClick={() => { loadedFor.current = null; triggerAction("summarize", { citekey, force: true }); }}
+          >
+            Regenerate
+          </button>
+        </div>
+        <div className="docling-box docling-box-full" dangerouslySetInnerHTML={{ __html: html }} />
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: "1.5rem", textAlign: "center" }}>
+      <p className="small" style={{ marginBottom: "0.8rem", opacity: 0.6 }}>No summary generated yet.</p>
+      <button
+        className="absent-refs-btn-small absent-refs-btn-primary"
+        disabled={busy}
+        onClick={() => triggerAction("summarize", { citekey })}
+      >
+        Generate Summary
+      </button>
+    </div>
+  );
+}
+
+function SlidesTab({ citekey, hasSlides, triggerAction, busy }) {
+  const [text, setText] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [template, setTemplate] = useState("journal-club");
+  const loadedFor = useRef(null);
+
+  useEffect(() => {
+    if (loadedFor.current === citekey) return;
+    loadedFor.current = citekey;
+    setText(null);
+    if (!hasSlides) { setLoading(false); return; }
+    setLoading(true);
+    fetch(`/api/papers/${encodeURIComponent(citekey)}/slides`)
+      .then((r) => {
+        if (!r.ok) throw new Error("not found");
+        return r.text();
+      })
+      .then((t) => { setText(t); setLoading(false); })
+      .catch(() => { setText(null); setLoading(false); });
+  }, [citekey, hasSlides]);
+
+  useEffect(() => {
+    loadedFor.current = null;
+  }, [citekey]);
+
+  function copyToClipboard() {
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }
+
+  if (loading) {
+    return <div className="small" style={{ padding: "1rem", opacity: 0.6 }}>Loading slides…</div>;
+  }
+
+  if (text) {
+    return (
+      <div>
+        <div style={{ display: "flex", gap: "0.4rem", padding: "0.5rem 0.8rem", borderBottom: "1px solid var(--line, #ddd)", flexWrap: "wrap" }}>
+          <button className="absent-refs-btn-small" onClick={copyToClipboard}>
+            {copied ? "Copied!" : "Copy to Clipboard"}
+          </button>
+          <button
+            className="absent-refs-btn-small"
+            disabled={busy}
+            onClick={() => { loadedFor.current = null; triggerAction("present", { citekey, template }); }}
+          >
+            Regenerate
+          </button>
+        </div>
+        <pre className="slides-pre">{text}</pre>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: "1.5rem", textAlign: "center" }}>
+      <p className="small" style={{ marginBottom: "0.8rem", opacity: 0.6 }}>No slides generated yet.</p>
+      <div style={{ display: "flex", gap: "0.5rem", justifyContent: "center", alignItems: "center", marginBottom: "0.8rem" }}>
+        <label className="small">Template:</label>
+        <select value={template} onChange={(ev) => setTemplate(ev.target.value)}>
+          {SLIDE_TEMPLATES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+        </select>
+      </div>
+      <button
+        className="absent-refs-btn-small absent-refs-btn-primary"
+        disabled={busy}
+        onClick={() => triggerAction("present", { citekey, template })}
+      >
+        Generate Slides
+      </button>
+    </div>
+  );
+}
 
 export default function PaperTab({
   activePaper, activeArtifacts,
@@ -631,6 +784,10 @@ export default function PaperTab({
   const hasDocling = a && a.docling_md.exists;
   const hasOpenalex = a && a.openalex.exists;
   const hasGrobid = a && a.grobid && a.grobid.exists;
+  const hasSummary = !!activePaper.has_summary;
+  const hasConcepts = !!activePaper.has_concepts;
+  const hasSlides = !!activePaper.has_slides;
+  const hasAutotag = !!activePaper.has_autotag;
 
   return (
     <div className="paper-detail paper-detail-split">
@@ -670,6 +827,34 @@ export default function PaperTab({
             busy={busy}
             onAction={!hasGrobid ? () => triggerAction("grobid-run", { citekey: activePaper.citekey }) : null}
             actionLabel="Run GROBID on this paper"
+          />
+          <ArtifactBadge
+            exists={hasSummary}
+            label="summary"
+            busy={busy}
+            onAction={!hasSummary ? () => triggerAction("summarize", { citekey: activePaper.citekey }) : null}
+            actionLabel="Generate summary"
+          />
+          <ArtifactBadge
+            exists={hasConcepts}
+            label="concepts"
+            busy={busy}
+            onAction={!hasConcepts ? () => triggerAction("concepts-extract", { citekey: activePaper.citekey }) : null}
+            actionLabel="Extract concepts"
+          />
+          <ArtifactBadge
+            exists={hasSlides}
+            label="slides"
+            busy={busy}
+            onAction={!hasSlides ? () => triggerAction("present", { citekey: activePaper.citekey }) : null}
+            actionLabel="Generate slides"
+          />
+          <ArtifactBadge
+            exists={hasAutotag}
+            label="autotag"
+            busy={busy}
+            onAction={!hasAutotag ? () => triggerAction("autotag", { citekey: activePaper.citekey }) : null}
+            actionLabel="Auto-tag this paper"
           />
           {hasOpenalex && (
             <button
@@ -727,6 +912,18 @@ export default function PaperTab({
             </div>
           )}
 
+          {contentTab === "Summary" && (
+            <div className="panel paper-content-panel">
+              <SummaryTab citekey={activePaper.citekey} hasSummary={hasSummary} triggerAction={triggerAction} busy={busy} />
+            </div>
+          )}
+
+          {contentTab === "Slides" && (
+            <div className="panel paper-content-panel">
+              <SlidesTab citekey={activePaper.citekey} hasSlides={hasSlides} triggerAction={triggerAction} busy={busy} />
+            </div>
+          )}
+
           {contentTab === "Figures" && (
             <div className="paper-content-panel figures-content-panel">
               <FiguresTab citekey={activePaper.citekey} />
@@ -779,7 +976,7 @@ export default function PaperTab({
 
         {/* Right: sidebar info */}
         <div className="paper-sidebar-col">
-          <LibraryPanel activePaper={activePaper} updateLibraryEntry={updateLibraryEntry} />
+          <LibraryPanel activePaper={activePaper} updateLibraryEntry={updateLibraryEntry} triggerAction={triggerAction} busy={busy} />
 
           <div className="panel">
             <h3>Related local papers</h3>
