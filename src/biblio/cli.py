@@ -306,6 +306,17 @@ def _build_parser() -> argparse.ArgumentParser:
     p_summarize.add_argument("--force", action="store_true", help="Regenerate existing summaries.")
     p_summarize.add_argument("--model", default="claude-sonnet-4-20250514", help="Anthropic model to use.")
 
+    p_present = sub.add_parser("present", help="Generate Marp slide decks from paper context.")
+    p_present.add_argument("key", help="Citekey (with or without leading @).")
+    p_present.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    p_present.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    p_present.add_argument("--template", choices=["journal-club", "conference-talk", "lab-meeting"],
+                           default="journal-club", help="Slide template (default: journal-club).")
+    p_present.add_argument("--prompt-only", action="store_true", help="Print assembled prompt to stdout (no LLM call).")
+    p_present.add_argument("--force", action="store_true", help="Regenerate existing slides.")
+    p_present.add_argument("--model", default="claude-sonnet-4-20250514", help="Anthropic model to use.")
+    p_present.add_argument("--export", choices=["html", "pdf", "pptx"], help="Export slides via marp-cli.")
+
     p_lib = sub.add_parser("library", help="Manage per-paper status, tags, and priority in bib/config/library.yml.")
     lib_sub = p_lib.add_subparsers(dest="library_cmd", required=True)
     lib_list = lib_sub.add_parser("list", help="List all library entries.")
@@ -989,6 +1000,40 @@ def main(argv: Iterable[str] | None = None) -> None:
                 print(f"[SKIP] {key}: summary exists (use --force to regenerate)")
             else:
                 print(f"[OK] {key}: {result['summary_path']}")
+        return
+
+    if args.command == "present":
+        from .present import export_slides, generate_slides as run_present
+
+        repo_root = (args.root.expanduser().resolve() if args.root else find_repo_root())
+        key = args.key.lstrip("@")
+
+        result = run_present(
+            key,
+            repo_root,
+            template=args.template,
+            prompt_only=args.prompt_only,
+            force=args.force,
+            model=args.model,
+        )
+        if args.prompt_only:
+            print(result["prompt"])
+        elif result.get("error"):
+            print(f"[ERROR] {key}: {result['error']}", file=sys.stderr)
+        elif result.get("skipped"):
+            print(f"[SKIP] {key}: slides exist (use --force to regenerate)")
+        else:
+            print(f"[OK] {key}: {result['slides_path']}")
+
+        # Export if requested (and slides exist)
+        if getattr(args, "export", None) and not args.prompt_only:
+            slides_path = result.get("slides_path")
+            if slides_path:
+                export_result = export_slides(key, repo_root, fmt=args.export)
+                if export_result.get("error"):
+                    print(f"[WARN] Export: {export_result['error']}", file=sys.stderr)
+                else:
+                    print(f"[OK] Exported: {export_result['output_path']}")
         return
 
     if args.command == "site":

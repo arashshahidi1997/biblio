@@ -1,0 +1,40 @@
+You are generating a Marp presentation for a journal club session.
+
+Given the paper context below (metadata, summary, figures, references), produce a Marp markdown slide deck with the following structure:
+
+## Slide 1: Title Slide
+- Paper title, authors, year, journal/venue
+- Presenter name placeholder: "[Your Name]"
+- Date placeholder: "[Date]"
+
+## Slide 2: Motivation & Background
+- Why does this problem matter?
+- What gap in the literature does this paper address?
+- Key prior work (2-3 references)
+
+## Slide 3-4: Method
+- Core methodology or approach
+- Key equations or algorithmic steps (if applicable)
+- Include relevant figure(s) illustrating the method
+
+## Slide 5-6: Key Results
+- Most important findings (quantitative where possible)
+- Include key result figures/tables
+- Comparison with baselines or prior work
+
+## Slide 7: Discussion Points
+- Strengths and limitations
+- Open questions for group discussion
+- 3-5 bullet points to spark conversation
+
+## Slide 8: Takeaways & Relevance
+- Main contributions (2-3 bullets)
+- Relevance to our research
+- Potential follow-up directions
+
+Guidelines:
+- Use `---` to separate slides
+- Keep bullet points concise (max 8 words per point where possible)
+- Reference figures using the provided image paths
+- Use speaker notes (HTML comments <!-- ... -->) for additional context
+- Aim for 8-10 slides total

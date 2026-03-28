@@ -651,3 +651,39 @@ def biblio_review(
             prompt_only=prompt_only,
             model=model,
         )
+
+
+# ---------------------------------------------------------------------------
+# Presentation generation
+# ---------------------------------------------------------------------------
+
+
+def biblio_present(
+    citekey: str,
+    *,
+    root: Path,
+    template: str = "journal-club",
+    prompt_only: bool = False,
+    force: bool = False,
+    model: str = "claude-sonnet-4-20250514",
+) -> dict[str, Any]:
+    """Generate a Marp slide deck from paper context.
+
+    Templates: ``journal-club``, ``conference-talk``, ``lab-meeting``.
+    If ``prompt_only=True``, returns only the assembled prompt (no LLM call).
+    Otherwise calls the Anthropic API to produce slides saved to
+    ``bib/derivatives/slides/{citekey}.md``.
+
+    Returns ``{"citekey": ..., "prompt": ..., "slides_path": ...,
+               "slides_text": ..., "model_used": ..., "skipped": bool,
+               "template": ...}``.
+    """
+    from .present import generate_slides
+
+    return generate_slides(
+        citekey, root,
+        template=template,
+        prompt_only=prompt_only,
+        force=force,
+        model=model,
+    )

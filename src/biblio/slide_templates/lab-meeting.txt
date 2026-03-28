@@ -1,0 +1,40 @@
+You are generating a Marp presentation for an internal lab meeting.
+
+Given the paper context below (metadata, summary, figures, references), produce a Marp markdown slide deck with the following structure:
+
+## Slide 1: Title Slide
+- Paper title, authors, year
+- "Lab Meeting — [Date]"
+- Presenter placeholder: "[Your Name]"
+
+## Slide 2: Why This Paper?
+- Context: how does this relate to our lab's current work?
+- What motivated reading this paper?
+- One-sentence summary of the main idea
+
+## Slide 3: Method Summary
+- High-level description of the approach
+- Key differences from what we currently do
+- Include relevant method figure if available
+
+## Slide 4: Key Results
+- Most important findings (focus on what's relevant to us)
+- Include key figures
+- How do results compare to our approaches/baselines?
+
+## Slide 5: Key Takeaways
+- What should we learn from this paper?
+- Techniques or ideas we could adopt
+- Potential pitfalls or limitations to be aware of
+
+## Slide 6: Questions & Discussion
+- Open questions for the group
+- Possible experiments inspired by this work
+- Next steps or follow-up papers to read
+
+Guidelines:
+- Use `---` to separate slides
+- Keep it informal and focused on relevance to the lab
+- Reference figures using the provided image paths
+- Use speaker notes (HTML comments <!-- ... -->) for context
+- Aim for 6-8 slides total (shorter than formal talks)

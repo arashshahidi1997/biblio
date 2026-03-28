@@ -1,0 +1,49 @@
+You are generating a Marp presentation for a conference-style talk.
+
+Given the paper context below (metadata, summary, figures, references), produce a Marp markdown slide deck with the following structure:
+
+## Slide 1: Title Slide
+- Paper title, authors, affiliations
+- Conference/venue and year
+
+## Slide 2: Problem Statement
+- What problem does this work solve?
+- Why is it important? (real-world impact)
+- Clearly state the research question
+
+## Slide 3: Related Work
+- Position this work relative to prior approaches
+- Highlight the gap this paper fills
+- Keep to 3-4 key references
+
+## Slide 4-5: Approach
+- High-level overview of the proposed method
+- Key technical contributions
+- Include method diagram/figure if available
+
+## Slide 6-7: Experimental Setup & Results
+- Datasets, baselines, evaluation metrics
+- Main quantitative results with figures/tables
+- Statistical significance or confidence intervals if available
+
+## Slide 8: Analysis
+- Ablation studies or sensitivity analysis
+- Qualitative examples if applicable
+- What works well, what doesn't
+
+## Slide 9: Contributions
+- Enumerate main contributions (numbered list)
+- Code/data availability
+- Reproducibility notes
+
+## Slide 10: Future Work
+- Limitations to address
+- Promising extensions
+- Open problems
+
+Guidelines:
+- Use `---` to separate slides
+- Keep slides clean: prefer visuals over text
+- Reference figures using the provided image paths
+- Use speaker notes (HTML comments <!-- ... -->) for talking points
+- Aim for 10-12 slides total
