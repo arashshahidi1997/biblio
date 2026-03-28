@@ -35,7 +35,17 @@ from .library import load_library, notes_path, update_entry
 from .collections import (
     load_collections, create_collection, rename_collection, move_collection,
     delete_collection, add_papers as col_add_papers, remove_papers as col_remove_papers,
+    update_query as col_update_query, list_collections_summary,
 )
+from .tag_vocab import load_tag_vocab_from_config, lint_library_tags
+from .autotag import autotag, load_cache as autotag_load_cache
+from .summarize import summary_path_for_key, summarize
+from .concepts import load_concepts, extract_concepts, build_concept_index, search_concepts
+from .compare import compare
+from .reading_list import reading_list
+from .cite_draft import cite_draft
+from .lit_review import review_query, review_plan
+from .present import slides_path_for_key, generate_slides
 from .site import build_biblio_site
 from .site import BiblioSiteOptions, _build_site_model, default_site_out_dir
 
@@ -365,7 +375,14 @@ def create_ui_app(cfg: BiblioConfig):
 
     @app.get("/api/model", response_class=responses.JSONResponse)
     def model():
-        payload = build_ui_model(current_cfg())
+        active_cfg = current_cfg()
+        payload = build_ui_model(active_cfg)
+        for paper in payload.get("papers", []):
+            ck = paper.get("citekey", "")
+            paper["has_summary"] = summary_path_for_key(active_cfg, ck).exists() if ck else False
+            paper["has_concepts"] = load_concepts(active_cfg, ck) is not None if ck else False
+            paper["has_slides"] = slides_path_for_key(active_cfg, ck).exists() if ck else False
+            paper["has_autotag"] = autotag_load_cache(active_cfg, ck) is not None if ck else False
         payload.pop("paper_lookup", None)
         return payload
 
@@ -1369,14 +1386,18 @@ def create_ui_app(cfg: BiblioConfig):
 
     @app.get("/api/collections", response_class=responses.JSONResponse)
     def api_get_collections():
-        return load_collections(current_cfg())
+        active_cfg = current_cfg()
+        data = load_collections(active_cfg)
+        data["collections"] = list_collections_summary(active_cfg)
+        return data
 
     @app.post("/api/collections", response_class=responses.JSONResponse)
     def api_create_collection(payload: dict[str, Any]):
         name = str(payload.get("name") or "").strip()
         if not name:
             raise fastapi.HTTPException(status_code=400, detail="Missing name")
-        col = create_collection(current_cfg(), name, payload.get("parent") or None)
+        query = str(payload.get("query") or "").strip() or None
+        col = create_collection(current_cfg(), name, payload.get("parent") or None, query=query)
         return col
 
     @app.patch("/api/collections/{col_id}", response_class=responses.JSONResponse)
@@ -1682,6 +1703,578 @@ def create_ui_app(cfg: BiblioConfig):
             "install": install,
             "setup": build_setup_report(updated),
         }
+
+    # ── tag vocabulary endpoints ───────────────────────────────────────────────
+
+    @app.get("/api/tag-vocab", response_class=responses.JSONResponse)
+    def api_tag_vocab():
+        return load_tag_vocab_from_config(current_cfg())
+
+    @app.post("/api/library/lint", response_class=responses.JSONResponse)
+    def api_lint_library_tags():
+        active_cfg = current_cfg()
+        vocab = load_tag_vocab_from_config(active_cfg)
+        library = load_library(active_cfg)
+        return lint_library_tags(library, vocab)
+
+    # ── autotag (background action) ────────────────────────────────────────────
+
+    autotag_job: dict[str, Any] = {
+        "running": False, "message": "", "error": None,
+        "completed": 0, "total": 0, "citekey": None, "results": [],
+    }
+    autotag_lock = threading.Lock()
+
+    def _autotag_snapshot() -> dict[str, Any]:
+        with autotag_lock:
+            return dict(autotag_job)
+
+    @app.post("/api/actions/autotag", response_class=responses.JSONResponse)
+    def action_autotag(payload: dict[str, Any]):
+        active_cfg = current_cfg()
+        citekey = str(payload.get("citekey") or "").strip() or None
+        tiers = payload.get("tiers") or None
+        model_name = str(payload.get("model") or "").strip() or None
+        with autotag_lock:
+            if autotag_job["running"]:
+                return {"ok": True, "async": True, **dict(autotag_job)}
+            if citekey:
+                keys = [citekey]
+            else:
+                keys = load_citekeys_md(active_cfg.citekeys_path) if active_cfg.citekeys_path.exists() else []
+            autotag_job.update({
+                "running": True, "message": f"Auto-tagging {len(keys)} papers...",
+                "error": None, "completed": 0, "total": len(keys),
+                "citekey": None, "results": [],
+            })
+
+        def _run() -> None:
+            results = []
+            for idx, ck in enumerate(keys, start=1):
+                with autotag_lock:
+                    autotag_job["completed"] = idx - 1
+                    autotag_job["citekey"] = ck
+                    autotag_job["message"] = f"Auto-tagging {idx}/{len(keys)}: {ck}"
+                try:
+                    kwargs: dict[str, Any] = {"citekey": ck, "root": active_cfg.repo_root}
+                    if tiers:
+                        kwargs["tiers"] = tiers
+                    if model_name:
+                        kwargs["model"] = model_name
+                    result = autotag(**kwargs)
+                    results.append(result)
+                except Exception as e:
+                    results.append({"citekey": ck, "error": str(e)})
+            with autotag_lock:
+                autotag_job.update({
+                    "running": False, "error": None,
+                    "completed": len(keys), "total": len(keys),
+                    "citekey": None, "results": results,
+                    "message": f"Auto-tagging finished for {len(keys)} papers.",
+                })
+
+        threading.Thread(target=_run, daemon=True).start()
+        return {"ok": True, "async": True, **_autotag_snapshot()}
+
+    @app.get("/api/actions/autotag/status", response_class=responses.JSONResponse)
+    def action_autotag_status():
+        return _autotag_snapshot()
+
+    @app.post("/api/actions/autotag/cancel", response_class=responses.JSONResponse)
+    def action_autotag_cancel():
+        with autotag_lock:
+            if autotag_job["running"]:
+                autotag_job["running"] = False
+                autotag_job["error"] = None
+                autotag_job["message"] = "Auto-tagging cancelled."
+        return _autotag_snapshot()
+
+    # ── summarize (background action) ──────────────────────────────────────────
+
+    summarize_job: dict[str, Any] = {
+        "running": False, "message": "", "error": None,
+        "citekey": None, "summary_path": None,
+    }
+    summarize_lock = threading.Lock()
+
+    def _summarize_snapshot() -> dict[str, Any]:
+        with summarize_lock:
+            return dict(summarize_job)
+
+    @app.get("/api/papers/{citekey}/summary", response_class=responses.PlainTextResponse)
+    def api_paper_summary(citekey: str):
+        active_cfg = current_cfg()
+        sp = summary_path_for_key(active_cfg, citekey)
+        if not sp.exists():
+            raise fastapi.HTTPException(status_code=404, detail=f"No summary for {citekey}")
+        return responses.PlainTextResponse(sp.read_text(encoding="utf-8"))
+
+    @app.post("/api/actions/summarize", response_class=responses.JSONResponse)
+    def action_summarize(payload: dict[str, Any]):
+        active_cfg = current_cfg()
+        citekey = str(payload.get("citekey") or "").strip()
+        if not citekey:
+            raise fastapi.HTTPException(status_code=400, detail="Missing citekey")
+        force = bool(payload.get("force"))
+        model_name = str(payload.get("model") or "").strip() or None
+        with summarize_lock:
+            if summarize_job["running"]:
+                return {"ok": True, "async": True, **dict(summarize_job)}
+            summarize_job.update({
+                "running": True, "message": f"Summarizing {citekey}...",
+                "error": None, "citekey": citekey, "summary_path": None,
+            })
+
+        def _run() -> None:
+            try:
+                kwargs: dict[str, Any] = {"citekey": citekey, "root": active_cfg.repo_root, "force": force}
+                if model_name:
+                    kwargs["model"] = model_name
+                result = summarize(**kwargs)
+                with summarize_lock:
+                    summarize_job.update({
+                        "running": False, "error": None, "citekey": citekey,
+                        "summary_path": str(result.get("summary_path") or ""),
+                        "message": f"Summary generated for {citekey}.",
+                    })
+            except Exception as e:
+                with summarize_lock:
+                    summarize_job.update({
+                        "running": False, "error": str(e),
+                        "message": f"Summarize failed: {e}",
+                    })
+
+        threading.Thread(target=_run, daemon=True).start()
+        return {"ok": True, "async": True, **_summarize_snapshot()}
+
+    @app.get("/api/actions/summarize/status", response_class=responses.JSONResponse)
+    def action_summarize_status():
+        return _summarize_snapshot()
+
+    # ── concepts endpoints ─────────────────────────────────────────────────────
+
+    concepts_job: dict[str, Any] = {
+        "running": False, "message": "", "error": None,
+        "completed": 0, "total": 0, "citekey": None,
+    }
+    concepts_lock = threading.Lock()
+
+    def _concepts_snapshot() -> dict[str, Any]:
+        with concepts_lock:
+            return dict(concepts_job)
+
+    @app.get("/api/papers/{citekey}/concepts", response_class=responses.JSONResponse)
+    def api_paper_concepts(citekey: str):
+        active_cfg = current_cfg()
+        data = load_concepts(active_cfg, citekey)
+        if data is None:
+            raise fastapi.HTTPException(status_code=404, detail=f"No concepts for {citekey}")
+        return data
+
+    @app.get("/api/concepts/index", response_class=responses.JSONResponse)
+    def api_concept_index():
+        return build_concept_index(current_cfg().repo_root)
+
+    @app.post("/api/concepts/search", response_class=responses.JSONResponse)
+    def api_concept_search(payload: dict[str, Any]):
+        query = str(payload.get("query") or "").strip()
+        if not query:
+            raise fastapi.HTTPException(status_code=400, detail="Missing query")
+        return search_concepts(query, current_cfg().repo_root)
+
+    @app.post("/api/actions/concepts-extract", response_class=responses.JSONResponse)
+    def action_concepts_extract(payload: dict[str, Any]):
+        active_cfg = current_cfg()
+        citekey = str(payload.get("citekey") or "").strip() or None
+        run_all = bool(payload.get("all"))
+        if not citekey and not run_all:
+            raise fastapi.HTTPException(status_code=400, detail="Missing citekey or all=true")
+        with concepts_lock:
+            if concepts_job["running"]:
+                return {"ok": True, "async": True, **dict(concepts_job)}
+            if citekey:
+                keys = [citekey]
+            else:
+                keys = load_citekeys_md(active_cfg.citekeys_path) if active_cfg.citekeys_path.exists() else []
+            concepts_job.update({
+                "running": True, "message": f"Extracting concepts for {len(keys)} papers...",
+                "error": None, "completed": 0, "total": len(keys), "citekey": None,
+            })
+
+        def _run() -> None:
+            for idx, ck in enumerate(keys, start=1):
+                with concepts_lock:
+                    concepts_job["completed"] = idx - 1
+                    concepts_job["citekey"] = ck
+                    concepts_job["message"] = f"Extracting concepts {idx}/{len(keys)}: {ck}"
+                try:
+                    extract_concepts(citekey=ck, root=active_cfg.repo_root)
+                except Exception:
+                    pass
+            with concepts_lock:
+                concepts_job.update({
+                    "running": False, "error": None,
+                    "completed": len(keys), "total": len(keys), "citekey": None,
+                    "message": f"Concept extraction finished for {len(keys)} papers.",
+                })
+
+        threading.Thread(target=_run, daemon=True).start()
+        return {"ok": True, "async": True, **_concepts_snapshot()}
+
+    @app.get("/api/actions/concepts-extract/status", response_class=responses.JSONResponse)
+    def action_concepts_extract_status():
+        return _concepts_snapshot()
+
+    # ── comparison (background action) ─────────────────────────────────────────
+
+    compare_job: dict[str, Any] = {
+        "running": False, "message": "", "error": None,
+        "comparison_path": None,
+    }
+    compare_lock = threading.Lock()
+
+    def _compare_snapshot() -> dict[str, Any]:
+        with compare_lock:
+            return dict(compare_job)
+
+    @app.post("/api/actions/compare", response_class=responses.JSONResponse)
+    def action_compare(payload: dict[str, Any]):
+        active_cfg = current_cfg()
+        citekeys = payload.get("citekeys") or []
+        if not citekeys or len(citekeys) < 2:
+            raise fastapi.HTTPException(status_code=400, detail="Need at least 2 citekeys")
+        dimensions = payload.get("dimensions") or None
+        model_name = str(payload.get("model") or "").strip() or None
+        with compare_lock:
+            if compare_job["running"]:
+                return {"ok": True, "async": True, **dict(compare_job)}
+            compare_job.update({
+                "running": True, "message": f"Comparing {len(citekeys)} papers...",
+                "error": None, "comparison_path": None,
+            })
+
+        def _run() -> None:
+            try:
+                kwargs: dict[str, Any] = {"citekeys": citekeys, "root": active_cfg.repo_root}
+                if dimensions:
+                    kwargs["dimensions"] = dimensions
+                if model_name:
+                    kwargs["model"] = model_name
+                result = compare(**kwargs)
+                with compare_lock:
+                    compare_job.update({
+                        "running": False, "error": None,
+                        "comparison_path": str(result.get("comparison_path") or ""),
+                        "message": f"Comparison generated for {len(citekeys)} papers.",
+                    })
+            except Exception as e:
+                with compare_lock:
+                    compare_job.update({
+                        "running": False, "error": str(e),
+                        "message": f"Comparison failed: {e}",
+                    })
+
+        threading.Thread(target=_run, daemon=True).start()
+        return {"ok": True, "async": True, **_compare_snapshot()}
+
+    @app.get("/api/actions/compare/status", response_class=responses.JSONResponse)
+    def action_compare_status():
+        return _compare_snapshot()
+
+    @app.get("/api/comparisons", response_class=responses.JSONResponse)
+    def api_list_comparisons():
+        active_cfg = current_cfg()
+        compare_dir = active_cfg.repo_root / "bib" / "derivatives" / "comparisons"
+        if not compare_dir.exists():
+            return {"comparisons": []}
+        files = sorted(compare_dir.glob("*.md"), reverse=True)
+        return {"comparisons": [
+            {"path": str(f.relative_to(active_cfg.repo_root)), "name": f.stem}
+            for f in files
+        ]}
+
+    # ── reading list (background action) ───────────────────────────────────────
+
+    reading_list_job: dict[str, Any] = {
+        "running": False, "message": "", "error": None,
+        "recommendations": None,
+    }
+    reading_list_lock = threading.Lock()
+
+    def _reading_list_snapshot() -> dict[str, Any]:
+        with reading_list_lock:
+            return dict(reading_list_job)
+
+    @app.post("/api/reading-list", response_class=responses.JSONResponse)
+    def api_reading_list(payload: dict[str, Any]):
+        active_cfg = current_cfg()
+        question = str(payload.get("question") or "").strip()
+        if not question:
+            raise fastapi.HTTPException(status_code=400, detail="Missing question")
+        count = int(payload.get("count") or 5)
+        model_name = str(payload.get("model") or "").strip() or None
+        with reading_list_lock:
+            if reading_list_job["running"]:
+                return {"ok": True, "async": True, **dict(reading_list_job)}
+            reading_list_job.update({
+                "running": True, "message": "Generating reading list...",
+                "error": None, "recommendations": None,
+            })
+
+        def _run() -> None:
+            try:
+                kwargs: dict[str, Any] = {"question": question, "root": active_cfg.repo_root, "count": count}
+                if model_name:
+                    kwargs["model"] = model_name
+                result = reading_list(**kwargs)
+                with reading_list_lock:
+                    reading_list_job.update({
+                        "running": False, "error": None,
+                        "recommendations": result.get("recommendations"),
+                        "message": "Reading list generated.",
+                    })
+            except Exception as e:
+                with reading_list_lock:
+                    reading_list_job.update({
+                        "running": False, "error": str(e),
+                        "message": f"Reading list failed: {e}",
+                    })
+
+        threading.Thread(target=_run, daemon=True).start()
+        return {"ok": True, "async": True, **_reading_list_snapshot()}
+
+    @app.get("/api/actions/reading-list/status", response_class=responses.JSONResponse)
+    def action_reading_list_status():
+        return _reading_list_snapshot()
+
+    # ── citation drafting (background action) ──────────────────────────────────
+
+    cite_draft_job: dict[str, Any] = {
+        "running": False, "message": "", "error": None,
+        "draft": None,
+    }
+    cite_draft_lock = threading.Lock()
+
+    def _cite_draft_snapshot() -> dict[str, Any]:
+        with cite_draft_lock:
+            return dict(cite_draft_job)
+
+    @app.post("/api/cite-draft", response_class=responses.JSONResponse)
+    def api_cite_draft(payload: dict[str, Any]):
+        active_cfg = current_cfg()
+        text = str(payload.get("text") or "").strip()
+        if not text:
+            raise fastapi.HTTPException(status_code=400, detail="Missing text")
+        style = str(payload.get("style") or "latex").strip()
+        max_refs = int(payload.get("max_refs") or 5)
+        model_name = str(payload.get("model") or "").strip() or None
+        with cite_draft_lock:
+            if cite_draft_job["running"]:
+                return {"ok": True, "async": True, **dict(cite_draft_job)}
+            cite_draft_job.update({
+                "running": True, "message": "Drafting citation...",
+                "error": None, "draft": None,
+            })
+
+        def _run() -> None:
+            try:
+                kwargs: dict[str, Any] = {
+                    "text": text, "root": active_cfg.repo_root,
+                    "style": style, "max_refs": max_refs,
+                }
+                if model_name:
+                    kwargs["model"] = model_name
+                result = cite_draft(**kwargs)
+                with cite_draft_lock:
+                    cite_draft_job.update({
+                        "running": False, "error": result.get("error"),
+                        "draft": result.get("draft"),
+                        "message": "Citation draft generated." if not result.get("error") else f"Citation draft failed: {result['error']}",
+                    })
+            except Exception as e:
+                with cite_draft_lock:
+                    cite_draft_job.update({
+                        "running": False, "error": str(e),
+                        "message": f"Citation draft failed: {e}",
+                    })
+
+        threading.Thread(target=_run, daemon=True).start()
+        return {"ok": True, "async": True, **_cite_draft_snapshot()}
+
+    @app.get("/api/actions/cite-draft/status", response_class=responses.JSONResponse)
+    def action_cite_draft_status():
+        return _cite_draft_snapshot()
+
+    # ── literature review (background action) ──────────────────────────────────
+
+    review_job: dict[str, Any] = {
+        "running": False, "message": "", "error": None,
+        "action": None, "result": None,
+    }
+    review_lock = threading.Lock()
+
+    def _review_snapshot() -> dict[str, Any]:
+        with review_lock:
+            return dict(review_job)
+
+    @app.post("/api/actions/review-query", response_class=responses.JSONResponse)
+    def action_review_query(payload: dict[str, Any]):
+        active_cfg = current_cfg()
+        question = str(payload.get("question") or "").strip()
+        if not question:
+            raise fastapi.HTTPException(status_code=400, detail="Missing question")
+        model_name = str(payload.get("model") or "").strip() or None
+        with review_lock:
+            if review_job["running"]:
+                return {"ok": True, "async": True, **dict(review_job)}
+            review_job.update({
+                "running": True, "message": "Running review query...",
+                "error": None, "action": "review-query", "result": None,
+            })
+
+        def _run() -> None:
+            try:
+                kwargs: dict[str, Any] = {"question": question, "root": active_cfg.repo_root}
+                if model_name:
+                    kwargs["model"] = model_name
+                result = review_query(**kwargs)
+                with review_lock:
+                    review_job.update({
+                        "running": False, "error": result.get("error"),
+                        "result": result,
+                        "message": "Review query completed." if not result.get("error") else f"Review query failed: {result['error']}",
+                    })
+            except Exception as e:
+                with review_lock:
+                    review_job.update({
+                        "running": False, "error": str(e),
+                        "message": f"Review query failed: {e}",
+                    })
+
+        threading.Thread(target=_run, daemon=True).start()
+        return {"ok": True, "async": True, **_review_snapshot()}
+
+    @app.post("/api/actions/review-plan", response_class=responses.JSONResponse)
+    def action_review_plan(payload: dict[str, Any]):
+        active_cfg = current_cfg()
+        seed_citekeys = payload.get("seed_citekeys") or []
+        if not seed_citekeys:
+            raise fastapi.HTTPException(status_code=400, detail="Missing seed_citekeys")
+        question = str(payload.get("question") or "").strip() or None
+        model_name = str(payload.get("model") or "").strip() or None
+        with review_lock:
+            if review_job["running"]:
+                return {"ok": True, "async": True, **dict(review_job)}
+            review_job.update({
+                "running": True, "message": "Generating review plan...",
+                "error": None, "action": "review-plan", "result": None,
+            })
+
+        def _run() -> None:
+            try:
+                kwargs: dict[str, Any] = {
+                    "seed_citekeys": seed_citekeys,
+                    "question": question or "",
+                    "root": active_cfg.repo_root,
+                }
+                if model_name:
+                    kwargs["model"] = model_name
+                result = review_plan(**kwargs)
+                with review_lock:
+                    review_job.update({
+                        "running": False, "error": None,
+                        "result": result, "message": "Review plan generated.",
+                    })
+            except Exception as e:
+                with review_lock:
+                    review_job.update({
+                        "running": False, "error": str(e),
+                        "message": f"Review plan failed: {e}",
+                    })
+
+        threading.Thread(target=_run, daemon=True).start()
+        return {"ok": True, "async": True, **_review_snapshot()}
+
+    @app.get("/api/actions/review/status", response_class=responses.JSONResponse)
+    def action_review_status():
+        return _review_snapshot()
+
+    # ── presentations (background action) ──────────────────────────────────────
+
+    present_job: dict[str, Any] = {
+        "running": False, "message": "", "error": None,
+        "citekey": None, "slides_path": None,
+    }
+    present_lock = threading.Lock()
+
+    def _present_snapshot() -> dict[str, Any]:
+        with present_lock:
+            return dict(present_job)
+
+    @app.get("/api/papers/{citekey}/slides", response_class=responses.PlainTextResponse)
+    def api_paper_slides(citekey: str):
+        active_cfg = current_cfg()
+        sp = slides_path_for_key(active_cfg, citekey)
+        if not sp.exists():
+            raise fastapi.HTTPException(status_code=404, detail=f"No slides for {citekey}")
+        return responses.PlainTextResponse(sp.read_text(encoding="utf-8"))
+
+    @app.post("/api/actions/present", response_class=responses.JSONResponse)
+    def action_present(payload: dict[str, Any]):
+        active_cfg = current_cfg()
+        citekey = str(payload.get("citekey") or "").strip()
+        if not citekey:
+            raise fastapi.HTTPException(status_code=400, detail="Missing citekey")
+        template = str(payload.get("template") or "journal-club").strip()
+        model_name = str(payload.get("model") or "").strip() or None
+        with present_lock:
+            if present_job["running"]:
+                return {"ok": True, "async": True, **dict(present_job)}
+            present_job.update({
+                "running": True, "message": f"Generating slides for {citekey}...",
+                "error": None, "citekey": citekey, "slides_path": None,
+            })
+
+        def _run() -> None:
+            try:
+                kwargs: dict[str, Any] = {
+                    "citekey": citekey, "root": active_cfg.repo_root,
+                    "template": template,
+                }
+                if model_name:
+                    kwargs["model"] = model_name
+                result = generate_slides(**kwargs)
+                with present_lock:
+                    present_job.update({
+                        "running": False, "error": None, "citekey": citekey,
+                        "slides_path": str(result.get("slides_path") or ""),
+                        "message": f"Slides generated for {citekey}.",
+                    })
+            except Exception as e:
+                with present_lock:
+                    present_job.update({
+                        "running": False, "error": str(e),
+                        "message": f"Slide generation failed: {e}",
+                    })
+
+        threading.Thread(target=_run, daemon=True).start()
+        return {"ok": True, "async": True, **_present_snapshot()}
+
+    @app.get("/api/actions/present/status", response_class=responses.JSONResponse)
+    def action_present_status():
+        return _present_snapshot()
+
+    # ── smart collection query endpoint ────────────────────────────────────────
+
+    @app.patch("/api/collections/{col_id}/query", response_class=responses.JSONResponse)
+    def api_update_collection_query(col_id: str, payload: dict[str, Any]):
+        query = str(payload.get("query") or "").strip()
+        if not query:
+            raise fastapi.HTTPException(status_code=400, detail="Missing query")
+        result = col_update_query(current_cfg(), col_id, query)
+        if result is None:
+            raise fastapi.HTTPException(status_code=404, detail="Collection not found or not a smart collection")
+        return result
 
     return app
 
