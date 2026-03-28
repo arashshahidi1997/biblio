@@ -1,0 +1,12 @@
+name: Sirota Lab
+description: Default profile for Sirota Lab members (UCSF/UCSF HPC)
+
+# Shared lab pool on HPC (read-only for regular users)
+pool:
+  lab_root: /storage/share/sirocampus/bib
+
+# Glob pattern used to locate /storage<N>/<username>/ on HPC
+storage_glob: /storage[0-9]*
+
+grobid:
+  url: http://127.0.0.1:8070

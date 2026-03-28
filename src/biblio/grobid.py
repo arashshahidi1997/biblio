@@ -119,6 +119,19 @@ def process_pdf(cfg: GrobidConfig, pdf_path: Path) -> str:
         raise RuntimeError(f"GROBID HTTP {e.code}: {detail}") from e
 
 
+def process_pdf_header(cfg: GrobidConfig, pdf_path: Path) -> str:
+    """Submit PDF to GROBID processHeaderDocument (header-only, fast), return TEI XML string."""
+    body, content_type = _multipart_body(pdf_path, consolidate_header=cfg.consolidate_header, consolidate_citations=False)
+    url = cfg.url.rstrip("/") + "/api/processHeaderDocument"
+    req = urllib.request.Request(url, data=body, headers={"Content-Type": content_type}, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=cfg.timeout_seconds) as resp:
+            return resp.read().decode("utf-8", errors="replace")
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode("utf-8", errors="replace")[:500]
+        raise RuntimeError(f"GROBID HTTP {e.code}: {detail}") from e
+
+
 # ── TEI parsing ───────────────────────────────────────────────────────────────
 
 def _text(el: ET.Element | None) -> str:
@@ -127,7 +140,7 @@ def _text(el: ET.Element | None) -> str:
     return "".join(el.itertext()).strip()
 
 
-def _parse_tei_header(tei_xml: str) -> dict[str, Any]:
+def parse_tei_header(tei_xml: str) -> dict[str, Any]:
     try:
         root = ET.fromstring(tei_xml)
     except ET.ParseError:
@@ -189,6 +202,9 @@ def _parse_tei_header(tei_xml: str) -> dict[str, Any]:
         "year": year,
         "doi": doi,
     }
+
+
+_parse_tei_header = parse_tei_header  # backwards-compat alias
 
 
 def _parse_tei_references(tei_xml: str) -> list[dict[str, Any]]:

@@ -20,7 +20,7 @@ class _JobCancelledError(Exception):
 
 
 from .bibtex import merge_srcbib
-from .ingest import IngestRecord, canonical_citekey
+from .ingest import IngestRecord, canonical_citekey, enrich_record
 from .config import BiblioConfig, load_biblio_config
 from .docling import outputs_for_key as docling_outputs_for_key, run_docling_for_key
 from .graph import add_openalex_work_to_bib, expand_openalex_reference_graph, load_openalex_seed_records
@@ -1020,15 +1020,24 @@ def create_ui_app(cfg: BiblioConfig):
 
     @app.post("/api/actions/normalize-citekeys", response_class=responses.JSONResponse)
     def action_normalize_citekeys(payload: dict[str, Any]):
-        """Preview or apply citekey normalization to author_year_Title format."""
+        """Preview or apply citekey normalization to author_year_Title format.
+
+        Uses cascading enrichment to resolve missing authors:
+        1. DOI → OpenAlex lookup
+        2. PDF → GROBID header extraction
+        3. Title → CrossRef title search → OpenAlex
+        """
         from ._pybtex_utils import parse_bibtex_file, require_pybtex
+        from .docling import pdf_path_for_key
         require_pybtex("normalize-citekeys")
         apply = bool(payload.get("apply", False))
+        enrich = bool(payload.get("enrich", True))
         active_cfg = current_cfg()
         src_dir = active_cfg.bibtex_merge.src_dir
         src_glob = active_cfg.bibtex_merge.src_glob
         bib_files = sorted(p for p in src_dir.glob(src_glob) if p.is_file())
         renames: list[dict[str, str]] = []
+        enriched_info: list[dict[str, str]] = []
         seen_new: dict[str, str] = {}  # new_key -> old_key (dedup)
         _STANDARD = re.compile(r"^[a-z]+_\d{4}_[A-Za-z]")
         for bib_path in bib_files:
@@ -1048,6 +1057,21 @@ def create_ui_app(cfg: BiblioConfig):
                     doi=str(fields.get("doi") or "") or None,
                     url=None, journal=None, booktitle=None, raw_id=old_key,
                 )
+                # Cascade-enrich if authors are missing
+                if enrich and not authors:
+                    pdf = pdf_path_for_key(active_cfg, old_key)
+                    rec = enrich_record(
+                        rec,
+                        pdf_path=pdf,
+                        grobid_cfg=active_cfg.grobid,
+                    )
+                    if rec.authors:
+                        enriched_info.append({
+                            "citekey": old_key,
+                            "source": "openalex" if rec.doi and fields.get("doi") else
+                                      "grobid" if pdf.exists() else "crossref",
+                            "authors": ", ".join(rec.authors[:3]),
+                        })
                 new_key = canonical_citekey(rec)
                 if new_key == old_key:
                     continue
@@ -1058,32 +1082,111 @@ def create_ui_app(cfg: BiblioConfig):
                     new_key = f"{base}{idx}"
                     idx += 1
                 seen_new[new_key] = old_key
-                renames.append({"old": old_key, "new": new_key, "source_bib": str(bib_path)})
+                renames.append({"old": old_key, "new": new_key, "source_bib": str(bib_path), "_rec": rec})
         if apply and renames:
             from pybtex.database.output.bibtex import Writer as BibWriter
             from pybtex.database import BibliographyData
             import copy as _copy
+            from .ledger import append_jsonl, new_run_id, utc_now_iso
+
+            run_id = new_run_id("normalize")
+            backup_dir = active_cfg.ledger.root / "normalize_backups" / run_id
+            backup_dir.mkdir(parents=True, exist_ok=True)
+
             rename_map = {r["old"]: r["new"] for r in renames}
-            for bib_path_str in {r["source_bib"] for r in renames}:
+            enrich_map: dict[str, IngestRecord] = {r["old"]: r["_rec"] for r in renames}
+            affected_bibs = sorted({r["source_bib"] for r in renames})
+
+            # Back up affected bib files and citekeys.md before mutation
+            backup_manifest: dict[str, str] = {}
+            for bib_path_str in affected_bibs:
+                bib_path = Path(bib_path_str)
+                dst = backup_dir / bib_path.name
+                shutil.copy2(bib_path, dst)
+                backup_manifest[bib_path_str] = str(dst)
+            ck_path = active_cfg.citekeys_path
+            if ck_path and Path(ck_path).exists():
+                dst = backup_dir / Path(ck_path).name
+                shutil.copy2(ck_path, dst)
+                backup_manifest[str(ck_path)] = str(dst)
+
+            # Apply renames and enrichment to bib files
+            for bib_path_str in affected_bibs:
                 bib_path = Path(bib_path_str)
                 db = parse_bibtex_file(bib_path)
                 new_entries = {}
                 for k, e in db.entries.items():
                     new_k = rename_map.get(k, k)
-                    new_entries[new_k] = _copy.deepcopy(e)
+                    new_e = _copy.deepcopy(e)
+                    # Back-fill bib fields from enriched metadata
+                    rec = enrich_map.get(k)
+                    if rec:
+                        if rec.authors and not e.fields.get("author"):
+                            new_e.fields["author"] = " and ".join(rec.authors)
+                        if rec.year and not e.fields.get("year"):
+                            new_e.fields["year"] = str(rec.year)
+                        if rec.title and not e.fields.get("title"):
+                            new_e.fields["title"] = rec.title
+                        if rec.doi and not e.fields.get("doi"):
+                            new_e.fields["doi"] = rec.doi
+                    new_entries[new_k] = new_e
                 new_db = BibliographyData(entries=new_entries)
                 buf = io.StringIO()
                 BibWriter().write_stream(new_db, buf)
                 bib_path.write_text(buf.getvalue(), encoding="utf-8")
-            # update citekeys.md
+
+            # Update citekeys.md
             from .citekeys import load_citekeys_md, add_citekeys_md, remove_citekeys_md
-            ck_path = active_cfg.citekeys_path
             if ck_path and Path(ck_path).exists():
                 existing = load_citekeys_md(ck_path)
                 updated = [rename_map.get(k, k) for k in existing]
                 from .citekeys import _render_citekeys_md
                 Path(ck_path).write_text(_render_citekeys_md(updated), encoding="utf-8")
-        return {"ok": True, "renames": renames, "applied": apply and bool(renames)}
+
+            # Log the operation for revert
+            normalize_log = active_cfg.ledger.root / "normalize.jsonl"
+            append_jsonl(normalize_log, {
+                "run_id": run_id,
+                "timestamp": utc_now_iso(),
+                "renames": {r["old"]: r["new"] for r in renames},
+                "backup_dir": str(backup_dir),
+                "backup_manifest": backup_manifest,
+            })
+        clean_renames = [{k: v for k, v in r.items() if not k.startswith("_")} for r in renames]
+        return {"ok": True, "renames": clean_renames, "applied": apply and bool(renames), "enriched": enriched_info}
+
+    @app.post("/api/actions/revert-normalize", response_class=responses.JSONResponse)
+    def action_revert_normalize(payload: dict[str, Any]):
+        """Revert the last (or a specific) normalize-citekeys operation."""
+        active_cfg = current_cfg()
+        normalize_log = active_cfg.ledger.root / "normalize.jsonl"
+        if not normalize_log.exists():
+            return {"ok": False, "error": "No normalize operations to revert."}
+        entries = [json.loads(line) for line in normalize_log.read_text(encoding="utf-8").splitlines() if line.strip()]
+        if not entries:
+            return {"ok": False, "error": "No normalize operations to revert."}
+        target_run = payload.get("run_id")
+        if target_run:
+            entry = next((e for e in entries if e["run_id"] == target_run), None)
+            if not entry:
+                return {"ok": False, "error": f"Run {target_run} not found.", "available": [e["run_id"] for e in entries]}
+        else:
+            entry = entries[-1]  # most recent
+        backup_manifest: dict[str, str] = entry["backup_manifest"]
+        restored: list[str] = []
+        for original, backup in backup_manifest.items():
+            backup_path = Path(backup)
+            if not backup_path.exists():
+                return {"ok": False, "error": f"Backup file missing: {backup}"}
+            shutil.copy2(backup_path, original)
+            restored.append(original)
+        # Remove the reverted entry from the log
+        remaining = [e for e in entries if e["run_id"] != entry["run_id"]]
+        normalize_log.write_text(
+            "".join(json.dumps(e, sort_keys=True) + "\n" for e in remaining),
+            encoding="utf-8",
+        )
+        return {"ok": True, "reverted_run": entry["run_id"], "restored_files": restored}
 
     # ── library endpoints ─────────────────────────────────────────────────────
 

@@ -243,6 +243,108 @@ def enrich_doi_records_with_openalex(
     return enriched
 
 
+def enrich_record(
+    record: IngestRecord,
+    *,
+    pdf_path: Path | None = None,
+    grobid_cfg: Any | None = None,
+    openalex_base: str = "https://api.openalex.org",
+    mailto: str | None = None,
+    crossref_min_similarity: float = 0.85,
+    fetch_json: Any | None = None,
+) -> IngestRecord:
+    """Cascade-enrich a record that may be missing author/year/title metadata.
+
+    Tries in order:
+    1. DOI → OpenAlex  (fast, reliable)
+    2. PDF → GROBID header extraction  (needs running GROBID)
+    3. Title → CrossRef title search → get DOI → OpenAlex
+
+    Returns an enriched copy, or the original if nothing helps.
+    """
+    def _needs_authors(rec: IngestRecord) -> bool:
+        return not rec.authors
+
+    if not _needs_authors(record):
+        return record
+
+    # ── Tier 1: DOI → OpenAlex ──────────────────────────────────────────────
+    if record.doi:
+        enriched = enrich_doi_records_with_openalex(
+            [record], api_base=openalex_base, mailto=mailto, fetch_json=fetch_json,
+        )
+        if enriched and not _needs_authors(enriched[0]):
+            return enriched[0]
+
+    # ── Tier 2: PDF → GROBID header ─────────────────────────────────────────
+    if pdf_path and pdf_path.exists() and grobid_cfg is not None:
+        try:
+            from .grobid import process_pdf_header, parse_tei_header
+
+            tei_xml = process_pdf_header(grobid_cfg, pdf_path)
+            header = parse_tei_header(tei_xml)
+            authors = tuple(header.get("authors") or [])
+            if authors:
+                return IngestRecord(
+                    source_type=record.source_type,
+                    source_ref=record.source_ref,
+                    entry_type=record.entry_type,
+                    title=header.get("title") or record.title,
+                    authors=authors,
+                    year=header.get("year") or record.year,
+                    doi=header.get("doi") or record.doi,
+                    url=record.url,
+                    journal=record.journal,
+                    booktitle=record.booktitle,
+                    raw_id=record.raw_id,
+                    file=record.file,
+                )
+        except Exception:
+            pass  # GROBID unavailable or failed — fall through
+
+    # ── Tier 3: Title → CrossRef → DOI → OpenAlex ───────────────────────────
+    if record.title:
+        try:
+            from .crossref import resolve_doi_by_title
+
+            result = resolve_doi_by_title(record.title)
+            sim = result.get("similarity", 0)
+            matched = (result.get("matched_title") or "").lower()
+            query = record.title.lower()
+            # Accept if similarity is high enough, OR if the matched title
+            # starts with the query (subtitle mismatch, e.g. "Title" vs
+            # "Title: Evidence from ...").
+            title_ok = sim >= crossref_min_similarity or (
+                sim >= 0.7 and matched.startswith(query)
+            )
+            if result.get("ok") and title_ok:
+                found_doi = result.get("doi")
+                if found_doi:
+                    rec_with_doi = IngestRecord(
+                        source_type=record.source_type,
+                        source_ref=record.source_ref,
+                        entry_type=record.entry_type,
+                        title=record.title,
+                        authors=record.authors,
+                        year=record.year,
+                        doi=found_doi,
+                        url=record.url,
+                        journal=record.journal,
+                        booktitle=record.booktitle,
+                        raw_id=record.raw_id,
+                        file=record.file,
+                    )
+                    enriched = enrich_doi_records_with_openalex(
+                        [rec_with_doi], api_base=openalex_base, mailto=mailto, fetch_json=fetch_json,
+                    )
+                    if enriched and not _needs_authors(enriched[0]):
+                        return enriched[0]
+        except Exception:
+            pass  # CrossRef unavailable — give up
+
+    return record
+
+
 def _csl_authors(item: Mapping[str, Any]) -> tuple[str, ...]:
     out: list[str] = []
     authors = item.get("author")
@@ -546,3 +648,59 @@ def ingest_file(
         citekeys=citekeys,
     )
     return result, bibtex_text
+
+
+def sync_bibtex_keywords_to_library(
+    cfg: Any,
+    citekeys: Iterable[str],
+    *,
+    vocab_path: Path | None = None,
+) -> dict[str, list[str]]:
+    """Extract BibTeX keywords for *citekeys* and merge as tags into library.yml.
+
+    Loads the merged .bib, extracts ``keywords`` fields, maps them through the
+    tag vocabulary, and merges (union) with existing library tags.
+
+    Returns ``{citekey: [tags_added]}`` for citekeys that gained new tags.
+    """
+    from .tag_vocab import (
+        default_tag_vocab_path,
+        extract_bibtex_keywords,
+        keywords_to_tags,
+        load_tag_vocab,
+    )
+    from .library import load_library, update_entry
+    from ._pybtex_utils import parse_bibtex_file
+
+    vpath = vocab_path or default_tag_vocab_path(cfg.repo_root)
+    vocab = load_tag_vocab(vpath)
+
+    bib_path = cfg.bibtex_merge.out_bib
+    if not bib_path.exists():
+        return {}
+
+    bib_db = parse_bibtex_file(bib_path)
+    library = load_library(cfg)
+    result: dict[str, list[str]] = {}
+
+    for ck in citekeys:
+        key = ck.lstrip("@")
+        if key not in bib_db.entries:
+            continue
+        entry = bib_db.entries[key]
+        keywords = extract_bibtex_keywords(dict(entry.fields))
+        if not keywords:
+            continue
+        new_tags = keywords_to_tags(keywords, vocab)
+        if not new_tags:
+            continue
+
+        existing = list(library.get(key, {}).get("tags") or [])
+        existing_set = set(existing)
+        added = [t for t in new_tags if t not in existing_set]
+        if added:
+            merged = existing + added
+            update_entry(cfg, key, tags=merged)
+            result[key] = added
+
+    return result

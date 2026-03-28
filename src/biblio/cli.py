@@ -32,7 +32,10 @@ from .site import (
 from .openalex.openalex_resolve import ResolveOptions, resolve_srcbib_to_openalex
 from .ui import serve_ui_app
 from .grobid import check_grobid_server, run_grobid_for_key, run_grobid_match
+from .fetch_queue import add_to_queue, load_queue, remove_from_queue
 from .library import load_library, update_entry
+from .pool import ingest_inbox, link_project, sync_pool_symlinks
+from .pool_serve import serve_pool
 from .ref_md import run_ref_md_for_key
 
 try:
@@ -310,6 +313,11 @@ def _build_parser() -> argparse.ArgumentParser:
     lib_set.add_argument("--tags", help="Comma-separated tags (replaces existing tags).")
     lib_set.add_argument("--priority", help="Priority: low|normal|high.")
 
+    lib_lint = lib_sub.add_parser("lint", help="Scan library tags for non-vocabulary, duplicate, or inconsistent tags.")
+    lib_lint.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    lib_lint.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    lib_lint.add_argument("--json", action="store_true", help="Emit JSON output.")
+
     p_ref_md = sub.add_parser("ref-md", help="Produce reference-resolved markdown from docling+GROBID outputs.")
     ref_md_sub = p_ref_md.add_subparsers(dest="ref_md_cmd", required=True)
     ref_md_run = ref_md_sub.add_parser("run", help="Resolve in-text citations for one key or all keys.")
@@ -320,6 +328,84 @@ def _build_parser() -> argparse.ArgumentParser:
     ref_md_run_group.add_argument("--all", action="store_true", help="Run for all citekeys in citekeys.md.")
     ref_md_run.add_argument("--force", action="store_true", help="Re-run even if outputs already exist.")
 
+    p_q = sub.add_parser("queue", help="Manage the needs-PDF queue.")
+    q_sub = p_q.add_subparsers(dest="queue_cmd", required=True)
+    q_list = q_sub.add_parser("list", help="List queued papers needing PDFs.")
+    q_list.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    q_list.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    q_open = q_sub.add_parser("open", help="Open a queued paper's URL in the default browser.")
+    q_open.add_argument("key", help="Citekey to open (with or without leading @).")
+    q_open.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    q_open.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    q_drain = q_sub.add_parser("drain", help="Re-attempt OA fetch for all queued papers.")
+    q_drain.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    q_drain.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    q_drain.add_argument("--force", action="store_true", help="Download even if PDF already exists locally.")
+    q_remove = q_sub.add_parser("remove", help="Remove a citekey from the queue.")
+    q_remove.add_argument("key", help="Citekey to remove (with or without leading @).")
+    q_remove.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    q_remove.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+
+    p_pool = sub.add_parser("pool", help="Manage the shared PDF pool workspace.")
+    pool_sub = p_pool.add_subparsers(dest="pool_cmd", required=True)
+
+    _pool_args = [
+        ("--pool", dict(type=Path, help="Pool workspace root (default: read from project config).")),
+        ("--root", dict(type=Path, help="Repository root (default: auto-detect from cwd).")),
+        ("--config", dict(type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")),
+    ]
+
+    pool_ingest = pool_sub.add_parser("ingest", help="Ingest PDFs from an inbox directory into the pool.")
+    pool_ingest.add_argument("inbox_dir", type=Path, help="Directory containing PDF files to ingest.")
+    for flag, kwargs in _pool_args:
+        pool_ingest.add_argument(flag, **kwargs)
+    pool_ingest.add_argument("--dry-run", action="store_true", help="Report what would happen without writing.")
+    pool_ingest.add_argument("--move", action="store_true", help="Remove PDFs from inbox after ingesting.")
+
+    pool_watch = pool_sub.add_parser("watch", help="Watch an inbox directory and ingest new PDFs continuously.")
+    pool_watch.add_argument("inbox_dir", type=Path, help="Directory to watch for new PDFs.")
+    for flag, kwargs in _pool_args:
+        pool_watch.add_argument(flag, **kwargs)
+    pool_watch.add_argument("--interval", type=int, default=30, help="Poll interval in seconds (default: 30).")
+    pool_watch.add_argument("--move", action="store_true", help="Remove PDFs from inbox after ingesting.")
+    pool_watch.add_argument("--screen", action="store_true", help="Run in a detached GNU screen session.")
+    pool_watch.add_argument("--screen-name", default="biblio-pool-watch",
+                            help="Screen session name (default: biblio-pool-watch).")
+
+    pool_link = pool_sub.add_parser("link", help="Configure project to use a pool and gitignore bib/articles/.")
+    for flag, kwargs in _pool_args:
+        pool_link.add_argument(flag, **kwargs)
+    pool_link.add_argument("--lab", type=Path,
+                           help="Shared lab pool root to prepend to pool.search (checked before personal pool).")
+    pool_link.add_argument("--no-sync", action="store_true",
+                           help="Skip symlinking existing pool PDFs for active citekeys.")
+
+    pool_serve = pool_sub.add_parser("serve", help="Start a local HTTP server that accepts PDF drops.")
+    pool_serve.add_argument("--inbox", type=Path, required=True,
+                            help="Directory where dropped PDFs are saved.")
+    pool_serve.add_argument("--host", default="127.0.0.1", help="Host to bind (default: 127.0.0.1).")
+    pool_serve.add_argument("--port", type=int, default=7171, help="Port to bind (default: 7171).")
+
+    pool_bm = pool_sub.add_parser("bookmarklet",
+                                  help="Print a browser bookmarklet JS snippet for one-click PDF drop.")
+    pool_bm.add_argument("--port", type=int, default=7171,
+                         help="Pool server port (default: 7171).")
+
+    p_profile = sub.add_parser("profile", help="Manage user-level biblio profiles.")
+    profile_sub = p_profile.add_subparsers(dest="profile_cmd", required=True)
+
+    profile_sub.add_parser("list", help="List available bundled profiles.")
+
+    profile_use = profile_sub.add_parser("use", help="Apply a profile to ~/.config/biblio/config.yml.")
+    profile_use.add_argument("name", help="Profile name (e.g. sirota).")
+    profile_use.add_argument("--storage", type=Path,
+                             help="Personal storage root (e.g. /storage2/username). "
+                                  "Auto-detected if omitted.")
+    profile_use.add_argument("--yes", action="store_true",
+                             help="Accept detected storage path without prompting.")
+
+    profile_sub.add_parser("show", help="Print current ~/.config/biblio/config.yml.")
+
     p_ui = sub.add_parser("ui", help="Serve a local interactive bibliography UI.")
     ui_sub = p_ui.add_subparsers(dest="ui_cmd", required=True)
     ui_serve = ui_sub.add_parser("serve", help="Serve the local FastAPI/React/Cytoscape UI.")
@@ -329,6 +415,46 @@ def _build_parser() -> argparse.ArgumentParser:
     ui_serve.add_argument("--port", type=int, default=8010, help="Port to bind (default: 8010).")
 
     return p
+
+
+def _bookmarklet_js(port: int) -> str:
+    """Return a javascript: URI that drops the current page's PDF to the pool server."""
+    js = (
+        "(function(){"
+        "var doi=document.querySelector('meta[name=\"citation_doi\"]')?.content"
+        "||document.querySelector('meta[name=\"dc.identifier\"]')?.content"
+        "||location.href.match(/10\\.\\d{4,}\\/[^\\s\"<>]+/)?.[0];"
+        "var pdf=document.querySelector('a[href$=\".pdf\"]')"
+        "||document.querySelector('[data-track-action*=\"pdf\"]')"
+        "||document.querySelector('a[class*=\"download\"]');"
+        f"var srv='http://127.0.0.1:{port}';"
+        "if(!pdf&&!doi){{alert('biblio: no DOI or PDF link found on this page');return;}}"
+        "if(pdf){{"
+        "fetch(pdf.href,{{credentials:'include'}})"
+        ".then(function(r){{return r.blob();}})"
+        ".then(function(b){{"
+        "var fd=new FormData();"
+        "fd.append('file',b,pdf.href.split('/').pop()||'paper.pdf');"
+        "if(doi)fd.append('doi',doi);"
+        "fd.append('url',location.href);"
+        "return fetch(srv+'/drop',{{method:'POST',body:fd}});"
+        "}})"
+        ".then(function(r){{return r.json();}})"
+        ".then(function(d){{alert('biblio: '+JSON.stringify(d));}})"
+        ".catch(function(e){{alert('biblio error: '+e);}});"
+        "}}else{{"
+        "var fd=new FormData();"
+        "fd.append('doi',doi);"
+        "fd.append('url',location.href);"
+        "fetch(srv+'/drop-doi',{{method:'POST',body:fd}})"
+        ".then(function(r){{return r.json();}})"
+        ".then(function(d){{alert('biblio: '+JSON.stringify(d));}})"
+        ".catch(function(e){{alert('biblio error: '+e);}});"
+        "}}"
+        "})();"
+    )
+    import urllib.parse
+    return "javascript:" + urllib.parse.quote(js, safe="")
 
 
 def main(argv: Iterable[str] | None = None) -> None:
@@ -794,6 +920,31 @@ def main(argv: Iterable[str] | None = None) -> None:
             entry = update_entry(cfg, key, status=args.status or None, tags=tags, priority=args.priority or None)
             print(f"[OK] {key}: {entry}")
             return
+        if args.library_cmd == "lint":
+            from .tag_vocab import default_tag_vocab_path, lint_library_tags, load_tag_vocab
+
+            vocab = load_tag_vocab(default_tag_vocab_path(repo_root))
+            entries = load_library(cfg)
+            report = lint_library_tags(entries, vocab)
+            if args.json:
+                print(json.dumps(report, indent=2))
+            else:
+                if report["non_vocab"]:
+                    print("Non-vocabulary tags:")
+                    for item in report["non_vocab"]:
+                        sug = f"  (suggest: {item['suggestion']})" if item.get("suggestion") else ""
+                        print(f"  {item['citekey']}: {item['tag']}{sug}")
+                if report["duplicates"]:
+                    print("Duplicate/inconsistent tags:")
+                    for item in report["duplicates"]:
+                        print(f"  {item['citekey']}: {item['normalized']} -> {item['forms']}")
+                if report["suggestions"]:
+                    print("Suggested mappings:")
+                    for item in report["suggestions"]:
+                        print(f"  {item['citekey']}: {item['tag']} -> {item['suggestion']}")
+                if not any(report.values()):
+                    print("[OK] All tags are valid.")
+            return
         raise SystemExit(2)
 
     if args.command == "ref-md":
@@ -836,6 +987,234 @@ def main(argv: Iterable[str] | None = None) -> None:
         cfg = load_biblio_config(cfg_path, root=repo_root)
         serve_ui_app(cfg, host=str(args.host), port=int(args.port))
         return
+
+    if args.command == "queue":
+        repo_root = (args.root.expanduser().resolve() if args.root else find_repo_root())
+        cfg_path = (repo_root / args.config).resolve() if args.config else (repo_root / "bib" / "config" / "biblio.yml")
+        cfg = load_biblio_config(cfg_path, root=repo_root)
+
+        if args.queue_cmd == "list":
+            entries = load_queue(cfg)
+            if not entries:
+                print("Queue is empty.")
+                return
+            col_w = max(len(k) for k in entries)
+            header = f"{'CITEKEY':<{col_w}}  {'ADDED':<26}  {'OA_STATUS':<10}  DOI"
+            print(header)
+            print("-" * len(header))
+            for key, entry in sorted(entries.items()):
+                added = str(entry.get("added") or "")[:26]
+                oa = str(entry.get("oa_status") or "")
+                doi = str(entry.get("doi") or "")
+                print(f"{key:<{col_w}}  {added:<26}  {oa:<10}  {doi}")
+            return
+
+        if args.queue_cmd == "open":
+            import webbrowser
+            key = args.key.lstrip("@")
+            entries = load_queue(cfg)
+            entry = entries.get(key)
+            if entry is None:
+                print(f"'{key}' is not in the queue.", file=sys.stderr)
+                raise SystemExit(1)
+            url = entry.get("url") or entry.get("doi")
+            if not url:
+                print(f"No URL recorded for '{key}'.", file=sys.stderr)
+                raise SystemExit(1)
+            if str(url).startswith("10."):
+                url = "https://doi.org/" + url
+            webbrowser.open(str(url))
+            print(f"Opened: {url}")
+            return
+
+        if args.queue_cmd == "drain":
+            from .pdf_fetch_oa import _oa_pdf_url, _download
+            import json as _json
+            entries = load_queue(cfg)
+            if not entries:
+                print("Queue is empty.")
+                return
+            jsonl_path = cfg.openalex.out_jsonl
+            if not jsonl_path.exists():
+                print(f"OpenAlex data not found: {jsonl_path}. Run 'biblio openalex resolve' first.", file=sys.stderr)
+                raise SystemExit(1)
+            oa_records: dict[str, dict] = {}
+            with jsonl_path.open(encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        rec = _json.loads(line)
+                    except _json.JSONDecodeError:
+                        continue
+                    ck = str(rec.get("citekey") or "").strip()
+                    if ck:
+                        oa_records[ck] = rec
+            downloaded = 0
+            failed = 0
+            no_url = 0
+            for key in list(entries):
+                rec = oa_records.get(key)
+                if rec is None:
+                    continue
+                dest = (cfg.pdf_root / cfg.pdf_pattern.format(citekey=key)).resolve()
+                if dest.exists() and not args.force:
+                    remove_from_queue(cfg, key)
+                    print(f"[already exists] {key}")
+                    continue
+                url = _oa_pdf_url(rec)
+                if not url:
+                    no_url += 1
+                    print(f"[no_url] {key}")
+                    continue
+                try:
+                    _download(url, dest)
+                    remove_from_queue(cfg, key)
+                    downloaded += 1
+                    print(f"[downloaded] {key}: {url}")
+                except Exception as e:
+                    failed += 1
+                    print(f"[error] {key}: {e}", file=sys.stderr)
+            print(f"\nDrain complete: {downloaded} downloaded, {no_url} still no URL, {failed} errors.")
+            return
+
+        if args.queue_cmd == "remove":
+            key = args.key.lstrip("@")
+            removed = remove_from_queue(cfg, key)
+            if removed:
+                print(f"Removed '{key}' from queue.")
+            else:
+                print(f"'{key}' was not in the queue.")
+            return
+
+    if args.command == "pool":
+        if args.pool_cmd == "bookmarklet":
+            print(_bookmarklet_js(args.port))
+            return
+
+        if args.pool_cmd == "serve":
+            inbox = args.inbox.expanduser().resolve()
+            serve_pool(inbox, host=str(args.host), port=int(args.port))
+            return
+
+        # Commands that need project cfg to resolve pool root
+        repo_root = (args.root.expanduser().resolve() if args.root else find_repo_root())
+        cfg_path = (
+            (repo_root / args.config).resolve() if args.config
+            else (repo_root / "bib" / "config" / "biblio.yml")
+        )
+        cfg = load_biblio_config(cfg_path, root=repo_root)
+
+        # Resolve pool root: --pool flag > project config
+        if args.pool_cmd in ("ingest", "watch", "link"):
+            pool_root_arg = getattr(args, "pool", None)
+            if pool_root_arg is not None:
+                pool_root = pool_root_arg.expanduser().resolve()
+            elif cfg.common_pool_path is not None:
+                pool_root = cfg.common_pool_path
+            else:
+                print(
+                    "No pool configured. Pass --pool <path> or run 'biblio pool link --pool <path>' first.",
+                    file=sys.stderr,
+                )
+                raise SystemExit(1)
+
+        if args.pool_cmd == "ingest":
+            from .pool import load_pool_config
+            pool_cfg = load_pool_config(pool_root)
+            inbox = args.inbox_dir.expanduser().resolve()
+            results = ingest_inbox(pool_cfg, inbox, dry_run=args.dry_run, move=args.move)
+            counts: dict[str, int] = {}
+            for r in results:
+                counts[r.status] = counts.get(r.status, 0) + 1
+                icon = {"ingested": "+", "duplicate": "=", "error": "!", "dry_run": "?"}.get(r.status, " ")
+                print(f"[{icon}] {r.pdf_path.name} → {r.citekey or '?'}"
+                      + (f"  (DOI: {r.doi})" if r.doi else "")
+                      + (f"  ERROR: {r.error}" if r.error else ""))
+            summary = " | ".join(f"{v} {k}" for k, v in sorted(counts.items()))
+            print(f"\n{summary}")
+            return
+
+        if args.pool_cmd == "watch":
+            inbox = args.inbox_dir.expanduser().resolve()
+            if args.screen:
+                import shlex as _shlex
+                watch_cmd_parts = [
+                    sys.executable, "-m", "biblio.cli", "pool", "watch",
+                    str(inbox),
+                    "--pool", str(pool_root),
+                    "--interval", str(args.interval),
+                ]
+                if args.move:
+                    watch_cmd_parts.append("--move")
+                bash_cmd = " ".join(_shlex.quote(p) for p in watch_cmd_parts)
+                _launch_screen_session(name=args.screen_name, bash_cmd=bash_cmd)
+                print(f"Started pool watch in screen session '{args.screen_name}'.")
+                return
+            import time as _time
+            from .pool import load_pool_config
+            pool_cfg = load_pool_config(pool_root)
+            print(f"Watching {inbox} every {args.interval}s. Press Ctrl+C to stop.")
+            while True:
+                results = ingest_inbox(pool_cfg, inbox, dry_run=False, move=args.move)
+                new = [r for r in results if r.status == "ingested"]
+                if new:
+                    for r in new:
+                        print(f"[+] {r.pdf_path.name} → {r.citekey}")
+                _time.sleep(args.interval)
+
+        if args.pool_cmd == "link":
+            lab_pool = args.lab.expanduser().resolve() if getattr(args, "lab", None) else None
+            result = link_project(cfg, pool_root, lab_pool=lab_pool)
+            if result["config_updated"]:
+                if lab_pool:
+                    print(f"Updated bib/config/biblio.yml: pool.path = {pool_root}, pool.search = [{lab_pool}, {pool_root}]")
+                else:
+                    print(f"Updated bib/config/biblio.yml: pool.path = {pool_root}")
+            else:
+                print("biblio.yml already has this pool path — no change.")
+            if result["gitignore_updated"]:
+                print("Added 'articles/' to bib/.gitignore")
+            else:
+                print("bib/.gitignore already excludes articles/ — no change.")
+            if not args.no_sync:
+                # Reload config so common_pool_path is set
+                cfg2 = load_biblio_config(cfg_path, root=repo_root)
+                sync_results = sync_pool_symlinks(cfg2)
+                linked = sum(1 for v in sync_results.values() if v == "linked")
+                not_in_pool = sum(1 for v in sync_results.values() if v == "not_in_pool")
+                if linked:
+                    print(f"Symlinked {linked} PDF(s) from pool.")
+                if not_in_pool:
+                    print(f"{not_in_pool} citekey(s) not yet in pool — run 'biblio queue list' to see them.")
+            return
+
+    if args.command == "profile":
+        from .profile import apply_profile, list_profiles, load_user_config, user_config_path
+        if args.profile_cmd == "list":
+            profiles = list_profiles()
+            if not profiles:
+                print("No bundled profiles found.")
+            else:
+                for p in profiles:
+                    print(f"  {p['slug']:<20} {p['name']}")
+                    if p["description"]:
+                        print(f"  {'':20} {p['description']}")
+            return
+        if args.profile_cmd == "show":
+            cfg_path = user_config_path()
+            if not cfg_path.exists():
+                print(f"No user config found at {cfg_path}")
+            else:
+                print(f"# {cfg_path}")
+                print(cfg_path.read_text(encoding="utf-8"), end="")
+            return
+        if args.profile_cmd == "use":
+            storage = args.storage.expanduser().resolve() if args.storage else None
+            dest = apply_profile(args.name, personal_storage=storage, yes=args.yes)
+            print(f"Profile '{args.name}' applied → {dest}")
+            return
 
     raise SystemExit(2)
 

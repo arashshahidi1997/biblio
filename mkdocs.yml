@@ -22,12 +22,15 @@ nav:
   - Tutorials:
       - tutorials/index.md
       - Quickstart: tutorials/quickstart.md
+      - HPC Lab Setup: tutorials/hpc-lab-setup.md
       - Demo Workspace: tutorials/demo-workspace.md
       - Docling And OpenAlex Walkthrough: tutorials/docling-openalex.md
       - Bibliography Site Walkthrough: tutorials/site.md
   - How-To Guides:
       - how-to/index.md
       - Initialize A Workspace: how-to/init.md
+      - Set Up a User Profile: how-to/profile.md
+      - Use a Shared PDF Pool: how-to/pool.md
       - Merge BibTeX And Fetch PDFs: how-to/bibtex.md
       - Run Docling: how-to/docling.md
       - Resolve OpenAlex Metadata: how-to/openalex.md

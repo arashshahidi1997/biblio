@@ -216,6 +216,17 @@ def ingest_dois(
         for ck in citekeys:
             update_entry(cfg, ck, **kwargs)
 
+    # Sync BibTeX keywords to library tags (best-effort, needs merged bib)
+    keyword_tags: dict[str, list[str]] = {}
+    if citekeys:
+        try:
+            cfg = _load_cfg(root)
+            from .ingest import sync_bibtex_keywords_to_library
+
+            keyword_tags = sync_bibtex_keywords_to_library(cfg, citekeys)
+        except Exception:
+            pass  # merged bib may not exist yet
+
     # Add to collection if requested
     col_id = None
     if collection and citekeys:
@@ -240,6 +251,7 @@ def ingest_dois(
         "output_bib": str(result.output_path),
         "collection": collection,
         "collection_id": col_id,
+        "keyword_tags": keyword_tags,
     }
 
 
@@ -273,3 +285,76 @@ def library_set_bulk(
         updated.append(key)
 
     return {"updated": updated, "count": len(updated)}
+
+
+def graph_expand(
+    *,
+    root: Path,
+    citekeys: list[str] | None = None,
+    direction: str = "references",
+    merge: bool = True,
+    force: bool = False,
+) -> dict[str, Any]:
+    """Expand the OpenAlex reference graph from resolved seed records.
+
+    Returns ``{"total_inputs": N, "seeds_with_openalex": N, "candidates": N,
+               "output_path": str}`` or ``{"error": ...}`` if no seeds found.
+    """
+    cfg = _load_cfg(root)
+    from .graph import expand_openalex_reference_graph, load_openalex_seed_records
+
+    resolved_path = cfg.repo_root / "bib" / "derivatives" / "openalex" / "resolved.jsonl"
+    records = load_openalex_seed_records(resolved_path)
+    if not records:
+        return {
+            "error": "No seed records found",
+            "resolved_path": str(resolved_path),
+            "hint": "Run OpenAlex resolution first to populate resolved.jsonl",
+        }
+
+    out_path = cfg.repo_root / "bib" / "derivatives" / "openalex" / "graph_candidates.json"
+    result = expand_openalex_reference_graph(
+        cfg=cfg.openalex_client,
+        cache=cfg.openalex_cache,
+        records=records,
+        out_path=out_path,
+        direction=direction,
+        force=force,
+        merge=merge,
+        seed_citekeys=citekeys,
+    )
+    return {
+        "total_inputs": result.total_inputs,
+        "seeds_with_openalex": result.seeds_with_openalex,
+        "candidates": result.candidates,
+        "output_path": str(result.output_path),
+    }
+
+
+def tag_vocab(*, root: Path) -> dict[str, Any]:
+    """Return the current tag vocabulary (namespaces, values, aliases).
+
+    Returns ``{"namespaces": {...}, "aliases": {...}, "known_tags": [...]}``.
+    """
+    from .tag_vocab import default_tag_vocab_path, known_tags, load_tag_vocab
+
+    vocab = load_tag_vocab(default_tag_vocab_path(root))
+    return {
+        "namespaces": vocab.get("namespaces", {}),
+        "aliases": vocab.get("aliases", {}),
+        "known_tags": sorted(known_tags(vocab)),
+    }
+
+
+def library_lint(*, root: Path) -> dict[str, Any]:
+    """Lint all library.yml tags against the tag vocabulary.
+
+    Returns ``{"non_vocab": [...], "duplicates": [...], "suggestions": [...]}``.
+    """
+    cfg = _load_cfg(root)
+    from .library import load_library
+    from .tag_vocab import default_tag_vocab_path, lint_library_tags, load_tag_vocab
+
+    vocab = load_tag_vocab(default_tag_vocab_path(root))
+    library = load_library(cfg)
+    return lint_library_tags(library, vocab)

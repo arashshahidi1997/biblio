@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -18,6 +19,17 @@ from .openalex.openalex_cache import OpenAlexCache
 
 
 DEFAULT_CONFIG_REL = Path("bib/config/biblio.yml")
+
+
+def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    """Merge override into base, recursing into nested dicts. Override wins on conflict."""
+    result = dict(base)
+    for key, val in override.items():
+        if key in result and isinstance(result[key], dict) and isinstance(val, dict):
+            result[key] = _deep_merge(result[key], val)
+        else:
+            result[key] = val
+    return result
 
 
 @dataclass(frozen=True)
@@ -48,6 +60,9 @@ class BiblioConfig:
     grobid: GrobidConfig
     rag_python: str | None
     rag_persist_dir: Path
+    common_pool_path: Path | None
+    pool_search: tuple[Path, ...]
+    fetch_queue_path: Path
 
 
 def _as_cmd(value: Any) -> list[str]:
@@ -78,11 +93,15 @@ def load_biblio_config(path: str | Path, *, root: str | Path | None = None) -> B
     path = Path(path)
     repo_root = Path(root) if root is not None else Path.cwd()
     abs_path = (repo_root / path).resolve() if not path.is_absolute() else path
-    payload: dict[str, Any] = {}
+
+    from .profile import load_user_config
+    payload: dict[str, Any] = load_user_config()
+
     if abs_path.exists():
-        payload = yaml.safe_load(abs_path.read_text(encoding="utf-8")) or {}
-        if not isinstance(payload, dict):
-            raise TypeError(f"Expected mapping in {abs_path}, got {type(payload).__name__}")
+        project_raw = yaml.safe_load(abs_path.read_text(encoding="utf-8")) or {}
+        if not isinstance(project_raw, dict):
+            raise TypeError(f"Expected mapping in {abs_path}, got {type(project_raw).__name__}")
+        payload = _deep_merge(payload, project_raw)
 
     citekeys = Path(_get(payload, "citekeys", default="bib/config/citekeys.md"))
     pdf_root = Path(_get(payload, "pdf_root", default="bib/articles"))
@@ -130,6 +149,24 @@ def load_biblio_config(path: str | Path, *, root: str | Path | None = None) -> B
     raw_rag_persist = rag_mapping.get("persist_dir") or ".cache/rag/chroma_db"
     rag_persist_dir = _abs(Path(raw_rag_persist))
 
+    pool_mapping = payload.get("pool") if isinstance(payload, dict) else None
+    if not isinstance(pool_mapping, dict):
+        pool_mapping = {}
+    raw_pool = pool_mapping.get("path") or None
+    common_pool_path = Path(os.path.expanduser(str(raw_pool))).resolve() if raw_pool else None
+
+    raw_search = pool_mapping.get("search") or None
+    if raw_search:
+        if isinstance(raw_search, str):
+            raw_search = [raw_search]
+        pool_search: tuple[Path, ...] = tuple(
+            Path(os.path.expanduser(str(p))).resolve() for p in raw_search
+        )
+    else:
+        pool_search = (common_pool_path,) if common_pool_path else ()
+
+    fetch_queue_path = _abs(Path(_get(payload, "fetch_queue", default="bib/config/fetch_queue.yml")))
+
     return BiblioConfig(
         repo_root=repo_root.resolve(),
         citekeys_path=_abs(citekeys),
@@ -148,6 +185,9 @@ def load_biblio_config(path: str | Path, *, root: str | Path | None = None) -> B
         grobid=grobid,
         rag_python=str(raw_rag_python) if raw_rag_python else None,
         rag_persist_dir=rag_persist_dir,
+        common_pool_path=common_pool_path,
+        pool_search=pool_search,
+        fetch_queue_path=fetch_queue_path,
     )
 
 

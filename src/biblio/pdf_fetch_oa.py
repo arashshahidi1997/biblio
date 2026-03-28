@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from .config import BiblioConfig
+from .fetch_queue import add_to_queue
 from .ledger import append_jsonl, new_run_id, utc_now_iso
 
 USER_AGENT = "biblio-tools (https://github.com/arashshahidi1997/biblio)"
@@ -70,6 +71,7 @@ def fetch_pdfs_oa(
     *,
     force: bool = False,
     delay: float = 1.0,
+    queue: bool = True,
     progress_cb: Callable[[dict[str, Any]], None] | None = None,
 ) -> list[OaFetchResult]:
     """Download OA PDFs for all papers in the OpenAlex resolved JSONL that lack local PDFs.
@@ -80,6 +82,17 @@ def fetch_pdfs_oa(
     jsonl_path = cfg.openalex.out_jsonl
     if not jsonl_path.exists():
         raise FileNotFoundError(f"OpenAlex data not found: {jsonl_path}. Run 'Resolve OpenAlex' first.")
+
+    # Pre-load (pdf_root, pdf_pattern) for each pool in search order.
+    pool_pdf_locs: list[tuple[Path, str]] = []
+    if cfg.pool_search:
+        from .pool import load_pool_config as _load_pool_config
+        for _pool_root in cfg.pool_search:
+            try:
+                _pcfg = _load_pool_config(_pool_root)
+                pool_pdf_locs.append((_pcfg.pdf_root, _pcfg.pdf_pattern))
+            except Exception:
+                pass
 
     records = []
     with jsonl_path.open(encoding="utf-8") as f:
@@ -110,8 +123,27 @@ def fetch_pdfs_oa(
             results.append(OaFetchResult(citekey=citekey, status="skipped", url=None, dest=str(dest), error=None))
             continue
 
+        # Check pools (in search order) before network fetch
+        pool_hit: Path | None = None
+        for _pdf_root, _pdf_pat in pool_pdf_locs:
+            _candidate = (_pdf_root / _pdf_pat.format(citekey=citekey)).resolve()
+            if _candidate.exists():
+                pool_hit = _candidate
+                break
+        if pool_hit is not None:
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            if dest.is_symlink() or dest.exists():
+                dest.unlink()
+            dest.symlink_to(pool_hit)
+            results.append(OaFetchResult(citekey=citekey, status="pool_linked", url=None, dest=str(dest), error=None))
+            continue
+
         url = _oa_pdf_url(record)
         if not url:
+            if queue:
+                doi = str(record.get("doi") or "").strip() or None
+                paper_url = str((record.get("primary_location") or {}).get("landing_page_url") or "").strip() or None
+                add_to_queue(cfg, citekey, doi=doi, url=paper_url, oa_status="no_url")
             results.append(OaFetchResult(citekey=citekey, status="no_url", url=None, dest=None, error=None))
             continue
 
@@ -121,12 +153,15 @@ def fetch_pdfs_oa(
             if delay > 0:
                 time.sleep(delay)
         except Exception as e:
+            if queue:
+                doi = str(record.get("doi") or "").strip() or None
+                add_to_queue(cfg, citekey, doi=doi, url=url, oa_status="error")
             results.append(OaFetchResult(citekey=citekey, status="error", url=url, dest=None, error=str(e)))
 
     if progress_cb:
         progress_cb({"completed": total, "total": total, "citekey": None})
 
-    counts = {s: sum(1 for r in results if r.status == s) for s in ("downloaded", "skipped", "no_url", "error")}
+    counts = {s: sum(1 for r in results if r.status == s) for s in ("downloaded", "skipped", "no_url", "error", "pool_linked")}
     append_jsonl(
         cfg.ledger.docling_runs.parent.parent / "runs" / "pdf_fetch_oa.jsonl",
         {
