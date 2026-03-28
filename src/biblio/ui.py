@@ -35,7 +35,8 @@ from .library import load_library, notes_path, update_entry
 from .collections import (
     load_collections, create_collection, rename_collection, move_collection,
     delete_collection, add_papers as col_add_papers, remove_papers as col_remove_papers,
-    update_query as col_update_query, list_collections_summary,
+    update_query as col_update_query, convert_to_smart as col_convert_to_smart,
+    list_collections_summary,
 )
 from .tag_vocab import load_tag_vocab_from_config, lint_library_tags
 from .autotag import autotag, load_cache as autotag_load_cache
@@ -2274,6 +2275,16 @@ def create_ui_app(cfg: BiblioConfig):
         result = col_update_query(current_cfg(), col_id, query)
         if result is None:
             raise fastapi.HTTPException(status_code=404, detail="Collection not found or not a smart collection")
+        return result
+
+    @app.patch("/api/collections/{col_id}/convert-smart", response_class=responses.JSONResponse)
+    def api_convert_to_smart(col_id: str, payload: dict[str, Any]):
+        query = str(payload.get("query") or "").strip()
+        if not query:
+            raise fastapi.HTTPException(status_code=400, detail="Missing query")
+        result = col_convert_to_smart(current_cfg(), col_id, query)
+        if result is None:
+            raise fastapi.HTTPException(status_code=404, detail="Collection not found")
         return result
 
     return app

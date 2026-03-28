@@ -49,3 +49,9 @@ Session: `24818cce` | Task: `task-arash-20260328-183536-559855.md`
 **Model payload** — `/api/model` now includes `has_summary`, `has_concepts`, `has_slides`, `has_autotag` per paper
 
 Session: `0b5a94ba` | Task: `task-arash-20260328-210152-348312.md`
+
+## 2026-03-28 21:19 | biblio | opus | 1 steps
+
+**Tests**: 130 passed. Saved with datalad.
+
+Session: `a3c281ce` | Task: `task-arash-20260328-210153-600539.md`

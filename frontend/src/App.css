@@ -649,6 +649,50 @@ body {
   outline: none;
 }
 
+/* ── Smart collection elements ──────────────────────────── */
+.col-tree-smart-form {
+  padding: 0.35rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+.col-tree-smart-form-actions {
+  display: flex;
+  gap: 0.25rem;
+  justify-content: flex-end;
+}
+.col-tree-query-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.col-tree-query-input {
+  font-family: monospace;
+  font-size: 0.75rem;
+}
+.col-tree-query-editor {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0;
+}
+.col-tree-query-help {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 50%;
+  font-size: 0.65rem;
+  font-weight: 700;
+  background: var(--accent-soft);
+  color: var(--accent);
+  cursor: help;
+  flex-shrink: 0;
+}
+
 /* ── Collection context menu ─────────────────────────────── */
 .col-context-menu {
   background: var(--panel);

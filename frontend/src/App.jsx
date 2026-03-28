@@ -110,11 +110,14 @@ export default function App() {
     if (!payload) return [];
     const q = query.trim().toLowerCase();
     const activeCol = activeCollectionId ? collections.find((c) => c.id === activeCollectionId) : null;
+    const colCitekeys = activeCol
+      ? (activeCol.smart ? activeCol.resolved_citekeys : activeCol.citekeys) || []
+      : null;
     return (payload.papers || []).filter((paper) => {
       if (q && !`${paper.citekey} ${paper.title}`.toLowerCase().includes(q)) return false;
       if (statusFilter && (paper.library || {}).status !== statusFilter) return false;
       if (tagFilter && !((paper.library || {}).tags || []).includes(tagFilter)) return false;
-      if (activeCol && !activeCol.citekeys.includes(paper.citekey)) return false;
+      if (colCitekeys && !colCitekeys.includes(paper.citekey)) return false;
       return true;
     });
   }, [payload, query, statusFilter, tagFilter, activeCollectionId, collections]);
@@ -214,11 +217,13 @@ export default function App() {
     }
   }
 
-  async function createCollection(name, parentId) {
+  async function createCollection(name, parentId, query) {
+    const body = { name, parent: parentId || null };
+    if (query) body.query = query;
     await fetch("/api/collections", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, parent: parentId || null }),
+      body: JSON.stringify(body),
     });
     loadCollections();
   }
@@ -234,6 +239,24 @@ export default function App() {
 
   async function deleteCollection(id) {
     await fetch(`/api/collections/${id}`, { method: "DELETE" });
+    loadCollections();
+  }
+
+  async function editCollectionQuery(id, query) {
+    await fetch(`/api/collections/${id}/query`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query }),
+    });
+    loadCollections();
+  }
+
+  async function convertToSmartCollection(id, query) {
+    await fetch(`/api/collections/${id}/convert-smart`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query }),
+    });
     loadCollections();
   }
 
@@ -645,6 +668,8 @@ export default function App() {
               onCreateCollection={createCollection}
               onRenameCollection={renameCollection}
               onDeleteCollection={deleteCollection}
+              onEditQuery={editCollectionQuery}
+              onConvertToSmart={convertToSmartCollection}
             />
           </div>
         )}
@@ -836,13 +861,13 @@ export default function App() {
             {collections.length === 0 && (
               <div className="col-context-menu-empty">No collections yet</div>
             )}
-            {collections.map((col) => (
+            {collections.filter((c) => !c.smart).map((col) => (
               <div
                 key={col.id}
                 className="col-context-menu-item"
                 onClick={() => { togglePaperInCollection(col.id, contextMenu.citekey); setContextMenu(null); }}
               >
-                <span className="col-context-check">{col.citekeys.includes(contextMenu.citekey) ? "✓" : "\u00a0"}</span>
+                <span className="col-context-check">{(col.citekeys || []).includes(contextMenu.citekey) ? "✓" : "\u00a0"}</span>
                 {col.name}
               </div>
             ))}

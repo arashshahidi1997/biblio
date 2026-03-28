@@ -6,17 +6,52 @@ function buildTree(collections, parentId = null) {
     .map((c) => ({ ...c, children: buildTree(collections, c.id) }));
 }
 
+/* ── Inline query editor (shared by create-smart and edit-query) ───────── */
+
+function QueryEditor({ initial, onSave, onCancel, placeholder }) {
+  const [value, setValue] = useState(initial || "");
+  const ref = useRef(null);
+  useEffect(() => { ref.current?.focus(); }, []);
+
+  return (
+    <div className="col-tree-query-editor" onClick={(e) => e.stopPropagation()}>
+      <input
+        ref={ref}
+        className="col-tree-edit-input col-tree-query-input"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder={placeholder || 'tag:method:transformer AND status:unread'}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && value.trim()) onSave(value.trim());
+          if (e.key === "Escape") onCancel();
+        }}
+      />
+      <div className="col-tree-query-help" title="Predicates: tag:, status:, priority:, author:, year:, has:, type:, keyword:  —  Operators: AND, OR, NOT">
+        ?
+      </div>
+      <button className="col-tree-action-btn" onClick={() => value.trim() && onSave(value.trim())}>✓</button>
+      <button className="col-tree-action-btn" onClick={onCancel}>✕</button>
+    </div>
+  );
+}
+
+/* ── Single collection node ───────────────────────────────────────────── */
+
 function CollectionNode({
   col, depth,
   activeId, setActiveId,
   onCreateChild, onRename, onDelete,
+  onEditQuery, onConvertToSmart,
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(col.name);
   const [expanded, setExpanded] = useState(true);
+  const [editingQuery, setEditingQuery] = useState(false);
+  const [showConvert, setShowConvert] = useState(false);
   const inputRef = useRef(null);
   const hasChildren = col.children && col.children.length > 0;
   const isActive = activeId === col.id;
+  const isSmart = !!col.smart;
 
   useEffect(() => {
     if (editing && inputRef.current) {
@@ -30,6 +65,8 @@ function CollectionNode({
     if (trimmed && trimmed !== col.name) onRename(col.id, trimmed);
     setEditing(false);
   }
+
+  const memberCount = isSmart ? (col.resolved_count ?? 0) : (col.citekeys?.length ?? 0);
 
   return (
     <li className="col-tree-li">
@@ -46,7 +83,12 @@ function CollectionNode({
           {expanded ? "▾" : "▸"}
         </button>
 
-        <span className="col-tree-icon">▤</span>
+        <span
+          className="col-tree-icon"
+          title={isSmart ? `Smart: ${col.query}` : "Manual collection"}
+        >
+          {isSmart ? "⚡" : "▤"}
+        </span>
 
         {editing ? (
           <input
@@ -71,9 +113,23 @@ function CollectionNode({
           </span>
         )}
 
-        <span className="col-tree-count">{col.citekeys?.length ?? 0}</span>
+        <span className="col-tree-count">{memberCount}</span>
 
         <span className="col-tree-actions">
+          {isSmart && (
+            <button
+              className="col-tree-action-btn"
+              title="Edit query"
+              onClick={(e) => { e.stopPropagation(); setEditingQuery(true); }}
+            >✎</button>
+          )}
+          {!isSmart && (
+            <button
+              className="col-tree-action-btn"
+              title="Convert to smart collection"
+              onClick={(e) => { e.stopPropagation(); setShowConvert(true); }}
+            >⚡</button>
+          )}
           <button
             className="col-tree-action-btn"
             title="New subcollection"
@@ -87,6 +143,30 @@ function CollectionNode({
         </span>
       </div>
 
+      {/* Inline query editor for smart collections */}
+      {editingQuery && (
+        <div style={{ paddingLeft: `${0.4 + (depth + 1) * 1.1}rem` }}>
+          <QueryEditor
+            initial={col.query || ""}
+            onSave={(q) => { onEditQuery(col.id, q); setEditingQuery(false); }}
+            onCancel={() => setEditingQuery(false)}
+            placeholder="tag:method:transformer AND status:unread"
+          />
+        </div>
+      )}
+
+      {/* Inline convert-to-smart form */}
+      {showConvert && (
+        <div style={{ paddingLeft: `${0.4 + (depth + 1) * 1.1}rem` }}>
+          <QueryEditor
+            initial=""
+            onSave={(q) => { onConvertToSmart(col.id, q); setShowConvert(false); }}
+            onCancel={() => setShowConvert(false)}
+            placeholder="Enter query to convert to smart collection"
+          />
+        </div>
+      )}
+
       {hasChildren && expanded && (
         <ul className="col-tree-ul">
           {col.children.map((child) => (
@@ -99,6 +179,8 @@ function CollectionNode({
               onCreateChild={onCreateChild}
               onRename={onRename}
               onDelete={onDelete}
+              onEditQuery={onEditQuery}
+              onConvertToSmart={onConvertToSmart}
             />
           ))}
         </ul>
@@ -107,6 +189,8 @@ function CollectionNode({
   );
 }
 
+/* ── Collection tree panel ────────────────────────────────────────────── */
+
 export default function CollectionTree({
   collections,
   activeCollectionId,
@@ -114,9 +198,18 @@ export default function CollectionTree({
   onCreateCollection,
   onRenameCollection,
   onDeleteCollection,
+  onEditQuery,
+  onConvertToSmart,
 }) {
   const tree = buildTree(collections ?? []);
-  const totalPapers = null; // shown in My Library row by parent
+  const [showSmartForm, setShowSmartForm] = useState(false);
+  const [smartName, setSmartName] = useState("");
+  const [smartQuery, setSmartQuery] = useState("");
+  const nameRef = useRef(null);
+
+  useEffect(() => {
+    if (showSmartForm && nameRef.current) nameRef.current.focus();
+  }, [showSmartForm]);
 
   function handleCreate(parentId) {
     const name = prompt("Collection name:");
@@ -130,16 +223,63 @@ export default function CollectionTree({
     }
   }
 
+  function handleCreateSmart() {
+    const n = smartName.trim();
+    const q = smartQuery.trim();
+    if (n && q) {
+      onCreateCollection(n, null, q);
+      setSmartName("");
+      setSmartQuery("");
+      setShowSmartForm(false);
+    }
+  }
+
   return (
     <div className="col-tree-panel">
       <div className="col-tree-header">
         <span className="col-tree-header-label">Collections</span>
         <button
           className="col-tree-new-btn"
+          title="New smart collection"
+          onClick={() => setShowSmartForm((s) => !s)}
+        >⚡</button>
+        <button
+          className="col-tree-new-btn"
           title="New collection"
           onClick={() => handleCreate(null)}
         >+</button>
       </div>
+
+      {/* Inline smart collection creation form */}
+      {showSmartForm && (
+        <div className="col-tree-smart-form">
+          <input
+            ref={nameRef}
+            className="col-tree-edit-input"
+            value={smartName}
+            onChange={(e) => setSmartName(e.target.value)}
+            placeholder="Collection name"
+            onKeyDown={(e) => { if (e.key === "Enter") handleCreateSmart(); if (e.key === "Escape") setShowSmartForm(false); }}
+          />
+          <div className="col-tree-query-row">
+            <input
+              className="col-tree-edit-input col-tree-query-input"
+              value={smartQuery}
+              onChange={(e) => setSmartQuery(e.target.value)}
+              placeholder="tag:method:transformer AND status:unread"
+              onKeyDown={(e) => { if (e.key === "Enter") handleCreateSmart(); if (e.key === "Escape") setShowSmartForm(false); }}
+            />
+            <div
+              className="col-tree-query-help"
+              title={"Predicates: tag:, status:, priority:, author:, year:, has:, type:, keyword:\nOperators: AND, OR, NOT\nExample: status:unread AND year:>2023"}
+            >?</div>
+          </div>
+          <div className="col-tree-smart-form-actions">
+            <button className="col-tree-action-btn" onClick={handleCreateSmart}>Create</button>
+            <button className="col-tree-action-btn" onClick={() => setShowSmartForm(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
 
       <ul className="col-tree-ul col-tree-root">
         {/* My Library — always first */}
@@ -163,6 +303,8 @@ export default function CollectionTree({
             onCreateChild={handleCreate}
             onRename={onRenameCollection}
             onDelete={handleDelete}
+            onEditQuery={onEditQuery}
+            onConvertToSmart={onConvertToSmart}
           />
         ))}
       </ul>

@@ -164,6 +164,21 @@ def update_query(cfg: BiblioConfig, col_id: str, query: str) -> dict[str, Any] |
     return col
 
 
+def convert_to_smart(cfg: BiblioConfig, col_id: str, query: str) -> dict[str, Any] | None:
+    """Convert a manual collection to a smart (query-driven) collection."""
+    from .query import parse_query
+
+    parse_query(query)  # raises ParseError on bad syntax
+    data = load_collections(cfg)
+    col = _get(data, col_id)
+    if col is None:
+        return None
+    col["query"] = query
+    col.pop("citekeys", None)
+    save_collections(cfg, data)
+    return col
+
+
 def resolve_smart(
     cfg: BiblioConfig,
     col_id: str,
@@ -201,14 +216,17 @@ def list_collections_summary(
         entry: dict[str, Any] = {
             "id": col["id"],
             "name": col["name"],
+            "parent": col.get("parent"),
             "smart": is_smart(col),
         }
         if is_smart(col):
             entry["query"] = col["query"]
-            citekeys = resolve_smart(cfg, col["id"], library, bib_entries)
-            entry["count"] = len(citekeys)
+            resolved = resolve_smart(cfg, col["id"], library, bib_entries)
+            entry["resolved_count"] = len(resolved)
+            entry["resolved_citekeys"] = resolved
         else:
-            entry["count"] = len(col.get("citekeys") or [])
+            entry["citekeys"] = list(col.get("citekeys") or [])
+            entry["count"] = len(entry["citekeys"])
         if col.get("description"):
             entry["description"] = col["description"]
         summaries.append(entry)
