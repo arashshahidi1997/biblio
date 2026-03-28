@@ -484,6 +484,87 @@ def biblio_autotag(
     return {"results": results, "count": len(results)}
 
 
+def biblio_concepts(
+    citekey: str,
+    *,
+    root: Path,
+    prompt_only: bool = False,
+    force: bool = False,
+    model: str = "claude-haiku-4-5-20251001",
+) -> dict[str, Any]:
+    """Extract key concepts from a paper.
+
+    Returns ``{"citekey": ..., "concepts": {methods, datasets, metrics, domains, techniques},
+               "concepts_path": ..., "skipped": bool}``.
+    """
+    from .concepts import extract_concepts
+
+    return extract_concepts(citekey, root, prompt_only=prompt_only, force=force, model=model)
+
+
+def biblio_concept_search(query: str, *, root: Path) -> dict[str, Any]:
+    """Search the concept index for papers matching a concept query.
+
+    Returns ``{"query": ..., "matches": [{concept, citekeys}], "total_matches": N}``.
+    """
+    from .concepts import search_concepts
+
+    return search_concepts(query, root)
+
+
+def biblio_concept_index(*, root: Path) -> dict[str, Any]:
+    """Build/rebuild the cross-paper concept index.
+
+    Returns ``{"total_papers": N, "total_concepts": N, "index_path": ...}``.
+    """
+    from .concepts import build_concept_index
+
+    return build_concept_index(root)
+
+
+def biblio_compare(
+    citekeys: list[str],
+    *,
+    root: Path,
+    dimensions: list[str] | None = None,
+    prompt_only: bool = False,
+    force: bool = False,
+    model: str = "claude-sonnet-4-20250514",
+) -> dict[str, Any]:
+    """Compare multiple papers across specified dimensions.
+
+    Default dimensions: method, dataset, metrics, key findings, limitations.
+
+    Returns ``{"citekeys": [...], "comparison_text": ..., "comparison_path": ..., "skipped": bool}``.
+    """
+    from .compare import compare
+
+    return compare(
+        citekeys, root,
+        dimensions=dimensions,
+        prompt_only=prompt_only,
+        force=force,
+        model=model,
+    )
+
+
+def biblio_reading_list(
+    question: str,
+    *,
+    root: Path,
+    count: int = 5,
+    prompt_only: bool = False,
+    model: str = "claude-haiku-4-5-20251001",
+) -> dict[str, Any]:
+    """Curate a reading list for a research question from unread/queued papers.
+
+    Returns ``{"question": ..., "candidates_count": N, "recommendations": [...]}``.
+    """
+    from .reading_list import reading_list
+
+    return reading_list(question, root, count=count, prompt_only=prompt_only, model=model)
+
+
 def library_lint(*, root: Path) -> dict[str, Any]:
     """Lint all library.yml tags against the tag vocabulary.
 

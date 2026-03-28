@@ -463,6 +463,49 @@ def _build_parser() -> argparse.ArgumentParser:
     ui_serve.add_argument("--host", default="127.0.0.1", help="Host to bind (default: 127.0.0.1).")
     ui_serve.add_argument("--port", type=int, default=8010, help="Port to bind (default: 8010).")
 
+    # ── concepts ──────────────────────────────────────────────────────────
+    p_concepts = sub.add_parser("concepts", help="Extract and search key concepts from papers.")
+    concepts_sub = p_concepts.add_subparsers(dest="concepts_cmd", required=True)
+
+    concepts_extract = concepts_sub.add_parser("extract", help="Extract concepts from a paper.")
+    concepts_extract.add_argument("key", nargs="?", help="Single citekey (with or without leading @).")
+    concepts_extract.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    concepts_extract.add_argument("--config", type=Path, help="Path to biblio.yml.")
+    concepts_extract.add_argument("--all", action="store_true", help="Process all papers in the library.")
+    concepts_extract.add_argument("--prompt-only", action="store_true", help="Print assembled prompt (no LLM call).")
+    concepts_extract.add_argument("--force", action="store_true", help="Regenerate existing concepts.")
+    concepts_extract.add_argument("--model", default="claude-haiku-4-5-20251001", help="Anthropic model to use.")
+    concepts_extract.add_argument("--json", action="store_true", help="Emit JSON output.")
+
+    concepts_index = concepts_sub.add_parser("index", help="Build cross-paper concept index.")
+    concepts_index.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    concepts_index.add_argument("--json", action="store_true", help="Emit JSON output.")
+
+    concepts_search = concepts_sub.add_parser("search", help="Search concepts across papers.")
+    concepts_search.add_argument("query", help="Concept to search for.")
+    concepts_search.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    concepts_search.add_argument("--json", action="store_true", help="Emit JSON output.")
+
+    # ── compare ───────────────────────────────────────────────────────────
+    p_compare = sub.add_parser("compare", help="Generate comparison tables for multiple papers.")
+    p_compare.add_argument("keys", nargs="+", help="Two or more citekeys to compare.")
+    p_compare.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    p_compare.add_argument("--config", type=Path, help="Path to biblio.yml.")
+    p_compare.add_argument("--dimensions", help="Comma-separated dimensions (default: method,dataset,metrics,key findings,limitations).")
+    p_compare.add_argument("--prompt-only", action="store_true", help="Print assembled prompt (no LLM call).")
+    p_compare.add_argument("--force", action="store_true", help="Regenerate existing comparison.")
+    p_compare.add_argument("--model", default="claude-sonnet-4-20250514", help="Anthropic model to use.")
+
+    # ── reading-list ──────────────────────────────────────────────────────
+    p_rl = sub.add_parser("reading-list", help="Curate a reading list for a research question.")
+    p_rl.add_argument("question", help="Research question to find papers for.")
+    p_rl.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    p_rl.add_argument("--config", type=Path, help="Path to biblio.yml.")
+    p_rl.add_argument("--count", type=int, default=5, help="Number of papers to recommend (default: 5).")
+    p_rl.add_argument("--prompt-only", action="store_true", help="Print assembled prompt (no LLM call).")
+    p_rl.add_argument("--model", default="claude-haiku-4-5-20251001", help="Anthropic model to use.")
+    p_rl.add_argument("--json", action="store_true", help="Emit JSON output.")
+
     return p
 
 
@@ -1407,6 +1450,124 @@ def main(argv: Iterable[str] | None = None) -> None:
                 if not_in_pool:
                     print(f"{not_in_pool} citekey(s) not yet in pool — run 'biblio queue list' to see them.")
             return
+
+    if args.command == "concepts":
+        from .concepts import build_concept_index, extract_concepts, search_concepts
+
+        repo_root = (args.root.expanduser().resolve() if getattr(args, "root", None) else find_repo_root())
+
+        if args.concepts_cmd == "extract":
+            keys_to_process: list[str] = []
+            if getattr(args, "all", False):
+                cfg_path = (repo_root / args.config).resolve() if getattr(args, "config", None) else (repo_root / "bib" / "config" / "biblio.yml")
+                cfg = load_biblio_config(cfg_path, root=repo_root)
+                lib = load_library(cfg)
+                keys_to_process = list(lib.keys())
+            elif args.key:
+                keys_to_process = [args.key.lstrip("@")]
+            else:
+                print("[ERROR] Provide a citekey or use --all for batch mode.")
+                return
+
+            results = []
+            for key in keys_to_process:
+                result = extract_concepts(
+                    key, repo_root,
+                    prompt_only=args.prompt_only,
+                    force=args.force,
+                    model=args.model,
+                )
+                results.append(result)
+                if not getattr(args, "json", False):
+                    if args.prompt_only:
+                        print(result["prompt"])
+                    elif result.get("error"):
+                        print(f"[ERROR] {key}: {result['error']}", file=sys.stderr)
+                    elif result.get("skipped"):
+                        print(f"[SKIP] {key}: concepts exist (use --force to regenerate)")
+                    else:
+                        concepts = result.get("concepts") or {}
+                        total = sum(len(v) for v in concepts.values())
+                        print(f"[OK] {key}: {total} concepts extracted → {result['concepts_path']}")
+            if getattr(args, "json", False):
+                print(json.dumps(results, indent=2))
+            return
+
+        if args.concepts_cmd == "index":
+            result = build_concept_index(repo_root)
+            if getattr(args, "json", False):
+                print(json.dumps(result, indent=2))
+            else:
+                print(f"[OK] Indexed {result['total_papers']} papers, {result['total_concepts']} unique concepts → {result['index_path']}")
+            return
+
+        if args.concepts_cmd == "search":
+            result = search_concepts(args.query, repo_root)
+            if getattr(args, "json", False):
+                print(json.dumps(result, indent=2))
+            else:
+                if not result["matches"]:
+                    print(f"No concepts matching '{args.query}'.")
+                else:
+                    for m in result["matches"]:
+                        cks = ", ".join(f"@{ck}" for ck in m["citekeys"])
+                        print(f"{m['concept']}: {cks}")
+            return
+
+        raise SystemExit(2)
+
+    if args.command == "compare":
+        from .compare import compare as run_compare
+
+        repo_root = (args.root.expanduser().resolve() if getattr(args, "root", None) else find_repo_root())
+        dims = [d.strip() for d in args.dimensions.split(",")] if args.dimensions else None
+        result = run_compare(
+            args.keys, repo_root,
+            dimensions=dims,
+            prompt_only=args.prompt_only,
+            force=args.force,
+            model=args.model,
+        )
+        if result.get("error"):
+            print(f"[ERROR] {result['error']}", file=sys.stderr)
+        elif args.prompt_only:
+            print(result["prompt"])
+        elif result.get("skipped"):
+            print(f"[SKIP] Comparison exists (use --force to regenerate): {result['comparison_path']}")
+        else:
+            print(f"[OK] Comparison saved → {result['comparison_path']}")
+        return
+
+    if args.command == "reading-list":
+        from .reading_list import reading_list as run_reading_list
+
+        repo_root = (args.root.expanduser().resolve() if getattr(args, "root", None) else find_repo_root())
+        result = run_reading_list(
+            args.question, repo_root,
+            count=args.count,
+            prompt_only=args.prompt_only,
+            model=args.model,
+        )
+        if result.get("error"):
+            print(f"[ERROR] {result['error']}", file=sys.stderr)
+        elif args.prompt_only:
+            print(result["prompt"])
+        elif getattr(args, "json", False):
+            print(json.dumps(result, indent=2))
+        else:
+            recs = result.get("recommendations") or []
+            if not recs:
+                print(f"No recommendations found ({result.get('candidates_count', 0)} candidates evaluated).")
+            else:
+                print(f"Reading list for: {args.question}")
+                print(f"({result.get('candidates_count', 0)} candidates evaluated)\n")
+                for i, rec in enumerate(recs, 1):
+                    score = rec.get("score", 0)
+                    justification = rec.get("justification", "")
+                    print(f"{i}. @{rec['citekey']}  (score: {score:.2f})")
+                    if justification:
+                        print(f"   {justification}")
+        return
 
     if args.command == "profile":
         from .profile import apply_profile, list_profiles, load_user_config, user_config_path

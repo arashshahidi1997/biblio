@@ -38,7 +38,7 @@ dev:
 	$(PYTHON) -m pip install -e ".[dev]"
 
 test:
-	PYTHONPATH=src $(PYTEST_PYTHON) -m pytest tests/test_biblio.py tests/test_biblio_openalex.py tests/test_biblio_site.py tests/test_smart_collections.py -q
+	PYTHONPATH=src $(PYTEST_PYTHON) -m pytest tests/test_biblio.py tests/test_biblio_openalex.py tests/test_biblio_site.py tests/test_smart_collections.py tests/test_concepts_compare_reading.py -q
 
 test-all:
 	PYTHONPATH=src $(PYTEST_PYTHON) -m pytest tests -q
