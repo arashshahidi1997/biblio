@@ -577,3 +577,77 @@ def library_lint(*, root: Path) -> dict[str, Any]:
     vocab = load_tag_vocab(default_tag_vocab_path(root))
     library = load_library(cfg)
     return lint_library_tags(library, vocab)
+
+
+# ---------------------------------------------------------------------------
+# Citation drafting
+# ---------------------------------------------------------------------------
+
+
+def biblio_cite_draft(
+    text: str,
+    *,
+    root: Path,
+    style: str = "latex",
+    max_refs: int = 5,
+    prompt_only: bool = False,
+    model: str = "claude-sonnet-4-20250514",
+) -> dict[str, Any]:
+    """Draft a citation paragraph grounding a claim in indexed papers.
+
+    Uses RAG to find relevant passages, then LLM drafts a paragraph with
+    ``\\cite{citekey}`` (LaTeX) or ``[@citekey]`` (Pandoc) citations.
+
+    Returns ``{"text": ..., "style": ..., "passages": [...], "draft": ...,
+               "model_used": ...}``.
+    """
+    from .cite_draft import cite_draft
+
+    return cite_draft(
+        text, root,
+        style=style,
+        max_refs=max_refs,
+        prompt_only=prompt_only,
+        model=model,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Literature review
+# ---------------------------------------------------------------------------
+
+
+def biblio_review(
+    question: str,
+    *,
+    root: Path,
+    seeds: list[str] | None = None,
+    style: str = "latex",
+    prompt_only: bool = False,
+    model: str = "claude-sonnet-4-20250514",
+) -> dict[str, Any]:
+    """Literature review: query-driven synthesis or seed-based planning.
+
+    If ``seeds`` are provided, generates a review plan (gap analysis, expansion
+    directions). Otherwise performs query-driven synthesis using RAG.
+
+    Returns ``{"question": ..., "synthesis"|"plan": ..., "model_used": ...}``.
+    """
+    if seeds:
+        from .lit_review import review_plan
+
+        clean_seeds = [s.lstrip("@") for s in seeds]
+        return review_plan(
+            clean_seeds, question, root,
+            prompt_only=prompt_only,
+            model=model,
+        )
+    else:
+        from .lit_review import review_query
+
+        return review_query(
+            question, root,
+            style=style,
+            prompt_only=prompt_only,
+            model=model,
+        )

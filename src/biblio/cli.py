@@ -506,6 +506,26 @@ def _build_parser() -> argparse.ArgumentParser:
     p_rl.add_argument("--model", default="claude-haiku-4-5-20251001", help="Anthropic model to use.")
     p_rl.add_argument("--json", action="store_true", help="Emit JSON output.")
 
+    # ── cite-draft ────────────────────────────────────────────────────────
+    p_cd = sub.add_parser("cite-draft", help="Draft a citation paragraph grounding a claim in indexed papers.")
+    p_cd.add_argument("text", help="Claim or section heading to ground with citations.")
+    p_cd.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    p_cd.add_argument("--style", choices=["latex", "pandoc"], default="latex", help="Citation style (default: latex).")
+    p_cd.add_argument("--max-refs", type=int, default=5, help="Maximum number of references (default: 5).")
+    p_cd.add_argument("--prompt-only", action="store_true", help="Print assembled prompt (no LLM call).")
+    p_cd.add_argument("--model", default="claude-sonnet-4-20250514", help="Anthropic model to use.")
+    p_cd.add_argument("--json", action="store_true", help="Emit JSON output.")
+
+    # ── review ────────────────────────────────────────────────────────────
+    p_rev = sub.add_parser("review", help="Literature review synthesis and planning.")
+    p_rev.add_argument("question", help="Research question for the review.")
+    p_rev.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    p_rev.add_argument("--seeds", help="Comma-separated seed citekeys for review planning.")
+    p_rev.add_argument("--style", choices=["latex", "pandoc"], default="latex", help="Citation style (default: latex).")
+    p_rev.add_argument("--prompt-only", action="store_true", help="Print assembled prompt (no LLM call).")
+    p_rev.add_argument("--model", default="claude-sonnet-4-20250514", help="Anthropic model to use.")
+    p_rev.add_argument("--json", action="store_true", help="Emit JSON output.")
+
     return p
 
 
@@ -1567,6 +1587,101 @@ def main(argv: Iterable[str] | None = None) -> None:
                     print(f"{i}. @{rec['citekey']}  (score: {score:.2f})")
                     if justification:
                         print(f"   {justification}")
+        return
+
+    if args.command == "cite-draft":
+        from .cite_draft import cite_draft as run_cite_draft
+
+        repo_root = (args.root.expanduser().resolve() if getattr(args, "root", None) else find_repo_root())
+        result = run_cite_draft(
+            args.text, repo_root,
+            style=args.style,
+            max_refs=args.max_refs,
+            prompt_only=args.prompt_only,
+            model=args.model,
+        )
+        if result.get("error"):
+            print(f"[ERROR] {result['error']}", file=sys.stderr)
+        elif args.prompt_only:
+            print(result["prompt"])
+        elif getattr(args, "json", False):
+            print(json.dumps(result, indent=2))
+        else:
+            draft = result.get("draft") or ""
+            if draft:
+                passages = result.get("passages") or []
+                print(f"Sources: {', '.join('@' + p['citekey'] for p in passages)}\n")
+                print(draft)
+            else:
+                print("No draft generated.")
+        return
+
+    if args.command == "review":
+        repo_root = (args.root.expanduser().resolve() if getattr(args, "root", None) else find_repo_root())
+        seed_keys = [s.strip().lstrip("@") for s in args.seeds.split(",")] if args.seeds else None
+
+        if seed_keys:
+            from .lit_review import review_plan as run_review_plan
+
+            result = run_review_plan(
+                seed_keys, args.question, repo_root,
+                prompt_only=args.prompt_only,
+                model=args.model,
+            )
+            if result.get("error"):
+                print(f"[ERROR] {result['error']}", file=sys.stderr)
+            elif args.prompt_only:
+                print(result["prompt"])
+            elif getattr(args, "json", False):
+                print(json.dumps(result, indent=2))
+            else:
+                plan = result.get("plan")
+                if plan:
+                    print(f"Review plan for: {args.question}\n")
+                    print(f"Scope: {plan.get('scope', '')}\n")
+                    themes = plan.get("themes") or []
+                    if themes:
+                        print("Themes:")
+                        for t in themes:
+                            print(f"  - {t}")
+                    gaps = plan.get("gaps") or []
+                    if gaps:
+                        print(f"\nGaps ({len(gaps)}):")
+                        for g in gaps:
+                            print(f"  - {g}")
+                    expansions = plan.get("expansion_directions") or []
+                    if expansions:
+                        print(f"\nExpansion directions:")
+                        for e in expansions:
+                            print(f"  - {e.get('direction', '')}: {e.get('rationale', '')}")
+                    est = plan.get("estimated_additional_papers")
+                    if est:
+                        print(f"\nEstimated additional papers needed: {est}")
+                else:
+                    print("No plan generated.")
+        else:
+            from .lit_review import review_query as run_review_query
+
+            result = run_review_query(
+                args.question, repo_root,
+                style=args.style,
+                prompt_only=args.prompt_only,
+                model=args.model,
+            )
+            if result.get("error"):
+                print(f"[ERROR] {result['error']}", file=sys.stderr)
+            elif args.prompt_only:
+                print(result["prompt"])
+            elif getattr(args, "json", False):
+                print(json.dumps(result, indent=2))
+            else:
+                synthesis = result.get("synthesis") or ""
+                if synthesis:
+                    passages = result.get("passages") or []
+                    print(f"Sources: {', '.join('@' + p['citekey'] for p in passages)}\n")
+                    print(synthesis)
+                else:
+                    print("No synthesis generated.")
         return
 
     if args.command == "profile":

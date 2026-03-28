@@ -25,3 +25,9 @@ Session: `b4ac92c9` | Task: `task-arash-20260328-183530-864527.md`
 **Tests** — 18 tests covering prompt construction, LLM call (mocked), vocabulary validation/filtering, reference propagation logic with threshold, auto-tag skip logic, caching roundtrip, orchestrator merging, MCP wrapper, and CLI parser
 
 Session: `e1410ca8` | Task: `task-arash-20260328-183532-000175.md`
+
+## 2026-03-28 19:27 | biblio | opus | 1 steps
+
+**Note:** The projio MCP server wrappers (`src/projio/mcp/biblio.py`) couldn't be written due to permission restrictions on the parent package. The biblio-side functions are ready — the projio tools just need wrappers added.
+
+Session: `69b5ecfd` | Task: `task-arash-20260328-183534-265778.md`
