@@ -700,9 +700,9 @@ function FiguresTab({ citekey }) {
 const CONTENT_SUBTABS = ["PDF", "Markdown", "Summary", "Slides", "Figures", "Refs"];
 
 const SLIDE_TEMPLATES = [
-  { value: "journal-club", label: "Journal Club" },
-  { value: "conference-talk", label: "Conference Talk" },
-  { value: "lab-meeting", label: "Lab Meeting" },
+  { value: "journal-club", label: "Journal Club", desc: "Background, methods, key results, discussion points, and open questions for group critique" },
+  { value: "conference-talk", label: "Conference Talk", desc: "Motivation, contribution, methodology, results, and impact framed for a broad audience" },
+  { value: "lab-meeting", label: "Lab Meeting", desc: "Quick overview, technical details, replication notes, and next steps for the research group" },
 ];
 
 function SummaryTab({ citekey, hasSummary, triggerAction, busy }) {
@@ -804,13 +804,27 @@ function SlidesTab({ citekey, hasSlides, triggerAction, busy }) {
     return <div className="small" style={{ padding: "1rem", opacity: 0.6 }}>Loading slides…</div>;
   }
 
+  // Split Marp slides into cards at "---" separators
+  function renderSlideCards(raw) {
+    const slides = raw.split(/\n---\n/).map((s) => s.trim()).filter(Boolean);
+    return slides.map((slide, idx) => (
+      <div key={idx} className="slides-card">
+        <div className="slides-card-number">{idx + 1}</div>
+        <pre className="slides-card-content">{slide}</pre>
+      </div>
+    ));
+  }
+
   if (text) {
     return (
       <div>
-        <div style={{ display: "flex", gap: "0.4rem", padding: "0.5rem 0.8rem", borderBottom: "1px solid var(--line, #ddd)", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: "0.4rem", padding: "0.5rem 0.8rem", borderBottom: "1px solid var(--line, #ddd)", flexWrap: "wrap", alignItems: "center" }}>
           <button className="absent-refs-btn-small" onClick={copyToClipboard}>
             {copied ? "Copied!" : "Copy to Clipboard"}
           </button>
+          <select value={template} onChange={(ev) => setTemplate(ev.target.value)} style={{ fontSize: "0.75rem" }}>
+            {SLIDE_TEMPLATES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+          </select>
           <button
             className="absent-refs-btn-small"
             disabled={busy}
@@ -819,27 +833,37 @@ function SlidesTab({ citekey, hasSlides, triggerAction, busy }) {
             Regenerate
           </button>
         </div>
-        <pre className="slides-pre">{text}</pre>
+        <div className="slides-preview-grid">
+          {renderSlideCards(text)}
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: "1.5rem", textAlign: "center" }}>
-      <p className="small" style={{ marginBottom: "0.8rem", opacity: 0.6 }}>No slides generated yet.</p>
-      <div style={{ display: "flex", gap: "0.5rem", justifyContent: "center", alignItems: "center", marginBottom: "0.8rem" }}>
-        <label className="small">Template:</label>
-        <select value={template} onChange={(ev) => setTemplate(ev.target.value)}>
-          {SLIDE_TEMPLATES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-        </select>
+    <div style={{ padding: "1.5rem" }}>
+      <p className="small" style={{ marginBottom: "0.8rem", opacity: 0.6, textAlign: "center" }}>No slides generated yet. Choose a template to get started.</p>
+      <div className="slides-template-picker">
+        {SLIDE_TEMPLATES.map((t) => (
+          <div
+            key={t.value}
+            className={`slides-template-card${template === t.value ? " active" : ""}`}
+            onClick={() => setTemplate(t.value)}
+          >
+            <div className="slides-template-card-label">{t.label}</div>
+            <div className="slides-template-card-desc">{t.desc}</div>
+          </div>
+        ))}
       </div>
-      <button
-        className="absent-refs-btn-small absent-refs-btn-primary"
-        disabled={busy}
-        onClick={() => triggerAction("present", { citekey, template })}
-      >
-        Generate Slides
-      </button>
+      <div style={{ textAlign: "center", marginTop: "0.8rem" }}>
+        <button
+          className="absent-refs-btn-small absent-refs-btn-primary"
+          disabled={busy}
+          onClick={() => triggerAction("present", { citekey, template })}
+        >
+          Generate Slides
+        </button>
+      </div>
     </div>
   );
 }

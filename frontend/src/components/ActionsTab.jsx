@@ -197,6 +197,29 @@ export default function ActionsTab({ activePaper, actionState, triggerAction, ad
         </button>
       </div>
 
+      {/* Batch actions */}
+      <h3 style={{ marginTop: "1.2rem", marginBottom: "0.4rem" }}>Batch Actions</h3>
+      <div className="actions">
+        <button
+          disabled={actionState.busy}
+          onClick={() => triggerAction("summarize", { status: "unread" })}
+        >
+          Summarize All Unread
+        </button>
+        <button
+          disabled={actionState.busy}
+          onClick={() => triggerAction("concepts-extract", { all: true })}
+        >
+          Extract All Concepts
+        </button>
+        <button
+          disabled={actionState.busy}
+          onClick={() => triggerAction("autotag", { all_untagged: true })}
+        >
+          Auto-tag All Untagged
+        </button>
+      </div>
+
       <div className="field" style={{ marginTop: "1rem" }}>
         <label>Add paper by DOI</label>
         <input

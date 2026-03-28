@@ -1819,3 +1819,180 @@ a.cite-link:hover {
   background: var(--accent);
   color: white;
 }
+
+/* ── Research tab ──────────────────────────────────────────── */
+.col-research {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow-y: auto;
+}
+.research-tab-header {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  padding: 0.6rem 0.8rem;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.research-subtab-bar {
+  display: flex;
+  gap: 0.3rem;
+}
+.research-subtab {
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0.25rem 0.7rem;
+  font-size: 0.78rem;
+  cursor: pointer;
+  color: var(--muted);
+  transition: all 0.15s;
+}
+.research-subtab:hover { background: var(--accent-soft); }
+.research-subtab.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+.research-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.8rem;
+}
+.research-section h3 {
+  margin: 0 0 0.4rem 0;
+  font-size: 1rem;
+}
+.research-input-group {
+  margin-bottom: 0.8rem;
+}
+.research-textarea {
+  width: 100%;
+  font-family: inherit;
+  font-size: 0.85rem;
+  padding: 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--ink);
+  resize: vertical;
+  min-height: 3rem;
+}
+.research-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.research-controls-row {
+  display: flex;
+  gap: 0.8rem;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+.research-result {
+  margin-top: 0.6rem;
+}
+.research-result-toolbar {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 0.5rem;
+}
+.research-cite-highlight {
+  background: var(--accent-soft);
+  color: var(--accent);
+  padding: 0.1rem 0.25rem;
+  border-radius: 3px;
+  font-family: monospace;
+  font-size: 0.82em;
+}
+.research-draft-output {
+  white-space: pre-wrap;
+}
+/* Mode tabs */
+.research-mode-tabs {
+  display: flex;
+  gap: 0.3rem;
+  margin-bottom: 0.7rem;
+}
+.research-mode-tab {
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.76rem;
+  cursor: pointer;
+  color: var(--muted);
+  transition: all 0.15s;
+}
+.research-mode-tab:hover { background: var(--accent-soft); }
+.research-mode-tab.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+/* ── Slides preview grid ──────────────────────────────────── */
+.slides-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.8rem;
+  padding: 0.8rem;
+}
+.slides-card {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  padding: 0.6rem 0.7rem;
+  min-height: 120px;
+}
+.slides-card-number {
+  position: absolute;
+  top: 0.3rem;
+  right: 0.5rem;
+  font-size: 0.65rem;
+  color: var(--muted);
+  opacity: 0.6;
+}
+.slides-card-content {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+.slides-template-picker {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.slides-template-card {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.7rem 0.9rem;
+  cursor: pointer;
+  max-width: 220px;
+  transition: all 0.15s;
+}
+.slides-template-card:hover { border-color: var(--accent); }
+.slides-template-card.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.slides-template-card-label {
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin-bottom: 0.3rem;
+}
+.slides-template-card-desc {
+  font-size: 0.72rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+/* ── Research tab in tabstrip ─────────────────────────────── */
+.global-tabstrip-tab--research {
+  color: var(--accent);
+}

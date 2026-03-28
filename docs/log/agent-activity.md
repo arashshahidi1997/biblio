@@ -69,3 +69,10 @@ Session: `9536f3ab` | Task: `task-arash-20260328-210154-791668.md`
 - Added `.slides-pre` style for the slides markdown display
 
 Session: `aec30795` | Task: `task-arash-20260328-210155-950332.md`
+
+## 2026-03-28 21:37 | biblio | opus | 1 steps
+
+### CSS
+- Styled all new components: concept pills (per-category colors), comparison bar/modal, reading list panel with score bars, concept search results
+
+Session: `8ff02a40` | Task: `task-arash-20260328-210157-123214.md`

@@ -6,6 +6,7 @@ import SetupTab from './components/SetupTab';
 import SearchTab from './components/SearchTab';
 import GraphInspector from './components/GraphInspector';
 import CollectionTree from './components/CollectionTree';
+import ResearchTab from './components/ResearchTab';
 import { renderMarkdown } from './utils/markdown.js';
 
 export default function App() {
@@ -702,6 +703,13 @@ export default function App() {
             >
               <span className="global-tabstrip-label">▤ Library</span>
             </div>
+            <div
+              className={`global-tabstrip-tab global-tabstrip-tab--research${activeTab === "research" ? " active" : ""}`}
+              onClick={() => { setActiveTab("research"); navPush("research", ""); }}
+              title="Research"
+            >
+              <span className="global-tabstrip-label">&#x270E; Research</span>
+            </div>
             <div className="global-tabstrip-sep" />
             {openPaperKeys.map((ck) => (
               <div
@@ -939,6 +947,11 @@ export default function App() {
                 </div>
             }
           </div>
+        )}
+
+        {/* Research tab */}
+        {activeTab === "research" && (
+          <ResearchTab openInPaperTab={openInPaperTab} />
         )}
 
         {/* Inspector column */}
