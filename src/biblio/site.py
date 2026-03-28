@@ -599,6 +599,10 @@ def _build_site_model(cfg: BiblioConfig, options: BiblioSiteOptions) -> dict[str
         if options.include_docling and md_path and md_path.exists():
             docling_text = md_path.read_text(encoding="utf-8", errors="replace")
         extras = _find_optional_derivatives(docling_dir) if docling_dir else {"notes": [], "summaries": []}
+        # Also check dedicated summaries directory
+        summary_file = (cfg.repo_root / "bib" / "derivatives" / "summaries" / f"{citekey}.md").resolve()
+        if summary_file.exists() and summary_file not in [p for p in extras["summaries"]]:
+            extras["summaries"].insert(0, summary_file)
         openalex_row = openalex_by_key.get(citekey)
         seed_id = str(openalex_row.get("openalex_id")) if openalex_row and openalex_row.get("openalex_id") else None
         outgoing: list[dict[str, Any]] = []

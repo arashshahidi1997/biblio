@@ -297,6 +297,15 @@ def _build_parser() -> argparse.ArgumentParser:
     grobid_match.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
     grobid_match.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
 
+    p_summarize = sub.add_parser("summarize", help="Generate structured paper summaries via LLM.")
+    p_summarize.add_argument("key", nargs="?", help="Single citekey (with or without leading @).")
+    p_summarize.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    p_summarize.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    p_summarize.add_argument("--prompt-only", action="store_true", help="Print assembled prompt to stdout (no LLM call).")
+    p_summarize.add_argument("--status", help="Batch mode: summarize all papers with this library status (e.g. unread).")
+    p_summarize.add_argument("--force", action="store_true", help="Regenerate existing summaries.")
+    p_summarize.add_argument("--model", default="claude-sonnet-4-20250514", help="Anthropic model to use.")
+
     p_lib = sub.add_parser("library", help="Manage per-paper status, tags, and priority in bib/config/library.yml.")
     lib_sub = p_lib.add_subparsers(dest="library_cmd", required=True)
     lib_list = lib_sub.add_parser("list", help="List all library entries.")
@@ -836,6 +845,47 @@ def main(argv: Iterable[str] | None = None) -> None:
             out_path, matches = run_grobid_match(cfg)
             total_links = sum(len(v) for v in matches.values())
             print(f"[OK] matched papers={len(matches)} local_links={total_links} -> {out_path}")
+        return
+
+    if args.command == "summarize":
+        from .summarize import summarize as run_summarize
+
+        repo_root = (args.root.expanduser().resolve() if args.root else find_repo_root())
+        cfg_path = (repo_root / args.config).resolve() if getattr(args, "config", None) else (repo_root / "bib" / "config" / "biblio.yml")
+        cfg = load_biblio_config(cfg_path, root=repo_root)
+
+        # Build list of citekeys to process
+        keys_to_process: list[str] = []
+        if args.status:
+            from .library import load_library
+
+            lib = load_library(cfg)
+            keys_to_process = [k for k, v in lib.items() if v.get("status") == args.status]
+            if not keys_to_process:
+                print(f"[WARN] No papers with status={args.status!r}")
+                return
+        elif args.key:
+            keys_to_process = [args.key.lstrip("@")]
+        else:
+            print("[ERROR] Provide a citekey or use --status for batch mode.")
+            return
+
+        for key in keys_to_process:
+            result = run_summarize(
+                key,
+                repo_root,
+                prompt_only=args.prompt_only,
+                force=args.force,
+                model=args.model,
+            )
+            if args.prompt_only:
+                print(result["prompt"])
+            elif result.get("error"):
+                print(f"[ERROR] {key}: {result['error']}", file=sys.stderr)
+            elif result.get("skipped"):
+                print(f"[SKIP] {key}: summary exists (use --force to regenerate)")
+            else:
+                print(f"[OK] {key}: {result['summary_path']}")
         return
 
     if args.command == "site":

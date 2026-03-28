@@ -346,6 +346,28 @@ def tag_vocab(*, root: Path) -> dict[str, Any]:
     }
 
 
+def biblio_summarize(
+    citekey: str,
+    *,
+    root: Path,
+    prompt_only: bool = False,
+    force: bool = False,
+    model: str = "claude-sonnet-4-20250514",
+) -> dict[str, Any]:
+    """Generate a structured summary for a paper.
+
+    If ``prompt_only=True``, returns only the assembled context prompt (no LLM call).
+    Otherwise calls the Anthropic API to produce a summary saved to
+    ``bib/derivatives/summaries/{citekey}.md``.
+
+    Returns ``{"citekey": ..., "prompt": ..., "summary_path": ...,
+               "summary_text": ..., "model_used": ..., "skipped": bool}``.
+    """
+    from .summarize import summarize
+
+    return summarize(citekey, root, prompt_only=prompt_only, force=force, model=model)
+
+
 def library_lint(*, root: Path) -> dict[str, Any]:
     """Lint all library.yml tags against the tag vocabulary.
 
