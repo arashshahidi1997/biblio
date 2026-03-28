@@ -327,6 +327,19 @@ def _build_parser() -> argparse.ArgumentParser:
     lib_lint.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
     lib_lint.add_argument("--json", action="store_true", help="Emit JSON output.")
 
+    lib_autotag = lib_sub.add_parser("autotag", help="Auto-tag papers via LLM classification and/or reference propagation.")
+    lib_autotag.add_argument("key", nargs="?", help="Single citekey (with or without leading @).")
+    lib_autotag.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    lib_autotag.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    lib_at_group = lib_autotag.add_mutually_exclusive_group()
+    lib_at_group.add_argument("--all", action="store_true", help="Process all papers in the library.")
+    lib_at_group.add_argument("--untagged", action="store_true", help="Process only papers with no tags.")
+    lib_autotag.add_argument("--tier", choices=["llm", "propagate", "all"], default="all", help="Which tagging tier(s) to run (default: all).")
+    lib_autotag.add_argument("--force", action="store_true", help="Re-run even if cached results exist.")
+    lib_autotag.add_argument("--model", default="claude-haiku-4-5-20251001", help="Anthropic model for LLM tier.")
+    lib_autotag.add_argument("--threshold", type=int, default=3, help="Minimum cited-paper count for propagation (default: 3).")
+    lib_autotag.add_argument("--json", action="store_true", help="Emit JSON output.")
+
     p_col = sub.add_parser("collection", help="Manage paper collections (manual and smart/query-driven).")
     col_sub = p_col.add_subparsers(dest="collection_cmd", required=True)
 
@@ -1021,6 +1034,60 @@ def main(argv: Iterable[str] | None = None) -> None:
                         print(f"  {item['citekey']}: {item['tag']} -> {item['suggestion']}")
                 if not any(report.values()):
                     print("[OK] All tags are valid.")
+            return
+        if args.library_cmd == "autotag":
+            from .autotag import autotag as run_autotag
+
+            tiers = ["llm", "propagate"] if args.tier == "all" else [args.tier]
+
+            # Build list of citekeys to process
+            keys_to_process: list[str] = []
+            if getattr(args, "all", False):
+                keys_to_process = list(load_library(cfg).keys())
+            elif getattr(args, "untagged", False):
+                keys_to_process = [
+                    k for k, v in load_library(cfg).items()
+                    if not v.get("tags")
+                ]
+            elif args.key:
+                keys_to_process = [args.key.lstrip("@")]
+            else:
+                print("[ERROR] Provide a citekey, --all, or --untagged.", file=sys.stderr)
+                raise SystemExit(2)
+
+            if not keys_to_process:
+                print("[WARN] No papers to process.")
+                return
+
+            results = []
+            for i, key in enumerate(keys_to_process, 1):
+                if len(keys_to_process) > 1:
+                    print(f"[{i}/{len(keys_to_process)}] {key}...", file=sys.stderr)
+                result = run_autotag(
+                    key, repo_root,
+                    tiers=tiers,
+                    force=args.force,
+                    model=args.model,
+                    threshold=args.threshold,
+                )
+                results.append(result)
+                if not getattr(args, "json", False):
+                    tags = result.get("all_tags", [])
+                    if tags:
+                        print(f"[OK] {key}: {', '.join(tags)}")
+                    else:
+                        errors = [
+                            r.get("error", "")
+                            for r in result.get("tiers", {}).values()
+                            if r.get("error")
+                        ]
+                        if errors:
+                            print(f"[WARN] {key}: {'; '.join(errors)}")
+                        else:
+                            print(f"[OK] {key}: (no tags assigned)")
+
+            if getattr(args, "json", False):
+                print(json.dumps(results, indent=2))
             return
         raise SystemExit(2)
 

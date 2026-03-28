@@ -451,6 +451,39 @@ def collection_update_query(name: str, query: str, *, root: Path) -> dict[str, A
     return {"collection": updated}
 
 
+def biblio_autotag(
+    citekeys: list[str],
+    *,
+    root: Path,
+    tiers: list[str] | None = None,
+    force: bool = False,
+    model: str = "claude-haiku-4-5-20251001",
+    threshold: int = 3,
+) -> dict[str, Any]:
+    """Auto-tag papers via LLM classification and/or reference propagation.
+
+    Tiers: ``["llm"]``, ``["propagate"]``, or ``["llm", "propagate"]`` (default).
+    Results are cached under ``bib/derivatives/autotag/``.
+
+    Returns ``{"results": [{citekey, tiers, all_tags}], "count": N}``.
+    """
+    from .autotag import autotag
+
+    results = []
+    for ck in citekeys:
+        key = ck.lstrip("@")
+        result = autotag(
+            key,
+            root,
+            tiers=tiers,
+            force=force,
+            model=model,
+            threshold=threshold,
+        )
+        results.append(result)
+    return {"results": results, "count": len(results)}
+
+
 def library_lint(*, root: Path) -> dict[str, Any]:
     """Lint all library.yml tags against the tag vocabulary.
 
