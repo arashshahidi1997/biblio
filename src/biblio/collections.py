@@ -38,11 +38,38 @@ def _get(data: dict[str, Any], col_id: str) -> dict[str, Any] | None:
     return next((c for c in data["collections"] if c["id"] == col_id), None)
 
 
+# ── helpers ───────────────────────────────────────────────────────────────────
+
+def _find_by_name(data: dict[str, Any], name: str) -> dict[str, Any] | None:
+    return next((c for c in data["collections"] if c.get("name") == name), None)
+
+
+def is_smart(col: dict[str, Any]) -> bool:
+    """Return True if the collection is query-driven (smart)."""
+    return "query" in col and col["query"] is not None
+
+
 # ── CRUD ──────────────────────────────────────────────────────────────────────
 
-def create_collection(cfg: BiblioConfig, name: str, parent: str | None = None) -> dict[str, Any]:
+def create_collection(
+    cfg: BiblioConfig,
+    name: str,
+    parent: str | None = None,
+    *,
+    query: str | None = None,
+    description: str | None = None,
+) -> dict[str, Any]:
     data = load_collections(cfg)
-    col: dict[str, Any] = {"id": _new_id(), "name": name, "parent": parent, "citekeys": []}
+    col: dict[str, Any] = {"id": _new_id(), "name": name, "parent": parent}
+    if query is not None:
+        # Smart collection — validate query syntax eagerly
+        from .query import parse_query
+        parse_query(query)  # raises ParseError on bad syntax
+        col["query"] = query
+    else:
+        col["citekeys"] = []
+    if description:
+        col["description"] = description
     data["collections"].append(col)
     save_collections(cfg, data)
     return col
@@ -118,3 +145,71 @@ def remove_papers(cfg: BiblioConfig, col_id: str, citekeys: list[str]) -> dict[s
     col["citekeys"] = [k for k in col["citekeys"] if k not in drop]
     save_collections(cfg, data)
     return col
+
+
+# ── Smart collection support ─────────────────────────────────────────────────
+
+def update_query(cfg: BiblioConfig, col_id: str, query: str) -> dict[str, Any] | None:
+    """Update the query of a smart collection. Validates syntax first."""
+    from .query import parse_query
+
+    parse_query(query)  # raises ParseError on bad syntax
+    data = load_collections(cfg)
+    col = _get(data, col_id)
+    if col is None:
+        return None
+    col["query"] = query
+    col.pop("citekeys", None)  # smart collections don't store static citekeys
+    save_collections(cfg, data)
+    return col
+
+
+def resolve_smart(
+    cfg: BiblioConfig,
+    col_id: str,
+    library: dict[str, dict[str, Any]] | None = None,
+    bib_entries: dict[str, dict[str, Any]] | None = None,
+) -> list[str]:
+    """Resolve a smart collection's query and return matching citekeys.
+
+    For manual collections, returns the stored citekeys list.
+    """
+    data = load_collections(cfg)
+    col = _get(data, col_id)
+    if col is None:
+        return []
+    if not is_smart(col):
+        return list(col.get("citekeys") or [])
+
+    from .query import query_citekeys
+
+    if library is None:
+        from .library import load_library
+        library = load_library(cfg)
+    return query_citekeys(col["query"], library, bib_entries)
+
+
+def list_collections_summary(
+    cfg: BiblioConfig,
+    library: dict[str, dict[str, Any]] | None = None,
+    bib_entries: dict[str, dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
+    """Return a summary list of all collections with membership counts."""
+    data = load_collections(cfg)
+    summaries: list[dict[str, Any]] = []
+    for col in data.get("collections", []):
+        entry: dict[str, Any] = {
+            "id": col["id"],
+            "name": col["name"],
+            "smart": is_smart(col),
+        }
+        if is_smart(col):
+            entry["query"] = col["query"]
+            citekeys = resolve_smart(cfg, col["id"], library, bib_entries)
+            entry["count"] = len(citekeys)
+        else:
+            entry["count"] = len(col.get("citekeys") or [])
+        if col.get("description"):
+            entry["description"] = col["description"]
+        summaries.append(entry)
+    return summaries

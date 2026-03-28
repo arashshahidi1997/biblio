@@ -327,6 +327,33 @@ def _build_parser() -> argparse.ArgumentParser:
     lib_lint.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
     lib_lint.add_argument("--json", action="store_true", help="Emit JSON output.")
 
+    p_col = sub.add_parser("collection", help="Manage paper collections (manual and smart/query-driven).")
+    col_sub = p_col.add_subparsers(dest="collection_cmd", required=True)
+
+    col_create = col_sub.add_parser("create", help="Create a collection (manual or smart).")
+    col_create.add_argument("name", help="Collection name.")
+    col_create.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    col_create.add_argument("--config", type=Path, help="Path to biblio.yml.")
+    col_create.add_argument("--smart", metavar="QUERY", help="Query string for a smart (dynamic) collection.")
+    col_create.add_argument("--description", help="Optional description.")
+
+    col_list = col_sub.add_parser("list", help="List all collections with membership counts.")
+    col_list.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    col_list.add_argument("--config", type=Path, help="Path to biblio.yml.")
+    col_list.add_argument("--json", action="store_true", help="Emit JSON.")
+
+    col_show = col_sub.add_parser("show", help="Show collection details and members.")
+    col_show.add_argument("name", help="Collection name.")
+    col_show.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    col_show.add_argument("--config", type=Path, help="Path to biblio.yml.")
+    col_show.add_argument("--json", action="store_true", help="Emit JSON.")
+
+    col_edit = col_sub.add_parser("edit-query", help="Update the query of a smart collection.")
+    col_edit.add_argument("name", help="Collection name.")
+    col_edit.add_argument("query", help="New query string.")
+    col_edit.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    col_edit.add_argument("--config", type=Path, help="Path to biblio.yml.")
+
     p_ref_md = sub.add_parser("ref-md", help="Produce reference-resolved markdown from docling+GROBID outputs.")
     ref_md_sub = p_ref_md.add_subparsers(dest="ref_md_cmd", required=True)
     ref_md_run = ref_md_sub.add_parser("run", help="Resolve in-text citations for one key or all keys.")
@@ -995,6 +1022,80 @@ def main(argv: Iterable[str] | None = None) -> None:
                 if not any(report.values()):
                     print("[OK] All tags are valid.")
             return
+        raise SystemExit(2)
+
+    if args.command == "collection":
+        repo_root = (args.root.expanduser().resolve() if getattr(args, "root", None) else find_repo_root())
+        cfg_path = (repo_root / args.config).resolve() if getattr(args, "config", None) else (repo_root / "bib" / "config" / "biblio.yml")
+        cfg = load_biblio_config(cfg_path, root=repo_root)
+
+        if args.collection_cmd == "create":
+            from .collections import create_collection
+            col = create_collection(
+                cfg, args.name,
+                query=getattr(args, "smart", None),
+                description=getattr(args, "description", None),
+            )
+            kind = "smart" if "query" in col else "manual"
+            print(f"[OK] Created {kind} collection '{col['name']}' (id={col['id']})")
+            if "query" in col:
+                print(f"     query: {col['query']}")
+            return
+
+        if args.collection_cmd == "list":
+            from .collections import list_collections_summary
+            summaries = list_collections_summary(cfg)
+            if args.json:
+                print(json.dumps(summaries, indent=2))
+            else:
+                if not summaries:
+                    print("No collections.")
+                    return
+                for s in summaries:
+                    kind = "smart" if s["smart"] else "manual"
+                    desc = f"  ({s['description']})" if s.get("description") else ""
+                    query_info = f"  query={s['query']}" if s.get("query") else ""
+                    print(f"{s['name']}\t{kind}\tcount={s['count']}{query_info}{desc}")
+            return
+
+        if args.collection_cmd == "show":
+            from .collections import _find_by_name, is_smart, load_collections, resolve_smart
+            data = load_collections(cfg)
+            col = _find_by_name(data, args.name)
+            if col is None:
+                print(f"Collection '{args.name}' not found.", file=sys.stderr)
+                raise SystemExit(1)
+            if is_smart(col):
+                citekeys = resolve_smart(cfg, col["id"])
+            else:
+                citekeys = col.get("citekeys") or []
+            if args.json:
+                print(json.dumps({"name": col["name"], "id": col["id"], "smart": is_smart(col),
+                                   "query": col.get("query"), "citekeys": citekeys,
+                                   "count": len(citekeys)}, indent=2))
+            else:
+                kind = "smart" if is_smart(col) else "manual"
+                print(f"{col['name']} ({kind}, {len(citekeys)} papers)")
+                if is_smart(col):
+                    print(f"  query: {col['query']}")
+                for ck in citekeys:
+                    print(f"  @{ck}")
+            return
+
+        if args.collection_cmd == "edit-query":
+            from .collections import _find_by_name, load_collections, update_query
+            data = load_collections(cfg)
+            col = _find_by_name(data, args.name)
+            if col is None:
+                print(f"Collection '{args.name}' not found.", file=sys.stderr)
+                raise SystemExit(1)
+            updated = update_query(cfg, col["id"], args.query)
+            if updated is None:
+                print(f"Failed to update collection.", file=sys.stderr)
+                raise SystemExit(1)
+            print(f"[OK] Updated query for '{args.name}': {args.query}")
+            return
+
         raise SystemExit(2)
 
     if args.command == "ref-md":

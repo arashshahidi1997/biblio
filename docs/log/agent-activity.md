@@ -7,3 +7,9 @@ Recent agent session summaries for handoff context.
 **Note:** The projio MCP server registration (`projio/mcp/biblio.py` + `server.py`) needs the `biblio_tag_vocab` tool registered — I couldn't write to those files due to permissions. The biblio-side functions are ready.
 
 Session: `ab332f8a` | Task: `task-arash-20260328-183529-707815.md`
+
+## 2026-03-28 18:59 | biblio | opus | 1 steps
+
+**6. `make test`** passes (21/21 existing tests). New test file was saved but couldn't be run independently due to permission restrictions.
+
+Session: `cbab501c` | Task: `task-arash-20260328-183533-140894.md`

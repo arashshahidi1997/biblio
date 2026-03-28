@@ -368,6 +368,89 @@ def biblio_summarize(
     return summarize(citekey, root, prompt_only=prompt_only, force=force, model=model)
 
 
+# ---------------------------------------------------------------------------
+# Collection tools
+# ---------------------------------------------------------------------------
+
+
+def collection_create(
+    name: str,
+    *,
+    root: Path,
+    query: str | None = None,
+    description: str | None = None,
+) -> dict[str, Any]:
+    """Create a collection (manual or smart/query-driven).
+
+    If ``query`` is provided, creates a smart collection whose membership is
+    dynamically resolved from the query.  Otherwise creates a manual collection.
+
+    Returns ``{"collection": {...}}``.
+    """
+    cfg = _load_cfg(root)
+    from .collections import create_collection
+
+    col = create_collection(cfg, name, query=query, description=description)
+    return {"collection": col}
+
+
+def collection_list(*, root: Path) -> dict[str, Any]:
+    """List all collections with membership counts.
+
+    Returns ``{"collections": [...]}``.
+    """
+    cfg = _load_cfg(root)
+    from .collections import list_collections_summary
+
+    return {"collections": list_collections_summary(cfg)}
+
+
+def collection_show(name: str, *, root: Path) -> dict[str, Any]:
+    """Show a collection's details and resolved members.
+
+    For smart collections, membership is computed dynamically.
+
+    Returns ``{"name": ..., "smart": bool, "query": str|null, "citekeys": [...], "count": N}``.
+    """
+    cfg = _load_cfg(root)
+    from .collections import _find_by_name, is_smart, load_collections, resolve_smart
+
+    data = load_collections(cfg)
+    col = _find_by_name(data, name)
+    if col is None:
+        return {"error": f"Collection '{name}' not found"}
+    if is_smart(col):
+        citekeys = resolve_smart(cfg, col["id"])
+    else:
+        citekeys = col.get("citekeys") or []
+    return {
+        "name": col["name"],
+        "id": col["id"],
+        "smart": is_smart(col),
+        "query": col.get("query"),
+        "citekeys": citekeys,
+        "count": len(citekeys),
+    }
+
+
+def collection_update_query(name: str, query: str, *, root: Path) -> dict[str, Any]:
+    """Update the query of a smart collection.
+
+    Returns ``{"collection": {...}}`` or ``{"error": ...}``.
+    """
+    cfg = _load_cfg(root)
+    from .collections import _find_by_name, load_collections, update_query
+
+    data = load_collections(cfg)
+    col = _find_by_name(data, name)
+    if col is None:
+        return {"error": f"Collection '{name}' not found"}
+    updated = update_query(cfg, col["id"], query)
+    if updated is None:
+        return {"error": "Failed to update collection"}
+    return {"collection": updated}
+
+
 def library_lint(*, root: Path) -> dict[str, Any]:
     """Lint all library.yml tags against the tag vocabulary.
 
