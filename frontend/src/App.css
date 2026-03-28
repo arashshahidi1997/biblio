@@ -1404,3 +1404,144 @@ a.cite-link:hover {
   .multicolumn-layout { flex-wrap: wrap; }
   #cy { height: 22rem; }
 }
+
+/* ── Tag Input autocomplete ────────────────────────────────── */
+.tag-input-wrapper {
+  position: relative;
+  width: 100%;
+}
+.tag-input-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.4rem 0.6rem;
+  background: white;
+  min-height: 2.2rem;
+  cursor: text;
+}
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.tag-chip-remove {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 0.82rem;
+  line-height: 1;
+  padding: 0 0.1rem;
+  opacity: 0.6;
+}
+.tag-chip-remove:hover { opacity: 1; }
+.tag-input-field {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 0.88rem;
+  flex: 1;
+  min-width: 6rem;
+  padding: 0.15rem 0;
+  font-family: inherit;
+  color: var(--ink);
+}
+.tag-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(30, 33, 29, 0.12);
+  max-height: 14rem;
+  overflow-y: auto;
+  margin-top: 2px;
+}
+.tag-dropdown-item {
+  padding: 0.4rem 0.7rem;
+  font-size: 0.84rem;
+  cursor: pointer;
+  color: var(--ink);
+}
+.tag-dropdown-item:hover,
+.tag-dropdown-item.highlighted {
+  background: var(--accent-soft);
+}
+.tag-dropdown-ns {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+/* ── Lint panel ────────────────────────────────────────────── */
+.lint-section {
+  margin-top: 1.2rem;
+}
+.lint-section h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+}
+.lint-group {
+  margin-bottom: 1rem;
+}
+.lint-group-title {
+  font-weight: 700;
+  font-size: 0.84rem;
+  color: var(--muted);
+  margin-bottom: 0.3rem;
+}
+.lint-issue {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.82rem;
+}
+.lint-issue:last-child { border-bottom: none; }
+.lint-issue-detail {
+  flex: 1;
+}
+.lint-issue-citekey {
+  font-weight: 600;
+  color: var(--accent);
+}
+.lint-issue-tag {
+  background: #fce4e4;
+  color: #a33;
+  border-radius: 4px;
+  padding: 0.05rem 0.35rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+.lint-issue-suggestion {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+.lint-apply-btn {
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: 6px;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.74rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.lint-apply-btn:hover {
+  background: var(--accent);
+  color: white;
+}

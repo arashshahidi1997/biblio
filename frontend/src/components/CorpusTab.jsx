@@ -1,3 +1,5 @@
+import TagInput from "./TagInput.jsx";
+
 const STATUS_COLORS = {
   unread: "#888",
   reading: "#e6a817",
@@ -47,10 +49,12 @@ export default function CorpusTab({
           </div>
           <div className="field">
             <label>Tag filter</label>
-            <select value={tagFilter} onChange={(ev) => setTagFilter(ev.target.value)}>
-              <option value="">All tags</option>
-              {allTags.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
+            <TagInput
+              tags={tagFilter ? [tagFilter] : []}
+              onChange={(tags) => setTagFilter(tags[0] || "")}
+              placeholder="Filter by tag..."
+              mode="filter"
+            />
           </div>
           <div className="field" style={{ alignSelf: "flex-end" }}>
             <span className="small">{papers.length} papers</span>

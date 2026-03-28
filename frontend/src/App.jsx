@@ -348,7 +348,7 @@ export default function App() {
         window.setTimeout(pollOpenAlexProgress, 150);
         return;
       }
-      if (data.async && (action === "graph-expand" || action === "docling-run" || action === "grobid-run" || action === "grobid-match" || action === "rag-build" || action === "fetch-pdfs-oa")) {
+      if (data.async && (action === "graph-expand" || action === "docling-run" || action === "grobid-run" || action === "grobid-match" || action === "rag-build" || action === "fetch-pdfs-oa" || action === "autotag")) {
         const total = Number(data.total || 0);
         const completed = Number(data.completed || 0);
         setActionState({

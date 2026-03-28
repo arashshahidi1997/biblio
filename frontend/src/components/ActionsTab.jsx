@@ -1,4 +1,129 @@
-export default function ActionsTab({ activePaper, actionState, triggerAction, addDoi, setAddDoi }) {
+import { useState } from "react";
+
+function LintPanel({ updateLibraryEntry }) {
+  const [lintResults, setLintResults] = useState(null);
+  const [lintLoading, setLintLoading] = useState(false);
+  const [lintError, setLintError] = useState(null);
+  const [applying, setApplying] = useState({});
+
+  async function runLint() {
+    setLintLoading(true);
+    setLintError(null);
+    try {
+      const resp = await fetch("/api/library/lint", { method: "POST" });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = await resp.json();
+      setLintResults(data);
+    } catch (err) {
+      setLintError(String(err.message || err));
+    } finally {
+      setLintLoading(false);
+    }
+  }
+
+  async function applySuggestion(citekey, oldTag, newTag) {
+    const key = `${citekey}:${oldTag}`;
+    setApplying((p) => ({ ...p, [key]: true }));
+    try {
+      // Fetch current tags, replace oldTag with newTag
+      const resp = await fetch(`/api/library/${encodeURIComponent(citekey)}`);
+      const data = await resp.json();
+      const currentTags = (data.tags || []).slice();
+      const idx = currentTags.indexOf(oldTag);
+      if (idx >= 0) {
+        currentTags[idx] = newTag;
+      }
+      await updateLibraryEntry(citekey, { tags: currentTags });
+      // Refresh lint
+      runLint();
+    } catch (err) {
+      console.error("apply suggestion failed", err);
+    } finally {
+      setApplying((p) => ({ ...p, [key]: false }));
+    }
+  }
+
+  const hasIssues = lintResults && (
+    (lintResults.non_vocab || []).length > 0 ||
+    (lintResults.duplicates || []).length > 0 ||
+    (lintResults.suggestions || []).length > 0
+  );
+
+  return (
+    <div className="lint-section">
+      <h3>Tag Health</h3>
+      <div className="actions">
+        <button onClick={runLint} disabled={lintLoading}>
+          {lintLoading ? "Linting..." : "Lint Tags"}
+        </button>
+      </div>
+      {lintError && <div className="action-status error">{lintError}</div>}
+      {lintResults && !hasIssues && (
+        <div className="small" style={{ marginTop: "0.5rem", color: "var(--accent)" }}>
+          All tags are healthy.
+        </div>
+      )}
+      {lintResults && hasIssues && (
+        <div style={{ marginTop: "0.6rem" }}>
+          {(lintResults.non_vocab || []).length > 0 && (
+            <div className="lint-group">
+              <div className="lint-group-title">Non-vocabulary tags</div>
+              {lintResults.non_vocab.map((item, idx) => (
+                <div key={idx} className="lint-issue">
+                  <div className="lint-issue-detail">
+                    <span className="lint-issue-citekey">{item.citekey}</span>
+                    {" "}<span className="lint-issue-tag">{item.tag}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {(lintResults.duplicates || []).length > 0 && (
+            <div className="lint-group">
+              <div className="lint-group-title">Duplicate tags</div>
+              {lintResults.duplicates.map((item, idx) => (
+                <div key={idx} className="lint-issue">
+                  <div className="lint-issue-detail">
+                    <span className="lint-issue-citekey">{item.citekey}</span>
+                    {" "}<span className="lint-issue-tag">{item.tag}</span>
+                    <span className="lint-issue-suggestion"> (appears {item.count}x)</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {(lintResults.suggestions || []).length > 0 && (
+            <div className="lint-group">
+              <div className="lint-group-title">Suggestions</div>
+              {lintResults.suggestions.map((item, idx) => (
+                <div key={idx} className="lint-issue">
+                  <div className="lint-issue-detail">
+                    <span className="lint-issue-citekey">{item.citekey}</span>
+                    {" "}<span className="lint-issue-tag">{item.tag}</span>
+                    {item.suggestion && (
+                      <span className="lint-issue-suggestion"> → {item.suggestion}</span>
+                    )}
+                  </div>
+                  {item.suggestion && (
+                    <button
+                      className="lint-apply-btn"
+                      disabled={applying[`${item.citekey}:${item.tag}`]}
+                      onClick={() => applySuggestion(item.citekey, item.tag, item.suggestion)}
+                    >
+                      Apply
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function ActionsTab({ activePaper, actionState, triggerAction, addDoi, setAddDoi, updateLibraryEntry }) {
   return (
     <div className="panel">
       <h2>Actions</h2>
@@ -55,6 +180,23 @@ export default function ActionsTab({ activePaper, actionState, triggerAction, ad
           Fetch OA PDFs
         </button>
       </div>
+
+      {/* Auto-tag buttons */}
+      <div className="actions" style={{ marginTop: "0.6rem" }}>
+        <button
+          disabled={actionState.busy || !activePaper}
+          onClick={() => activePaper && triggerAction("autotag", { citekey: activePaper.citekey })}
+        >
+          Auto-tag Selected
+        </button>
+        <button
+          disabled={actionState.busy}
+          onClick={() => triggerAction("autotag", {})}
+        >
+          Auto-tag All Untagged
+        </button>
+      </div>
+
       <div className="field" style={{ marginTop: "1rem" }}>
         <label>Add paper by DOI</label>
         <input
@@ -93,7 +235,7 @@ export default function ActionsTab({ activePaper, actionState, triggerAction, ad
           {actionState.logs}
         </pre>
       )}
-      {(actionState.action === "openalex-resolve" || actionState.action === "graph-expand" || actionState.action === "docling-run" || actionState.action === "grobid-run" || actionState.action === "grobid-match" || actionState.action === "rag-build" || actionState.action === "fetch-pdfs-oa") &&
+      {(actionState.action === "openalex-resolve" || actionState.action === "graph-expand" || actionState.action === "docling-run" || actionState.action === "grobid-run" || actionState.action === "grobid-match" || actionState.action === "rag-build" || actionState.action === "fetch-pdfs-oa" || actionState.action === "autotag") &&
         (actionState.progressTotal > 0 || actionState.busy) && (
           <div className="progress-wrap">
             <div className="small">
@@ -110,6 +252,9 @@ export default function ActionsTab({ activePaper, actionState, triggerAction, ad
           </div>
         )
       }
+
+      {/* Tag Health lint panel */}
+      <LintPanel updateLibraryEntry={updateLibraryEntry} />
     </div>
   );
 }

@@ -37,3 +37,15 @@ Session: `69b5ecfd` | Task: `task-arash-20260328-183534-265778.md`
 **Tests:** 20 new tests (111 total passing) covering prompt assembly, LLM mocking, MCP delegation, CLI parsing, and template validation.
 
 Session: `48137e91` | Task: `task-arash-20260328-183535-407935.md`
+
+## 2026-03-28 19:44 | biblio | opus | 1 steps
+
+**130 tests pass** (111 existing + 19 new).
+
+Session: `24818cce` | Task: `task-arash-20260328-183536-559855.md`
+
+## 2026-03-28 21:14 | biblio | opus | 1 steps
+
+**Model payload** — `/api/model` now includes `has_summary`, `has_concepts`, `has_slides`, `has_autotag` per paper
+
+Session: `0b5a94ba` | Task: `task-arash-20260328-210152-348312.md`

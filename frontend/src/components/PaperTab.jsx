@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { renderMarkdown } from "../utils/markdown.js";
+import TagInput from "./TagInput.jsx";
 
 const STATUSES = ["", "unread", "reading", "processed", "archived"];
 const PRIORITIES = ["", "low", "normal", "high"];
@@ -25,19 +26,18 @@ function LibraryPanel({ activePaper, updateLibraryEntry }) {
   const lib = activePaper.library || {};
   const [status, setStatus] = useState(lib.status || "");
   const [priority, setPriority] = useState(lib.priority || "");
-  const [tagsText, setTagsText] = useState((lib.tags || []).join(", "));
+  const [tags, setTags] = useState(lib.tags || []);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const l = activePaper.library || {};
     setStatus(l.status || "");
     setPriority(l.priority || "");
-    setTagsText((l.tags || []).join(", "));
+    setTags(l.tags || []);
   }, [activePaper.citekey]);
 
   async function save() {
     setSaving(true);
-    const tags = tagsText.split(",").map((t) => t.trim()).filter(Boolean);
     await updateLibraryEntry(activePaper.citekey, { status: status || null, priority: priority || null, tags });
     setSaving(false);
   }
@@ -55,12 +55,7 @@ function LibraryPanel({ activePaper, updateLibraryEntry }) {
           {PRIORITIES.map((p) => <option key={p} value={p}>{p || "—"}</option>)}
         </select>
         <div className="small">Tags</div>
-        <input
-          value={tagsText}
-          onChange={(ev) => setTagsText(ev.target.value)}
-          placeholder="comma-separated"
-          style={{ width: "100%" }}
-        />
+        <TagInput tags={tags} onChange={setTags} placeholder="Add tags..." />
       </div>
       <div className="actions" style={{ marginTop: "0.6rem" }}>
         <button onClick={save} disabled={saving}>{saving ? "Saving..." : "Save"}</button>
