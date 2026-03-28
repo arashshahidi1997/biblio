@@ -22,6 +22,83 @@ function ArtifactBadge({ exists, label, onAction, busy, actionLabel }) {
   return <span className="badge">{`no ${label}`}</span>;
 }
 
+const CONCEPT_GROUPS = ["methods", "datasets", "metrics", "domains", "techniques"];
+
+function ConceptsPanel({ citekey, hasConcepts, triggerAction, busy, onConceptClick }) {
+  const [concepts, setConcepts] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const loadedFor = useRef(null);
+
+  useEffect(() => {
+    if (loadedFor.current === citekey) return;
+    loadedFor.current = citekey;
+    setConcepts(null);
+    if (!hasConcepts) { setLoading(false); return; }
+    setLoading(true);
+    fetch(`/api/papers/${encodeURIComponent(citekey)}/concepts`)
+      .then((r) => { if (!r.ok) throw new Error("not found"); return r.json(); })
+      .then((data) => { setConcepts(data); setLoading(false); })
+      .catch(() => { setConcepts(null); setLoading(false); });
+  }, [citekey, hasConcepts]);
+
+  useEffect(() => { loadedFor.current = null; }, [citekey]);
+
+  if (loading) return <div className="panel"><h3>Concepts</h3><div className="small" style={{ opacity: 0.6 }}>Loading…</div></div>;
+
+  if (!concepts) {
+    return (
+      <div className="panel">
+        <h3>Concepts</h3>
+        <div style={{ textAlign: "center", padding: "0.5rem 0" }}>
+          <p className="small" style={{ opacity: 0.6, marginBottom: "0.5rem" }}>No concepts extracted yet.</p>
+          <button
+            className="absent-refs-btn-small absent-refs-btn-primary"
+            disabled={busy}
+            onClick={() => triggerAction("concepts-extract", { citekey })}
+          >Extract Concepts</button>
+        </div>
+      </div>
+    );
+  }
+
+  const hasAny = CONCEPT_GROUPS.some((g) => concepts[g] && concepts[g].length > 0);
+  if (!hasAny) {
+    return (
+      <div className="panel">
+        <h3>Concepts</h3>
+        <div className="small" style={{ opacity: 0.6 }}>No concepts found.</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="panel concepts-panel">
+      <h3>Concepts</h3>
+      {CONCEPT_GROUPS.map((group) => {
+        const items = concepts[group] || [];
+        if (!items.length) return null;
+        return (
+          <div key={group} className="concepts-group">
+            <div className="concepts-group-label">{group}</div>
+            <div className="concepts-pills">
+              {items.map((item) => (
+                <button
+                  key={item}
+                  className={`concept-pill concept-pill--${group}`}
+                  onClick={() => onConceptClick && onConceptClick(item)}
+                  title={`Search papers with concept: ${item}`}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function LibraryPanel({ activePaper, updateLibraryEntry, triggerAction, busy }) {
   const lib = activePaper.library || {};
   const [status, setStatus] = useState(lib.status || "");
@@ -770,6 +847,7 @@ function SlidesTab({ citekey, hasSlides, triggerAction, busy }) {
 export default function PaperTab({
   activePaper, activeArtifacts,
   updateLibraryEntry, triggerAction, actionState, papers, openInPaperTab,
+  onConceptClick,
 }) {
   const [contentTab, setContentTab] = useState("PDF");
   const [fullscreen, setFullscreen] = useState(false);
@@ -977,6 +1055,14 @@ export default function PaperTab({
         {/* Right: sidebar info */}
         <div className="paper-sidebar-col">
           <LibraryPanel activePaper={activePaper} updateLibraryEntry={updateLibraryEntry} triggerAction={triggerAction} busy={busy} />
+
+          <ConceptsPanel
+            citekey={activePaper.citekey}
+            hasConcepts={hasConcepts}
+            triggerAction={triggerAction}
+            busy={busy}
+            onConceptClick={onConceptClick}
+          />
 
           <div className="panel">
             <h3>Related local papers</h3>

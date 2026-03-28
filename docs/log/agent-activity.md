@@ -62,3 +62,10 @@ Session: `a3c281ce` | Task: `task-arash-20260328-210153-600539.md`
 - `.col-tree-smart-form`, `.col-tree-query-editor`, `.col-tree-query-input`, `.col-tree-query-help` styles
 
 Session: `9536f3ab` | Task: `task-arash-20260328-210154-791668.md`
+
+## 2026-03-28 21:30 | biblio | opus | 1 steps
+
+**`frontend/src/App.css`**
+- Added `.slides-pre` style for the slides markdown display
+
+Session: `aec30795` | Task: `task-arash-20260328-210155-950332.md`

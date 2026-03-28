@@ -1601,3 +1601,221 @@ a.cite-link:hover {
   background: var(--accent);
   color: white;
 }
+
+/* ── Concepts panel ─────────────────────────────────────── */
+.concepts-panel { padding-bottom: 0.8rem; }
+.concepts-group { margin-bottom: 0.5rem; }
+.concepts-group-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  opacity: 0.6;
+  margin-bottom: 0.25rem;
+}
+.concepts-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+.concept-pill {
+  font-size: 0.72rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s, border-color 0.12s;
+}
+.concept-pill:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.concept-pill--methods { border-color: #6a9fb5; }
+.concept-pill--methods:hover { background: #e8f2f7; }
+.concept-pill--datasets { border-color: #b5986a; }
+.concept-pill--datasets:hover { background: #f7f1e8; }
+.concept-pill--metrics { border-color: #8ab56a; }
+.concept-pill--metrics:hover { background: #edf7e8; }
+.concept-pill--domains { border-color: #b56a9f; }
+.concept-pill--domains:hover { background: #f7e8f2; }
+.concept-pill--techniques { border-color: #6ab5a0; }
+.concept-pill--techniques:hover { background: #e8f7f2; }
+
+/* ── Comparison bar ─────────────────────────────────────── */
+.compare-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.8rem;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  margin: 0.4rem 0;
+  flex-wrap: wrap;
+}
+.compare-bar-pills {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  flex: 1;
+}
+.compare-bar-pill {
+  font-size: 0.72rem;
+  padding: 0.1rem 0.4rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+.compare-bar-pill-x {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.72rem;
+  opacity: 0.5;
+  padding: 0;
+  line-height: 1;
+}
+.compare-bar-pill-x:hover { opacity: 1; }
+
+/* ── Compare modal ──────────────────────────────────────── */
+.compare-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.compare-modal {
+  background: var(--panel);
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+  width: min(90vw, 900px);
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.compare-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.2rem;
+  border-bottom: 1px solid var(--line);
+}
+.compare-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem 1.2rem;
+}
+
+/* ── Reading list panel ─────────────────────────────────── */
+.reading-list-panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.8rem 1rem;
+  margin: 0.4rem 0;
+}
+.reading-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.6rem;
+}
+.reading-list-input-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.reading-list-results {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  max-height: 300px;
+  overflow-y: auto;
+}
+.reading-list-item {
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.reading-list-item:hover { background: var(--accent-soft); }
+.reading-list-item-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.reading-list-score-bar {
+  display: inline-flex;
+  align-items: center;
+  width: 80px;
+  height: 14px;
+  background: var(--line);
+  border-radius: 7px;
+  overflow: hidden;
+  position: relative;
+}
+.reading-list-score-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 7px;
+}
+.reading-list-score-label {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 0 3px rgba(0,0,0,0.5);
+}
+
+/* ── Concept search ─────────────────────────────────────── */
+.concept-search-panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.8rem 1rem;
+  margin: 0.4rem 0;
+}
+.concept-search-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+.concept-search-results {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 300px;
+  overflow-y: auto;
+}
+.concept-search-group { margin-bottom: 0.3rem; }
+.concept-search-papers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+.concept-search-paper-item {
+  font-size: 0.74rem;
+  padding: 0.15rem 0.5rem;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.concept-search-paper-item:hover {
+  background: var(--accent);
+  color: white;
+}

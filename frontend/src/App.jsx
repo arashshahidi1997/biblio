@@ -6,6 +6,7 @@ import SetupTab from './components/SetupTab';
 import SearchTab from './components/SearchTab';
 import GraphInspector from './components/GraphInspector';
 import CollectionTree from './components/CollectionTree';
+import { renderMarkdown } from './utils/markdown.js';
 
 export default function App() {
   const urlCitekey = new URLSearchParams(window.location.search).get("paper") || "";
@@ -44,6 +45,18 @@ export default function App() {
   const [collections, setCollections] = useState([]);
   const [activeCollectionId, setActiveCollectionId] = useState(null);
   const [contextMenu, setContextMenu] = useState(null); // {x, y, citekey}
+  // Comparison selection
+  const [compareSelection, setCompareSelection] = useState([]); // array of citekeys
+  const [compareResult, setCompareResult] = useState(null); // {markdown, loading, error}
+  const [showCompareModal, setShowCompareModal] = useState(false);
+  // Reading list
+  const [showReadingList, setShowReadingList] = useState(false);
+  const [readingListQuestion, setReadingListQuestion] = useState("");
+  const [readingListResult, setReadingListResult] = useState(null); // {recommendations, loading, error}
+  // Concept search
+  const [conceptSearchQuery, setConceptSearchQuery] = useState("");
+  const [conceptSearchResult, setConceptSearchResult] = useState(null);
+  const [conceptSearchLoading, setConceptSearchLoading] = useState(false);
   // Navigation history: stack of {activeTab, activePaperKey}
   const navHistoryRef = useRef([]);
   const navFutureRef = useRef([]);
@@ -416,6 +429,118 @@ export default function App() {
     } catch (_) {}
   }
 
+  function toggleCompareSelection(citekey) {
+    setCompareSelection((prev) =>
+      prev.includes(citekey) ? prev.filter((k) => k !== citekey) : [...prev, citekey]
+    );
+  }
+
+  async function runComparison(dimensions) {
+    if (compareSelection.length < 2) return;
+    setShowCompareModal(true);
+    setCompareResult({ markdown: null, loading: true, error: null });
+    try {
+      const resp = await fetch("/api/actions/compare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ citekeys: compareSelection, dimensions: dimensions || null }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.detail || `HTTP ${resp.status}`);
+      // Poll for result
+      pollCompareResult();
+    } catch (err) {
+      setCompareResult({ markdown: null, loading: false, error: String(err.message || err) });
+    }
+  }
+
+  async function pollCompareResult() {
+    try {
+      const resp = await fetch("/api/actions/compare/status");
+      const data = await resp.json();
+      if (data.running) {
+        setCompareResult({ markdown: null, loading: true, error: null, message: data.message });
+        window.setTimeout(pollCompareResult, 500);
+      } else if (data.error) {
+        setCompareResult({ markdown: null, loading: false, error: data.error });
+      } else {
+        // Load the comparison file
+        const path = data.comparison_path;
+        if (path) {
+          const fileResp = await fetch(`/api/comparisons/latest`);
+          const text = await fileResp.text();
+          setCompareResult({ markdown: text, loading: false, error: null });
+        } else {
+          setCompareResult({ markdown: "Comparison complete (no file generated).", loading: false, error: null });
+        }
+      }
+    } catch (err) {
+      setCompareResult({ markdown: null, loading: false, error: String(err.message || err) });
+    }
+  }
+
+  async function runReadingList() {
+    if (!readingListQuestion.trim()) return;
+    setReadingListResult({ recommendations: null, loading: true, error: null });
+    try {
+      const resp = await fetch("/api/reading-list", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: readingListQuestion.trim() }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.detail || `HTTP ${resp.status}`);
+      // Poll for result
+      pollReadingListResult();
+    } catch (err) {
+      setReadingListResult({ recommendations: null, loading: false, error: String(err.message || err) });
+    }
+  }
+
+  async function pollReadingListResult() {
+    try {
+      const resp = await fetch("/api/actions/reading-list/status");
+      const data = await resp.json();
+      if (data.running) {
+        setReadingListResult({ recommendations: null, loading: true, error: null, message: data.message });
+        window.setTimeout(pollReadingListResult, 500);
+      } else if (data.error) {
+        setReadingListResult({ recommendations: null, loading: false, error: data.error });
+      } else {
+        setReadingListResult({ recommendations: data.recommendations || [], loading: false, error: null });
+      }
+    } catch (err) {
+      setReadingListResult({ recommendations: null, loading: false, error: String(err.message || err) });
+    }
+  }
+
+  async function runConceptSearch(query) {
+    const q = (query || conceptSearchQuery).trim();
+    if (!q) return;
+    setConceptSearchQuery(q);
+    setConceptSearchLoading(true);
+    setConceptSearchResult(null);
+    try {
+      const resp = await fetch("/api/concepts/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: q }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.detail || `HTTP ${resp.status}`);
+      setConceptSearchResult(data);
+    } catch (err) {
+      setConceptSearchResult({ error: String(err.message || err) });
+    } finally {
+      setConceptSearchLoading(false);
+    }
+  }
+
+  function handleConceptClick(concept) {
+    setShowSearch(true);
+    runConceptSearch(concept);
+  }
+
   async function triggerSetupAction(endpoint, body) {
     setActionState({ busy: true, message: `Running ${endpoint}...`, error: false });
     try {
@@ -503,6 +628,13 @@ export default function App() {
                 ⓘ
               </button>
             )}
+            <button
+              className={`sidebar-icon${showReadingList ? " active" : ""}`}
+              onClick={() => setShowReadingList((s) => !s)}
+              title="Reading List"
+            >
+              ☰
+            </button>
           </div>
 
           {/* Spacer pushes settings to bottom */}
@@ -800,6 +932,7 @@ export default function App() {
                   actionState={actionState}
                   papers={payload ? payload.papers : []}
                   openInPaperTab={openInPaperTab}
+                  onConceptClick={handleConceptClick}
                 />
               : <div className="small" style={{ padding: "1rem" }}>
                   No paper selected — double-click a row in the Library tab to open one.
@@ -856,6 +989,16 @@ export default function App() {
               ✕ Drop from library
             </div>
 
+            <div
+              className="col-context-menu-item"
+              onClick={() => {
+                toggleCompareSelection(contextMenu.citekey);
+                setContextMenu(null);
+              }}
+            >
+              {compareSelection.includes(contextMenu.citekey) ? "✓ In comparison set" : "⊕ Add to comparison"}
+            </div>
+
             <div className="col-context-menu-sep" />
             <div className="col-context-menu-header" style={{ fontSize: "0.7rem" }}>Add to collection</div>
             {collections.length === 0 && (
@@ -874,6 +1017,152 @@ export default function App() {
           </div>
         )}
         </div>{/* end multicolumn-layout */}
+
+          {/* Comparison selection bar */}
+          {compareSelection.length > 0 && (
+            <div className="compare-bar">
+              <span className="small"><strong>{compareSelection.length}</strong> papers selected for comparison:</span>
+              <div className="compare-bar-pills">
+                {compareSelection.map((ck) => (
+                  <span key={ck} className="compare-bar-pill">
+                    {ck}
+                    <button className="compare-bar-pill-x" onClick={() => toggleCompareSelection(ck)}>×</button>
+                  </span>
+                ))}
+              </div>
+              <button
+                className="absent-refs-btn-small absent-refs-btn-primary"
+                disabled={compareSelection.length < 2}
+                onClick={() => runComparison()}
+              >
+                Compare Selected ({compareSelection.length})
+              </button>
+              <button className="absent-refs-btn-small" onClick={() => setCompareSelection([])}>Clear</button>
+            </div>
+          )}
+
+          {/* Reading list panel */}
+          {showReadingList && (
+            <div className="reading-list-panel">
+              <div className="reading-list-header">
+                <h3 style={{ margin: 0 }}>Reading List</h3>
+                <button className="icon-btn" onClick={() => setShowReadingList(false)} title="Close">✕</button>
+              </div>
+              <div className="reading-list-input-row">
+                <input
+                  value={readingListQuestion}
+                  onChange={(ev) => setReadingListQuestion(ev.target.value)}
+                  placeholder="Enter your research question..."
+                  style={{ flex: 1 }}
+                  onKeyDown={(ev) => { if (ev.key === "Enter") runReadingList(); }}
+                />
+                <button
+                  className="absent-refs-btn-small absent-refs-btn-primary"
+                  disabled={!readingListQuestion.trim() || (readingListResult && readingListResult.loading)}
+                  onClick={runReadingList}
+                >
+                  {readingListResult && readingListResult.loading ? "Generating..." : "Generate Reading List"}
+                </button>
+              </div>
+              {readingListResult && readingListResult.loading && (
+                <div className="small" style={{ padding: "0.6rem 0", opacity: 0.6 }}>
+                  <span className="action-spinner">⟳</span> {readingListResult.message || "Generating reading list..."}
+                </div>
+              )}
+              {readingListResult && readingListResult.error && (
+                <div className="action-status error" style={{ margin: "0.5rem 0" }}>{readingListResult.error}</div>
+              )}
+              {readingListResult && readingListResult.recommendations && (
+                <div className="reading-list-results">
+                  {readingListResult.recommendations.length === 0 ? (
+                    <div className="small" style={{ opacity: 0.6 }}>No recommendations generated.</div>
+                  ) : (
+                    readingListResult.recommendations.map((rec, idx) => (
+                      <div key={rec.citekey || idx} className="reading-list-item" onClick={() => openInPaperTab(rec.citekey)}>
+                        <div className="reading-list-item-header">
+                          <strong>{rec.citekey}</strong>
+                          <span className="reading-list-score-bar">
+                            <span className="reading-list-score-fill" style={{ width: `${Math.round((rec.score || 0) * 100)}%` }} />
+                            <span className="reading-list-score-label">{Math.round((rec.score || 0) * 100)}%</span>
+                          </span>
+                          <button
+                            className="absent-refs-btn-small"
+                            onClick={(e) => { e.stopPropagation(); updateLibraryEntry(rec.citekey, { priority: "high" }); }}
+                            title="Set priority to high"
+                          >
+                            ★ High
+                          </button>
+                        </div>
+                        <div className="small" style={{ opacity: 0.75, marginTop: "0.2rem" }}>{rec.justification}</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Concept search panel (in search column) */}
+          {showSearch && conceptSearchQuery && (
+            <div className="concept-search-panel">
+              <div className="concept-search-header">
+                <h3 style={{ margin: 0 }}>Concept Search: "{conceptSearchQuery}"</h3>
+                <button className="icon-btn" onClick={() => { setConceptSearchQuery(""); setConceptSearchResult(null); }} title="Close">✕</button>
+              </div>
+              {conceptSearchLoading && <div className="small" style={{ padding: "0.5rem 0", opacity: 0.6 }}>Searching concepts...</div>}
+              {conceptSearchResult && conceptSearchResult.error && (
+                <div className="action-status error">{conceptSearchResult.error}</div>
+              )}
+              {conceptSearchResult && !conceptSearchResult.error && (
+                <div className="concept-search-results">
+                  {(conceptSearchResult.matches || []).length === 0 && (
+                    <div className="small" style={{ opacity: 0.6 }}>No matching concepts found.</div>
+                  )}
+                  {(conceptSearchResult.matches || []).map((m) => (
+                    <div key={m.concept} className="concept-search-group">
+                      <div className="concepts-group-label">{m.concept}</div>
+                      <div className="concept-search-papers">
+                        {(m.citekeys || []).map((ck) => (
+                          <div
+                            key={ck}
+                            className="concept-search-paper-item"
+                            onClick={() => openInPaperTab(ck)}
+                          >
+                            {ck}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Compare modal */}
+          {showCompareModal && (
+            <div className="compare-modal-overlay" onClick={() => setShowCompareModal(false)}>
+              <div className="compare-modal" onClick={(e) => e.stopPropagation()}>
+                <div className="compare-modal-header">
+                  <h2 style={{ margin: 0 }}>Paper Comparison</h2>
+                  <button className="icon-btn" onClick={() => setShowCompareModal(false)} title="Close">✕</button>
+                </div>
+                <div className="compare-modal-body">
+                  {compareResult && compareResult.loading && (
+                    <div className="small" style={{ padding: "2rem", textAlign: "center", opacity: 0.6 }}>
+                      <span className="action-spinner">⟳</span> {compareResult.message || "Generating comparison..."}
+                    </div>
+                  )}
+                  {compareResult && compareResult.error && (
+                    <div className="action-status error">{compareResult.error}</div>
+                  )}
+                  {compareResult && compareResult.markdown && (
+                    <div className="docling-box docling-box-full" dangerouslySetInnerHTML={{ __html: renderMarkdown(compareResult.markdown) }} />
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Action status bar */}
           {actionState.message && (

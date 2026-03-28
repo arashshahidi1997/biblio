@@ -1994,6 +1994,17 @@ def create_ui_app(cfg: BiblioConfig):
             for f in files
         ]}
 
+    @app.get("/api/comparisons/latest", response_class=responses.PlainTextResponse)
+    def api_latest_comparison():
+        active_cfg = current_cfg()
+        compare_dir = active_cfg.repo_root / "bib" / "derivatives" / "comparisons"
+        if not compare_dir.exists():
+            raise fastapi.HTTPException(status_code=404, detail="No comparisons found")
+        files = sorted(compare_dir.glob("*.md"), reverse=True)
+        if not files:
+            raise fastapi.HTTPException(status_code=404, detail="No comparisons found")
+        return files[0].read_text(encoding="utf-8")
+
     # ── reading list (background action) ───────────────────────────────────────
 
     reading_list_job: dict[str, Any] = {
