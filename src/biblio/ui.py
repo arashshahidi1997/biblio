@@ -1875,6 +1875,80 @@ def create_ui_app(cfg: BiblioConfig):
     def action_rag_build_status():
         return _rag_build_snapshot()
 
+    # ── RAG index status endpoint ─────────────────────────────────────────────
+
+    @app.get("/api/rag/status", response_class=responses.JSONResponse)
+    def rag_index_status():
+        active_cfg = current_cfg()
+        rag_cfg_path = default_rag_config_path(active_cfg.repo_root)
+
+        # Count docling markdown files
+        docling_glob = list(active_cfg.out_root.glob("*/*.md"))
+        docling_files = [p for p in docling_glob if not p.name.startswith("_")]
+        docling_count = len(docling_files)
+
+        # Determine persist directory from rag config
+        persist_dir = active_cfg.rag_persist_dir
+        exists = persist_dir.exists() and any(persist_dir.iterdir()) if persist_dir.exists() else False
+
+        # Last built timestamp
+        last_built = None
+        if exists:
+            try:
+                last_built = persist_dir.stat().st_mtime
+            except OSError:
+                pass
+
+        # Try to get indexed document count from Chroma
+        indexed_count = 0
+        embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
+        chunk_size = 1000
+        chunk_overlap = 200
+        if exists and _indexio_mod is not None and rag_cfg_path.exists():
+            try:
+                cfg = _indexio_mod.load_indexio_config(rag_cfg_path, root=active_cfg.repo_root)
+                embedding_model = cfg.embedding_model
+                chunk_size = cfg.chunk_size_chars
+                chunk_overlap = cfg.chunk_overlap_chars
+                from langchain_chroma import Chroma as _Chroma
+                from indexio.query import make_embeddings as _make_emb
+                embeddings = _make_emb(cfg.embedding_model)
+                store_cfg = _indexio_mod.config.resolve_store(cfg, must_exist=True)
+                db = _Chroma(
+                    embedding_function=embeddings,
+                    persist_directory=str(store_cfg.persist_directory),
+                )
+                col = db._collection
+                indexed_count = col.count() if col is not None else 0
+            except Exception:
+                pass
+
+        # Staleness: docling files newer than last build
+        stale_count = 0
+        if exists and last_built is not None:
+            for p in docling_files:
+                try:
+                    if p.stat().st_mtime > last_built:
+                        stale_count += 1
+                except OSError:
+                    pass
+
+        # Check if build is currently running
+        building = _rag_build_snapshot().get("running", False)
+
+        return {
+            "exists": exists,
+            "last_built": last_built,
+            "docling_count": docling_count,
+            "indexed_count": indexed_count,
+            "stale": stale_count > 0,
+            "stale_count": stale_count,
+            "building": building,
+            "embedding_model": embedding_model,
+            "chunk_size": chunk_size,
+            "chunk_overlap": chunk_overlap,
+        }
+
     # ── semantic search endpoint ──────────────────────────────────────────────
 
     @app.post("/api/search/semantic", response_class=responses.JSONResponse)

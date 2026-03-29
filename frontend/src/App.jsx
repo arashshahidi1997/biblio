@@ -989,6 +989,8 @@ export default function App() {
             <SearchTab
               setActiveKey={setActiveKey}
               setActiveTab={(t) => setActiveTab(t === "corpus" ? "library" : t)}
+              triggerAction={triggerAction}
+              actionState={actionState}
             />
           </div>
         )}
