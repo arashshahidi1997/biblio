@@ -34,13 +34,12 @@ def _make_paper_context(citekey: str = "smith_2024_Test") -> dict:
     }
 
 
-@patch("biblio.summarize.json")
-@patch("biblio.summarize.load_biblio_config")
-@patch("biblio.summarize.default_config_path")
-@patch("biblio.summarize.grobid_outputs_for_key")
+@patch("biblio.config.load_biblio_config")
+@patch("biblio.config.default_config_path")
+@patch("biblio.grobid.grobid_outputs_for_key")
 @patch("biblio.mcp.paper_context")
 def test_assemble_context_includes_all_sections(
-    mock_paper_ctx, mock_grobid_out, mock_cfg_path, mock_load_cfg, mock_json
+    mock_paper_ctx, mock_grobid_out, mock_cfg_path, mock_load_cfg
 ):
     mock_paper_ctx.return_value = _make_paper_context()
 
@@ -65,13 +64,12 @@ def test_assemble_context_includes_all_sections(
     assert "unread" in result
 
 
-@patch("biblio.summarize.json")
-@patch("biblio.summarize.load_biblio_config")
-@patch("biblio.summarize.default_config_path")
-@patch("biblio.summarize.grobid_outputs_for_key")
+@patch("biblio.config.load_biblio_config")
+@patch("biblio.config.default_config_path")
+@patch("biblio.grobid.grobid_outputs_for_key")
 @patch("biblio.mcp.paper_context")
 def test_assemble_context_with_grobid_references(
-    mock_paper_ctx, mock_grobid_out, mock_cfg_path, mock_load_cfg, mock_json_mod
+    mock_paper_ctx, mock_grobid_out, mock_cfg_path, mock_load_cfg
 ):
     mock_paper_ctx.return_value = _make_paper_context()
 
@@ -86,7 +84,6 @@ def test_assemble_context_with_grobid_references(
     mock_grobid_out.return_value = grobid_out
     mock_cfg_path.return_value = Path("/fake/config.yml")
     mock_load_cfg.return_value = MagicMock()
-    mock_json_mod.loads = json.loads
 
     from biblio.summarize import assemble_context
 
@@ -117,8 +114,8 @@ def test_render_summary_md_frontmatter():
 
 
 @patch("biblio.summarize.assemble_context")
-@patch("biblio.summarize.load_biblio_config")
-@patch("biblio.summarize.default_config_path")
+@patch("biblio.config.load_biblio_config")
+@patch("biblio.config.default_config_path")
 def test_summarize_prompt_only(mock_cfg_path, mock_load_cfg, mock_assemble):
     mock_cfg_path.return_value = Path("/fake/config.yml")
     cfg = MagicMock()
@@ -141,8 +138,8 @@ def test_summarize_prompt_only(mock_cfg_path, mock_load_cfg, mock_assemble):
 
 
 @patch("biblio.summarize.assemble_context")
-@patch("biblio.summarize.load_biblio_config")
-@patch("biblio.summarize.default_config_path")
+@patch("biblio.config.load_biblio_config")
+@patch("biblio.config.default_config_path")
 @patch("biblio.summarize.summary_path_for_key")
 def test_summarize_skips_existing(mock_summary_path, mock_cfg_path, mock_load_cfg, mock_assemble, tmp_path):
     existing = tmp_path / "smith_2024_Test.md"
@@ -164,8 +161,8 @@ def test_summarize_skips_existing(mock_summary_path, mock_cfg_path, mock_load_cf
 
 
 @patch("biblio.summarize.assemble_context")
-@patch("biblio.summarize.load_biblio_config")
-@patch("biblio.summarize.default_config_path")
+@patch("biblio.config.load_biblio_config")
+@patch("biblio.config.default_config_path")
 @patch("biblio.summarize.summary_path_for_key")
 @patch.dict("os.environ", {}, clear=True)
 def test_summarize_no_api_key(mock_summary_path, mock_cfg_path, mock_load_cfg, mock_assemble, tmp_path):

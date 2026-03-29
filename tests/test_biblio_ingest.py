@@ -33,7 +33,7 @@ def test_ingest_csljson_writes_imported_bib_and_log(tmp_path: Path) -> None:
     out_bib = tmp_path / "bib" / "srcbib" / "imported.bib"
     assert result.output_path == out_bib
     text = out_bib.read_text(encoding="utf-8")
-    assert "@article{doe2024paper" in text
+    assert "@article{doe_2024_PaperOne" in text
     assert "journal = {Journal of Tests}" in text
     log_text = (tmp_path / "bib" / "logs" / "imports.jsonl").read_text(encoding="utf-8")
     assert '"source_type": "csljson"' in log_text
@@ -57,7 +57,7 @@ def test_ingest_ris_parses_and_dry_runs(tmp_path: Path) -> None:
     assert result.parsed == 1
     assert result.emitted == 1
     assert not (tmp_path / "bib" / "srcbib" / "imported.bib").exists()
-    assert "@article{doe2023ris" in bibtex_text
+    assert "@article{doe_2023_RisImported" in bibtex_text
 
 
 def test_ingest_dois_cli_stdout(tmp_path: Path, capsys) -> None:
@@ -67,7 +67,7 @@ def test_ingest_dois_cli_stdout(tmp_path: Path, capsys) -> None:
 
     biblio_main(["ingest", "dois", str(dois), "--root", str(tmp_path), "--stdout"])
     out = capsys.readouterr().out
-    assert "@misc{anonndalpha" in out
+    assert "@misc{anon_nd_Alpha" in out
     assert "doi = {10.1000/beta}" in out
 
 
@@ -93,7 +93,7 @@ def test_ingest_dois_enriches_with_openalex_metadata(tmp_path: Path) -> None:
         doi_fetch_json=fake_fetch,
     )
     assert result.emitted == 1
-    assert "@article{doe2024alpha" in bibtex_text
+    assert "@article{doe_2024_AlphaPaper" in bibtex_text
     assert "title = {Alpha Paper}" in bibtex_text
     assert "author = {Jane Doe}" in bibtex_text
 
@@ -110,11 +110,11 @@ def test_ingest_pdfs_copies_into_articles_and_emits_file_field(tmp_path: Path) -
         input_paths=[src_pdf],
     )
     assert result.emitted == 1
-    dest = tmp_path / "bib" / "articles" / "anonndinteresting" / "anonndinteresting.pdf"
+    dest = tmp_path / "bib" / "articles" / "anon_nd_InterestingPaper" / "anon_nd_InterestingPaper.pdf"
     assert dest.exists()
     text = (tmp_path / "bib" / "srcbib" / "imported.bib").read_text(encoding="utf-8")
-    assert "file = {bib/articles/anonndinteresting/anonndinteresting.pdf}" in text
-    assert "@misc{anonndinteresting" in bibtex_text
+    assert "file = {bib/articles/anon_nd_InterestingPaper/anon_nd_InterestingPaper.pdf}" in text
+    assert "@misc{anon_nd_InterestingPaper" in bibtex_text
 
 
 def test_ingest_appends_second_batch(tmp_path: Path) -> None:
@@ -127,5 +127,5 @@ def test_ingest_appends_second_batch(tmp_path: Path) -> None:
     ingest_file(repo_root=tmp_path, source_type="csljson", input_path=a)
     ingest_file(repo_root=tmp_path, source_type="csljson", input_path=b)
     text = (tmp_path / "bib" / "srcbib" / "imported.bib").read_text(encoding="utf-8")
-    assert "@article{doe2024first" in text
-    assert "@article{roe2025second" in text
+    assert "@article{doe_2024_FirstPaper" in text
+    assert "@article{roe_2025_SecondPaper" in text

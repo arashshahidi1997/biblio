@@ -971,8 +971,6 @@ def main(argv: Iterable[str] | None = None) -> None:
         # Build list of citekeys to process
         keys_to_process: list[str] = []
         if args.status:
-            from .library import load_library
-
             lib = load_library(cfg)
             keys_to_process = [k for k, v in lib.items() if v.get("status") == args.status]
             if not keys_to_process:

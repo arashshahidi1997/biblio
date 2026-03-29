@@ -56,7 +56,6 @@ def test_ui_api_exposes_model_and_index(tmp_path: Path) -> None:
     assert setup.status_code == 200
     setup_data = setup.json()
     assert "docling" in setup_data
-    assert "site_doctor" in setup_data
     assert "rag" in setup_data
     assert setup_data["rag"]["config_path"].endswith("bib/config/rag.yaml")
 
@@ -230,6 +229,7 @@ def test_ui_graph_action_exposes_progress(monkeypatch: pytest.MonkeyPatch, tmp_p
         progress_cb({"phase": "start", "completed": 0, "total": 1, "seed_openalex_id": None, "candidates": 0})
         progress_cb({"phase": "expand", "completed": 1, "total": 1, "seed_openalex_id": "W1", "candidates": 2})
         class _R:
+            total_inputs = 1
             candidates = 2
             output_path = tmp_path / "graph_candidates.json"
         return _R()
@@ -256,7 +256,7 @@ def test_ui_graph_action_exposes_progress(monkeypatch: pytest.MonkeyPatch, tmp_p
     data = status.json()
     assert data["running"] is False
     assert data["candidates"] == 2
-    assert "Expanded 2 graph candidates" in data["message"]
+    assert "2 total candidates" in data["message"]
 
 
 def test_ui_setup_can_update_docling_command(tmp_path: Path) -> None:

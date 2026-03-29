@@ -128,7 +128,7 @@ def test_add_openalex_work_to_bib_by_doi(monkeypatch, tmp_path: Path) -> None:
         repo_root=tmp_path,
         doi="10.1000/test",
     )
-    assert result.citekey.startswith("doe2024")
+    assert result.citekey.startswith("doe_2024_")
     assert result.output_path.exists()
     assert result.citekeys_path.exists()
     text = result.output_path.read_text(encoding="utf-8")

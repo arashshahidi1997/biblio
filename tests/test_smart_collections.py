@@ -316,7 +316,7 @@ class TestSmartCollections:
         assert len(summaries) == 2
         smart = next(s for s in summaries if s["smart"])
         manual = next(s for s in summaries if not s["smart"])
-        assert smart["count"] == 2
+        assert smart["resolved_count"] == 2
         assert manual["count"] == 0
 
     def test_smart_collection_with_description(self, cfg):
