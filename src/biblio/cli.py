@@ -12,6 +12,7 @@ from typing import Iterable
 from .citekeys import add_citekeys_md, load_citekeys_md, remove_citekeys_md
 from .config import default_config_path, load_biblio_config
 from .bibtex import merge_srcbib
+from .bibtex_export import export_bibtex
 from .docling import run_docling_for_key
 from .openalex import resolve_openalex
 from .paths import find_repo_root
@@ -157,6 +158,15 @@ def _build_parser() -> argparse.ArgumentParser:
     bt_merge.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
     bt_merge.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
     bt_merge.add_argument("--dry-run", action="store_true", help="Parse and report, but do not write output.")
+
+    bt_export = bt_sub.add_parser("export", help="Export BibTeX entries for selected citekeys.")
+    bt_export.add_argument("citekeys", nargs="*", help="Citekeys to export. Omit to use --all or --status.")
+    bt_export.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    bt_export.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    bt_export.add_argument("--all", action="store_true", dest="export_all", help="Export all entries from merged bib.")
+    bt_export.add_argument("--status", type=str, default=None, help="Export entries with this library status.")
+    bt_export.add_argument("--collection", type=str, default=None, help="Export entries from this collection.")
+    bt_export.add_argument("-o", "--output", type=Path, default=None, help="Output file (default: stdout).")
 
     bt_fetch = bt_sub.add_parser(
         "fetch-pdfs",
@@ -790,6 +800,39 @@ def main(argv: Iterable[str] | None = None) -> None:
             print(f"[OK] merged sources={n_sources} entries={n_entries} -> {cfg.bibtex_merge.out_bib}{suffix}")
             if cfg.bibtex_merge.duplicates_log.exists() and not args.dry_run:
                 print(f"[WARN] duplicates log: {cfg.bibtex_merge.duplicates_log}", file=sys.stderr)
+            return
+        if args.bibtex_cmd == "export":
+            citekeys = list(args.citekeys)
+            if args.export_all:
+                from ._pybtex_utils import parse_bibtex_file
+                bib_path = cfg.bibtex_merge.out_bib
+                if not bib_path.exists():
+                    print(f"[ERROR] merged bib not found: {bib_path}", file=sys.stderr)
+                    raise SystemExit(1)
+                db = parse_bibtex_file(bib_path)
+                citekeys = sorted(db.entries.keys())
+            if args.status:
+                from .library import load_library
+                lib = load_library(cfg)
+                citekeys = sorted(k for k, v in lib.items() if v.get("status") == args.status)
+            if args.collection:
+                from .collections import load_collections
+                col_data = load_collections(cfg)
+                col = next((c for c in col_data.get("collections", []) if c.get("name") == args.collection), None)
+                if col is None:
+                    print(f"[ERROR] collection not found: {args.collection}", file=sys.stderr)
+                    raise SystemExit(1)
+                citekeys = sorted(col.get("citekeys", []))
+            if not citekeys:
+                print("[ERROR] no citekeys specified (use positional args, --all, --status, or --collection)", file=sys.stderr)
+                raise SystemExit(1)
+            bib_text = export_bibtex(citekeys, repo_root=repo_root)
+            if args.output:
+                args.output.parent.mkdir(parents=True, exist_ok=True)
+                args.output.write_text(bib_text, encoding="utf-8")
+                print(f"[OK] exported {len(citekeys)} entries -> {args.output}")
+            else:
+                print(bib_text, end="")
             return
         if args.bibtex_cmd == "fetch-pdfs":
             counts = fetch_pdfs(cfg.pdf_fetch, dry_run=args.dry_run, force=args.force)

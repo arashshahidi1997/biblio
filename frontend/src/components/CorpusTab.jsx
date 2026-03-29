@@ -27,7 +27,17 @@ function ArtifactBadge({ exists, label, onAction, busy, actionLabel }) {
   return <span className="badge">{`no ${label}`}</span>;
 }
 
-function BulkToolbar({ count, bulkUpdateLibrary, setBulkSelection, loadModel }) {
+async function exportBibtex(citekeys) {
+  const res = await fetch("/api/export/bibtex", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ citekeys }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return await res.text();
+}
+
+function BulkToolbar({ count, bulkSelection, bulkUpdateLibrary, setBulkSelection, loadModel }) {
   const [bulkAddTags, setBulkAddTags] = useState([]);
   const [bulkRemoveTags, setBulkRemoveTags] = useState([]);
 
@@ -104,6 +114,40 @@ function BulkToolbar({ count, bulkUpdateLibrary, setBulkSelection, loadModel }) 
 
       <button
         className="bulk-toolbar-btn"
+        onClick={async () => {
+          try {
+            const bib = await exportBibtex(bulkSelection);
+            const blob = new Blob([bib], { type: "application/x-bibtex" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "export.bib";
+            a.click();
+            URL.revokeObjectURL(url);
+          } catch (e) {
+            console.error("BibTeX export failed", e);
+          }
+        }}
+      >
+        Export BibTeX
+      </button>
+
+      <button
+        className="bulk-toolbar-btn"
+        onClick={async () => {
+          try {
+            const bib = await exportBibtex(bulkSelection);
+            await navigator.clipboard.writeText(bib);
+          } catch (e) {
+            console.error("BibTeX copy failed", e);
+          }
+        }}
+      >
+        Copy BibTeX
+      </button>
+
+      <button
+        className="bulk-toolbar-btn"
         onClick={() => setBulkSelection([])}
       >
         Clear
@@ -155,6 +199,7 @@ export default function CorpusTab({
       {bulkSelection.length > 0 && !compact && (
         <BulkToolbar
           count={bulkSelection.length}
+          bulkSelection={bulkSelection}
           bulkUpdateLibrary={bulkUpdateLibrary}
           setBulkSelection={setBulkSelection}
           loadModel={loadModel}

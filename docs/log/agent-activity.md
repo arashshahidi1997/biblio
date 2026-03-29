@@ -106,3 +106,21 @@ Session: `4e57d514` | Task: `task-arash-20260329-041416-742117.md`
 **Tests**: 240 passed, 0 failed.
 
 Session: `062266c6` | Task: `task-arash-20260329-041419-108879.md`
+
+## 2026-03-29 04:48 | biblio | opus | 1 steps
+
+**Tests**: 157 passed, 0 failed.
+
+Session: `b1c4e66a` | Task: `task-arash-20260329-041421-534165.md`
+
+## 2026-03-29 04:52 | biblio | opus | 1 steps
+
+**Tests**: 157 passed, 0 failed.
+
+Session: `892ea945` | Task: `task-arash-20260329-041423-824361.md`
+
+## 2026-03-29 04:56 | biblio | opus | 1 steps
+
+**CSS** (`App.css`): Toast positioned fixed at top-center with slide-down animation, styled with existing theme variables (`--accent`, `--panel`, `--accent-soft`). Review modal with overlay, scrollable DOI list.
+
+Session: `9bc695a4` | Task: `task-arash-20260329-041425-565370.md`

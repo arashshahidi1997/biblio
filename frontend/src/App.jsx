@@ -1196,6 +1196,49 @@ export default function App() {
               {compareSelection.includes(contextMenu.citekey) ? "✓ In comparison set" : "⊕ Add to comparison"}
             </div>
 
+            <div
+              className="col-context-menu-item"
+              onClick={async () => {
+                try {
+                  const res = await fetch("/api/export/bibtex", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ citekeys: [contextMenu.citekey] }),
+                  });
+                  if (!res.ok) return;
+                  const bib = await res.text();
+                  const blob = new Blob([bib], { type: "application/x-bibtex" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `${contextMenu.citekey}.bib`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                } catch (e) { console.error("BibTeX export failed", e); }
+                setContextMenu(null);
+              }}
+            >
+              Export BibTeX
+            </div>
+            <div
+              className="col-context-menu-item"
+              onClick={async () => {
+                try {
+                  const res = await fetch("/api/export/bibtex", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ citekeys: [contextMenu.citekey] }),
+                  });
+                  if (!res.ok) return;
+                  const bib = await res.text();
+                  await navigator.clipboard.writeText(bib);
+                } catch (e) { console.error("BibTeX copy failed", e); }
+                setContextMenu(null);
+              }}
+            >
+              Copy BibTeX
+            </div>
+
             <div className="col-context-menu-sep" />
             <div className="col-context-menu-header" style={{ fontSize: "0.7rem" }}>Add to collection</div>
             {collections.length === 0 && (

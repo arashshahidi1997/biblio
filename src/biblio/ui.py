@@ -20,6 +20,7 @@ class _JobCancelledError(Exception):
 
 
 from .bibtex import merge_srcbib
+from .bibtex_export import export_bibtex
 from .ingest import IngestRecord, canonical_citekey, enrich_record, enrich_and_cache, EnrichCacheResult
 from .config import BiblioConfig, load_biblio_config
 from .docling import outputs_for_key as docling_outputs_for_key, run_docling_for_key
@@ -592,6 +593,22 @@ def create_ui_app(cfg: BiblioConfig):
             f"Merged {n_sources} source files into {n_entries} entries.",
             sources=n_sources,
             entries=n_entries,
+        )
+
+    @app.post("/api/export/bibtex")
+    def export_bibtex_endpoint(payload: dict[str, Any]):
+        citekeys = payload.get("citekeys")
+        if not citekeys or not isinstance(citekeys, list):
+            raise fastapi.HTTPException(status_code=400, detail="Missing or invalid 'citekeys' list")
+        active_cfg = current_cfg()
+        try:
+            bib_content = export_bibtex(citekeys, repo_root=active_cfg.repo_root)
+        except (FileNotFoundError, KeyError) as exc:
+            raise fastapi.HTTPException(status_code=404, detail=str(exc))
+        return fastapi.responses.Response(
+            content=bib_content,
+            media_type="application/x-bibtex",
+            headers={"Content-Disposition": 'attachment; filename="export.bib"'},
         )
 
     @app.post("/api/actions/docling-run", response_class=responses.JSONResponse)

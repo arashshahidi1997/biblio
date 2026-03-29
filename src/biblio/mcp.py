@@ -695,3 +695,26 @@ def biblio_present(
         force=force,
         model=model,
     )
+
+
+def export_bibtex_entries(
+    citekeys: list[str],
+    *,
+    root: Path,
+) -> dict[str, Any]:
+    """Export BibTeX entries for the given citekeys.
+
+    Returns ``{"ok": True, "bibtex": "<bib content>", "count": N}``
+    or ``{"error": "..."}`` on failure.
+    """
+    from .bibtex_export import export_bibtex
+
+    try:
+        bib_text = export_bibtex(citekeys, repo_root=root)
+        # Count entries actually exported
+        count = bib_text.count("\n@")
+        if bib_text.lstrip().startswith("@"):
+            count = max(count, 1)
+        return {"ok": True, "bibtex": bib_text, "count": count}
+    except (FileNotFoundError, KeyError) as exc:
+        return {"error": str(exc)}
