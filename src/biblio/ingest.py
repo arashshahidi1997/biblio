@@ -37,6 +37,7 @@ class IngestResult:
     emitted: int
     dry_run: bool
     citekeys: tuple[str, ...]
+    skipped: tuple[tuple[str, str], ...] = ()  # (doi, existing_citekey) pairs
 
 
 _STOPWORDS = {
@@ -60,6 +61,35 @@ def default_import_bib_path(repo_root: str | Path) -> Path:
 
 def default_import_log_path(repo_root: str | Path) -> Path:
     return Path(repo_root).expanduser().resolve() / "bib" / "logs" / "imports.jsonl"
+
+
+def find_existing_dois(repo_root: str | Path) -> dict[str, str]:
+    """Scan all srcbib/*.bib files and return a mapping of normalized DOI → citekey.
+
+    This allows duplicate detection before making any network calls during ingestion.
+    """
+    repo_root = Path(repo_root).expanduser().resolve()
+    src_dir = repo_root / "bib" / "srcbib"
+    if not src_dir.exists():
+        return {}
+
+    doi_map: dict[str, str] = {}
+    for bib_path in sorted(src_dir.glob("*.bib")):
+        if not bib_path.is_file():
+            continue
+        try:
+            from ._pybtex_utils import parse_bibtex_file
+
+            db = parse_bibtex_file(bib_path)
+            for key, entry in db.entries.items():
+                doi_val = entry.fields.get("doi")
+                if doi_val:
+                    norm = _normalize_doi(str(doi_val))
+                    if norm:
+                        doi_map[norm.lower()] = key
+        except Exception:
+            continue
+    return doi_map
 
 
 def _clean_text(value: Any) -> str | None:
@@ -810,15 +840,35 @@ def ingest_file(
     doi_fetch_json: Any | None = None,
     doi_api_base: str = "https://api.openalex.org",
     doi_mailto: str | None = None,
+    force: bool = False,
 ) -> tuple[IngestResult, str]:
     repo_root = Path(repo_root).expanduser().resolve()
     input_file = Path(input_path).expanduser().resolve() if input_path is not None else None
     out_path = Path(output_path).expanduser().resolve() if output_path is not None else default_import_bib_path(repo_root)
     pdf_dest_root = Path(pdf_root).expanduser().resolve() if pdf_root is not None else (repo_root / "bib" / "articles").resolve()
 
+    # ── Duplicate detection: build DOI→citekey map from existing srcbib ────
+    skipped: list[tuple[str, str]] = []  # (doi, existing_citekey)
+    existing_dois: dict[str, str] = {}
+    if not force:
+        try:
+            existing_dois = find_existing_dois(repo_root)
+        except Exception:
+            pass  # if pybtex unavailable or bib corrupt, skip check
+
     if source_type == "dois":
         assert input_file is not None
         records = parse_doi_file(input_file)
+        # Filter duplicates BEFORE network calls
+        if existing_dois:
+            filtered: list[IngestRecord] = []
+            for rec in records:
+                norm = (rec.doi or "").lower()
+                if norm and norm in existing_dois:
+                    skipped.append((rec.doi or "", existing_dois[norm]))
+                else:
+                    filtered.append(rec)
+            records = filtered
         records = enrich_doi_records_with_openalex(
             records,
             api_base=doi_api_base,
@@ -829,10 +879,28 @@ def ingest_file(
     elif source_type == "csljson":
         assert input_file is not None
         records = parse_csljson_file(input_file)
+        if existing_dois:
+            filtered = []
+            for rec in records:
+                norm = _normalize_doi(rec.doi)
+                if norm and norm.lower() in existing_dois:
+                    skipped.append((rec.doi or "", existing_dois[norm.lower()]))
+                else:
+                    filtered.append(rec)
+            records = filtered
         record_source = "csljson"
     elif source_type == "ris":
         assert input_file is not None
         records = parse_ris_file(input_file)
+        if existing_dois:
+            filtered = []
+            for rec in records:
+                norm = _normalize_doi(rec.doi)
+                if norm and norm.lower() in existing_dois:
+                    skipped.append((rec.doi or "", existing_dois[norm.lower()]))
+                else:
+                    filtered.append(rec)
+            records = filtered
         record_source = "ris"
     elif source_type == "pdfs":
         records = parse_pdf_inputs(list(input_paths or ([input_file] if input_file is not None else [])))
@@ -840,6 +908,7 @@ def ingest_file(
     else:
         raise ValueError(f"Unsupported ingest source type: {source_type!r}")
 
+    parsed_count = len(records) + len(skipped)
     assigned = assign_citekeys(records)
     if source_type == "pdfs":
         updated: list[tuple[str, IngestRecord]] = []
@@ -884,8 +953,9 @@ def ingest_file(
                 "input_path": str(input_file) if input_file is not None else None,
                 "input_paths": [str(p) for p in (input_paths or [])] if input_paths is not None else None,
                 "output_path": str(out_path),
-                "parsed": len(records),
+                "parsed": parsed_count,
                 "emitted": len(assigned),
+                "skipped": len(skipped),
                 "citekeys": list(citekeys),
             },
         )
@@ -894,10 +964,11 @@ def ingest_file(
         source_type=record_source,
         input_path=input_file or repo_root,
         output_path=out_path,
-        parsed=len(records),
+        parsed=parsed_count,
         emitted=len(assigned),
         dry_run=dry_run,
         citekeys=citekeys,
+        skipped=tuple(skipped),
     )
     return result, bibtex_text
 

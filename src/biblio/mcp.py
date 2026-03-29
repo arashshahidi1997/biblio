@@ -172,13 +172,15 @@ def ingest_dois(
     tags: list[str] | None = None,
     status: str = "unread",
     collection: str | None = None,
+    force: bool = False,
 ) -> dict[str, Any]:
     """Ingest papers by DOI: resolve via OpenAlex, generate citekeys, write BibTeX.
 
     Optionally sets library ledger tags/status and adds citekeys to a collection.
+    Skips DOIs that already exist in the library unless ``force=True``.
 
     Returns ``{"citekeys": [...], "count": N, "output_bib": str,
-               "collection": str|null}``.
+               "collection": str|null, "skipped": [...]}``.
     """
     import tempfile
 
@@ -197,6 +199,7 @@ def ingest_dois(
             repo_root=root,
             source_type="dois",
             input_path=tmp_path,
+            force=force,
         )
     finally:
         tmp_path.unlink(missing_ok=True)
@@ -245,9 +248,14 @@ def ingest_dois(
             col_id = new_col["id"]
         add_papers(cfg, col_id, citekeys)
 
+    skipped_info = [
+        {"doi": doi, "existing_citekey": ck} for doi, ck in result.skipped
+    ]
     return {
         "citekeys": citekeys,
         "count": len(citekeys),
+        "skipped": skipped_info,
+        "skipped_count": len(skipped_info),
         "output_bib": str(result.output_path),
         "collection": collection,
         "collection_id": col_id,

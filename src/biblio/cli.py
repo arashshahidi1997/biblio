@@ -117,6 +117,7 @@ def _build_parser() -> argparse.ArgumentParser:
         )
         p_in.add_argument("--dry-run", action="store_true", help="Parse and report without writing output.")
         p_in.add_argument("--stdout", action="store_true", help="Print generated BibTeX to stdout.")
+        p_in.add_argument("--force", action="store_true", help="Re-ingest even if DOI already exists in library.")
     p_pdf = ingest_sub.add_parser("pdfs", help="Import local PDFs into bib/articles and emit managed BibTeX entries.")
     p_pdf.add_argument("input_paths", nargs="+", type=Path, help="PDF files or directories containing PDFs.")
     p_pdf.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
@@ -128,6 +129,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p_pdf.add_argument("--dry-run", action="store_true", help="Parse and report without writing output.")
     p_pdf.add_argument("--stdout", action="store_true", help="Print generated BibTeX to stdout.")
+    p_pdf.add_argument("--force", action="store_true", help="Re-ingest even if DOI already exists in library.")
 
     p_doc = sub.add_parser("docling", help="Run Docling to generate Markdown/JSON artifacts.")
     doc_sub = p_doc.add_subparsers(dest="doc_cmd", required=True)
@@ -685,15 +687,27 @@ def main(argv: Iterable[str] | None = None) -> None:
             pdf_pattern=cfg.pdf_pattern if cfg is not None else "{citekey}/{citekey}.pdf",
             doi_api_base=cfg.openalex.api_base if cfg is not None else "https://api.openalex.org",
             doi_mailto=cfg.openalex.mailto if cfg is not None else None,
+            force=bool(getattr(args, "force", False)),
         )
+        out_stream = sys.stderr if args.stdout else sys.stdout
         suffix = " (dry-run)" if result.dry_run else ""
+        n_skipped = len(result.skipped)
+        skip_part = f" skipped={n_skipped}" if n_skipped else ""
         print(
-            f"[OK] source_type={result.source_type} parsed={result.parsed} emitted={result.emitted} output={result.output_path}{suffix}",
-            file=sys.stderr if args.stdout else sys.stdout,
+            f"[OK] source_type={result.source_type} parsed={result.parsed} "
+            f"emitted={result.emitted}{skip_part} output={result.output_path}{suffix}",
+            file=out_stream,
         )
+        if n_skipped:
+            print(
+                f"[OK] {result.emitted} added, {n_skipped} skipped (already in library)",
+                file=out_stream,
+            )
+            for doi, existing_ck in result.skipped:
+                print(f"  [SKIP] {doi} → @{existing_ck}", file=out_stream)
         if result.citekeys:
             citekeys_line = ",".join(result.citekeys)
-            print(f"[OK] citekeys={citekeys_line}", file=sys.stderr if args.stdout else sys.stdout)
+            print(f"[OK] citekeys={citekeys_line}", file=out_stream)
         if args.stdout:
             print(bibtex_text, end="")
         return
