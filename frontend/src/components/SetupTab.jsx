@@ -1,23 +1,55 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 
 function NormalizeKeysTool({ actionState }) {
-  const [preview, setPreview] = useState(null); // null | []
-  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState(null); // null | status object from backend
+  const [running, setRunning] = useState(false);
   const [applying, setApplying] = useState(false);
   const [applied, setApplied] = useState(false);
+  const [preview, setPreview] = useState(null); // final renames list after completion
+  const pollRef = useRef(null);
 
-  const fetchPreview = useCallback(() => {
-    setLoading(true);
+  // Poll status while running
+  useEffect(() => {
+    if (!running) {
+      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+      return;
+    }
+    const poll = () => {
+      fetch("/api/actions/normalize-citekeys/status")
+        .then((r) => r.json())
+        .then((data) => {
+          setStatus(data);
+          if (!data.running) {
+            setRunning(false);
+            setPreview(data.renames || []);
+          }
+        })
+        .catch(() => {});
+    };
+    poll(); // immediate first poll
+    pollRef.current = setInterval(poll, 1500);
+    return () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
+  }, [running]);
+
+  const startPreview = useCallback(() => {
+    setRunning(true);
     setPreview(null);
     setApplied(false);
+    setStatus(null);
     fetch("/api/actions/normalize-citekeys", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ apply: false }),
     })
       .then((r) => r.json())
-      .then((data) => { setPreview(data.renames || []); setLoading(false); })
-      .catch(() => { setPreview([]); setLoading(false); });
+      .catch(() => { setRunning(false); });
+  }, []);
+
+  const cancelPreview = useCallback(() => {
+    fetch("/api/actions/normalize-citekeys/cancel", { method: "POST" })
+      .then((r) => r.json())
+      .then((data) => { setStatus(data); setRunning(false); setPreview(data.renames || []); })
+      .catch(() => {});
   }, []);
 
   const applyRenames = useCallback(() => {
@@ -32,13 +64,24 @@ function NormalizeKeysTool({ actionState }) {
       .catch(() => setApplying(false));
   }, []);
 
+  const done = status ? status.done : 0;
+  const total = status ? status.total : 0;
+  const current = status ? status.current : "";
+  const enriched = status ? (status.enriched || []) : [];
+  const streamRenames = status ? (status.renames || []) : [];
+
   return (
     <div style={{ marginTop: "0.6rem" }}>
       <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
-        <button disabled={loading || actionState.busy} onClick={fetchPreview}>
-          {loading ? "Scanning…" : "Preview renames"}
+        <button disabled={running || applying || actionState.busy} onClick={startPreview}>
+          {running ? "Scanning…" : "Preview renames"}
         </button>
-        {preview && preview.length > 0 && (
+        {running && (
+          <button onClick={cancelPreview} style={{ background: "var(--error-bg, #e06c7522)", border: "1px solid var(--error, #e06c75)" }}>
+            Cancel
+          </button>
+        )}
+        {!running && preview && preview.length > 0 && (
           <button
             disabled={applying}
             onClick={applyRenames}
@@ -47,12 +90,48 @@ function NormalizeKeysTool({ actionState }) {
             {applying ? "Applying…" : `Apply ${preview.length} rename${preview.length !== 1 ? "s" : ""}`}
           </button>
         )}
-        {preview && preview.length === 0 && (
+        {!running && preview && preview.length === 0 && !status?.error && (
           <span className="small" style={{ opacity: 0.6 }}>All citekeys already standard.</span>
         )}
         {applied && <span className="small" style={{ opacity: 0.6 }}>Applied. Re-run pipeline steps to regenerate derivatives.</span>}
       </div>
-      {preview && preview.length > 0 && (
+
+      {/* Progress bar during preview */}
+      {running && total > 0 && (
+        <div style={{ marginTop: "0.4rem" }}>
+          <div style={{ fontSize: "0.72rem", opacity: 0.7, marginBottom: "0.2rem" }}>
+            Enriching paper {done}/{total}{current ? `: ${current}` : ""}
+            {enriched.length > 0 && ` · ${enriched.length} enriched`}
+            {streamRenames.length > 0 && ` · ${streamRenames.length} rename${streamRenames.length !== 1 ? "s" : ""}`}
+          </div>
+          <div style={{ height: "4px", background: "var(--border, #333)", borderRadius: "2px", overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${total > 0 ? (done / total) * 100 : 0}%`, background: "var(--accent, #4a9eff)", transition: "width 0.3s" }} />
+          </div>
+        </div>
+      )}
+
+      {/* Error display */}
+      {status?.error && !running && (
+        <div style={{ marginTop: "0.4rem", fontSize: "0.76rem", color: "var(--error, #e06c75)" }}>
+          {status.error}
+        </div>
+      )}
+
+      {/* Streaming renames during preview */}
+      {running && streamRenames.length > 0 && (
+        <div style={{ marginTop: "0.5rem", maxHeight: "200px", overflowY: "auto", fontSize: "0.76rem", fontFamily: "monospace" }}>
+          {streamRenames.map((r, i) => (
+            <div key={i} style={{ padding: "0.15rem 0", opacity: 0.85 }}>
+              <span style={{ color: "var(--error, #e06c75)" }}>{r.old}</span>
+              {" → "}
+              <span style={{ color: "var(--ok, #98c379)" }}>{r.new}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Final renames after completion */}
+      {!running && preview && preview.length > 0 && (
         <div style={{ marginTop: "0.5rem", maxHeight: "200px", overflowY: "auto", fontSize: "0.76rem", fontFamily: "monospace" }}>
           {preview.map((r, i) => (
             <div key={i} style={{ padding: "0.15rem 0", opacity: 0.85 }}>

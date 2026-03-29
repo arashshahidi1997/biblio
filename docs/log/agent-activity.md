@@ -76,3 +76,9 @@ Session: `aec30795` | Task: `task-arash-20260328-210155-950332.md`
 - Styled all new components: concept pills (per-category colors), comparison bar/modal, reading list panel with score bars, concept search results
 
 Session: `8ff02a40` | Task: `task-arash-20260328-210157-123214.md`
+
+## 2026-03-28 21:42 | biblio | opus | 1 steps
+
+**`frontend/src/App.css`** — Styles for research tab, subtabs, mode tabs, textarea, cite highlights, slide preview grid/cards, template picker cards
+
+Session: `d5bfef1a` | Task: `task-arash-20260328-210158-299797.md`

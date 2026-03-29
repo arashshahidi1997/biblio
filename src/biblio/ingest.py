@@ -345,6 +345,258 @@ def enrich_record(
     return record
 
 
+@dataclass(frozen=True)
+class EnrichCacheResult:
+    """Result of enrich_and_cache: enriched record + caching metadata."""
+    record: IngestRecord
+    source: str  # "openalex", "grobid", "crossref", or "" if unchanged
+    cached_paths: tuple[str, ...]  # paths written during caching
+
+
+def enrich_and_cache(
+    record: IngestRecord,
+    *,
+    pdf_path: Path | None = None,
+    grobid_cfg: Any | None = None,
+    repo_root: Path | None = None,
+    openalex_base: str = "https://api.openalex.org",
+    mailto: str | None = None,
+    crossref_min_similarity: float = 0.85,
+    fetch_json: Any | None = None,
+) -> EnrichCacheResult:
+    """Wrapper around enrich_record that also persists intermediate API results.
+
+    Caches:
+    - OpenAlex work JSON to bib/derivatives/openalex/cache/doi/{doi_slug}.json
+    - GROBID header JSON to bib/derivatives/grobid/{citekey}/header.json (without
+      overwriting existing references.json or TEI XML from a full GROBID run)
+    - CrossRef result to bib/derivatives/crossref/{doi_slug}.json
+    """
+    if not record.authors:
+        pass  # proceed with enrichment
+    else:
+        return EnrichCacheResult(record=record, source="", cached_paths=())
+
+    bib_root = repo_root / "bib" if repo_root else None
+    cached_paths: list[str] = []
+    source = ""
+
+    # Build a capturing fetch_json wrapper for OpenAlex
+    _openalex_payloads: list[tuple[str, Any]] = []  # (doi, payload)
+    _real_fetch = fetch_json
+
+    def _capturing_fetch(url: str) -> Any:
+        fn = _real_fetch or (lambda u: json.load(urllib.request.urlopen(u)))
+        return fn(url)
+
+    # ── Tier 1: DOI → OpenAlex ──────────────────────────────────────────────
+    if record.doi:
+        try:
+            doi_encoded = urllib.parse.quote(record.doi, safe="")
+            oa_url = f"{openalex_base.rstrip('/')}/works/doi:{doi_encoded}"
+            if mailto:
+                sep = "&" if "?" in oa_url else "?"
+                oa_url = f"{oa_url}{sep}mailto={urllib.parse.quote(mailto, safe='@')}"
+
+            # Check OpenAlex cache first
+            if bib_root:
+                doi_key = record.doi.replace("/", "__")
+                oa_cache_path = bib_root / "derivatives" / "openalex" / "cache" / "doi" / f"{doi_key}.json"
+                if oa_cache_path.exists():
+                    payload = json.loads(oa_cache_path.read_text(encoding="utf-8"))
+                else:
+                    payload = _capturing_fetch(oa_url)
+                    if payload and isinstance(payload, dict):
+                        oa_cache_path.parent.mkdir(parents=True, exist_ok=True)
+                        oa_cache_path.write_text(
+                            json.dumps(payload, indent=2, sort_keys=True) + "\n",
+                            encoding="utf-8",
+                        )
+                        cached_paths.append(str(oa_cache_path))
+            else:
+                payload = _capturing_fetch(oa_url)
+
+            if isinstance(payload, dict):
+                authors: list[str] = []
+                authorships = payload.get("authorships")
+                if isinstance(authorships, list):
+                    for item in authorships:
+                        if isinstance(item, Mapping):
+                            author = item.get("author")
+                            if isinstance(author, Mapping):
+                                name = _clean_text(author.get("display_name"))
+                                if name:
+                                    authors.append(name)
+                if authors:
+                    enriched = IngestRecord(
+                        source_type=record.source_type,
+                        source_ref=record.source_ref,
+                        entry_type="article",
+                        title=_clean_text(payload.get("display_name")) or record.title,
+                        authors=tuple(authors),
+                        year=_clean_text(payload.get("publication_year")) or record.year,
+                        doi=record.doi,
+                        url=_clean_text((payload.get("ids") or {}).get("openalex")) or record.url,
+                        journal=record.journal,
+                        booktitle=record.booktitle,
+                        raw_id=record.raw_id,
+                        file=record.file,
+                    )
+                    return EnrichCacheResult(
+                        record=enriched, source="openalex",
+                        cached_paths=tuple(cached_paths),
+                    )
+        except Exception:
+            pass
+
+    # ── Tier 2: PDF → GROBID header ─────────────────────────────────────────
+    if pdf_path and pdf_path.exists() and grobid_cfg is not None:
+        try:
+            from .grobid import process_pdf_header, parse_tei_header
+
+            tei_xml = process_pdf_header(grobid_cfg, pdf_path)
+            header = parse_tei_header(tei_xml)
+            authors_t = tuple(header.get("authors") or [])
+            if authors_t:
+                # Cache header.json (only if no existing header from a full run)
+                citekey = record.raw_id or "unknown"
+                if bib_root:
+                    grobid_dir = bib_root / "derivatives" / "grobid" / citekey
+                    header_path = grobid_dir / "header.json"
+                    if not header_path.exists():
+                        grobid_dir.mkdir(parents=True, exist_ok=True)
+                        header_path.write_text(
+                            json.dumps(header, indent=2, ensure_ascii=False),
+                            encoding="utf-8",
+                        )
+                        cached_paths.append(str(header_path))
+                enriched = IngestRecord(
+                    source_type=record.source_type,
+                    source_ref=record.source_ref,
+                    entry_type=record.entry_type,
+                    title=header.get("title") or record.title,
+                    authors=authors_t,
+                    year=header.get("year") or record.year,
+                    doi=header.get("doi") or record.doi,
+                    url=record.url,
+                    journal=record.journal,
+                    booktitle=record.booktitle,
+                    raw_id=record.raw_id,
+                    file=record.file,
+                )
+                return EnrichCacheResult(
+                    record=enriched, source="grobid",
+                    cached_paths=tuple(cached_paths),
+                )
+        except Exception:
+            pass
+
+    # ── Tier 3: Title → CrossRef → DOI → OpenAlex ───────────────────────────
+    if record.title:
+        try:
+            from .crossref import resolve_doi_by_title
+
+            result = resolve_doi_by_title(record.title)
+            sim = result.get("similarity", 0)
+            matched = (result.get("matched_title") or "").lower()
+            query = record.title.lower()
+            title_ok = sim >= crossref_min_similarity or (
+                sim >= 0.7 and matched.startswith(query)
+            )
+            if result.get("ok") and title_ok:
+                found_doi = result.get("doi")
+                if found_doi:
+                    # Cache CrossRef result
+                    if bib_root:
+                        doi_slug = found_doi.replace("/", "__")
+                        cr_cache_dir = bib_root / "derivatives" / "crossref"
+                        cr_cache_path = cr_cache_dir / f"{doi_slug}.json"
+                        if not cr_cache_path.exists():
+                            cr_cache_dir.mkdir(parents=True, exist_ok=True)
+                            cr_cache_path.write_text(
+                                json.dumps(result, indent=2, sort_keys=True) + "\n",
+                                encoding="utf-8",
+                            )
+                            cached_paths.append(str(cr_cache_path))
+
+                    # Now resolve via OpenAlex with the found DOI
+                    rec_with_doi = IngestRecord(
+                        source_type=record.source_type,
+                        source_ref=record.source_ref,
+                        entry_type=record.entry_type,
+                        title=record.title,
+                        authors=record.authors,
+                        year=record.year,
+                        doi=found_doi,
+                        url=record.url,
+                        journal=record.journal,
+                        booktitle=record.booktitle,
+                        raw_id=record.raw_id,
+                        file=record.file,
+                    )
+                    # Cache OpenAlex result for the CrossRef-resolved DOI too
+                    try:
+                        doi_encoded = urllib.parse.quote(found_doi, safe="")
+                        oa_url = f"{openalex_base.rstrip('/')}/works/doi:{doi_encoded}"
+                        if mailto:
+                            sep = "&" if "?" in oa_url else "?"
+                            oa_url = f"{oa_url}{sep}mailto={urllib.parse.quote(mailto, safe='@')}"
+
+                        if bib_root:
+                            doi_key = found_doi.replace("/", "__")
+                            oa_cache_path = bib_root / "derivatives" / "openalex" / "cache" / "doi" / f"{doi_key}.json"
+                            if oa_cache_path.exists():
+                                payload = json.loads(oa_cache_path.read_text(encoding="utf-8"))
+                            else:
+                                payload = _capturing_fetch(oa_url)
+                                if payload and isinstance(payload, dict):
+                                    oa_cache_path.parent.mkdir(parents=True, exist_ok=True)
+                                    oa_cache_path.write_text(
+                                        json.dumps(payload, indent=2, sort_keys=True) + "\n",
+                                        encoding="utf-8",
+                                    )
+                                    cached_paths.append(str(oa_cache_path))
+                        else:
+                            payload = _capturing_fetch(oa_url)
+
+                        if isinstance(payload, dict):
+                            authors_list: list[str] = []
+                            authorships = payload.get("authorships")
+                            if isinstance(authorships, list):
+                                for item in authorships:
+                                    if isinstance(item, Mapping):
+                                        author = item.get("author")
+                                        if isinstance(author, Mapping):
+                                            name = _clean_text(author.get("display_name"))
+                                            if name:
+                                                authors_list.append(name)
+                            if authors_list:
+                                enriched = IngestRecord(
+                                    source_type=rec_with_doi.source_type,
+                                    source_ref=rec_with_doi.source_ref,
+                                    entry_type="article",
+                                    title=_clean_text(payload.get("display_name")) or rec_with_doi.title,
+                                    authors=tuple(authors_list),
+                                    year=_clean_text(payload.get("publication_year")) or rec_with_doi.year,
+                                    doi=found_doi,
+                                    url=_clean_text((payload.get("ids") or {}).get("openalex")) or rec_with_doi.url,
+                                    journal=rec_with_doi.journal,
+                                    booktitle=rec_with_doi.booktitle,
+                                    raw_id=rec_with_doi.raw_id,
+                                    file=rec_with_doi.file,
+                                )
+                                return EnrichCacheResult(
+                                    record=enriched, source="crossref",
+                                    cached_paths=tuple(cached_paths),
+                                )
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
+    return EnrichCacheResult(record=record, source="", cached_paths=tuple(cached_paths))
+
+
 def _csl_authors(item: Mapping[str, Any]) -> tuple[str, ...]:
     out: list[str] = []
     authors = item.get("author")
