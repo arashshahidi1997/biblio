@@ -497,6 +497,7 @@ export default function ExploreTab({
             "transition-property":      "opacity",
             "transition-duration":      "0.12s",
           }},
+          { selector: "node[!isLocal]", style: { "shape": "diamond" }},
           { selector: "node[?isLocal]", style: { "background-color": "#d4813a" }},
           { selector: "node[?active]",  style: {
             "background-color": "#1a9e8a",
@@ -590,9 +591,14 @@ export default function ExploreTab({
 
       cyRef.current.on("tap", (evt) => {
         if (evt.target === cyRef.current) {
+          // Clear active data flag from all nodes so teal color doesn't persist
+          cyRef.current.nodes().forEach((n) => { n.data("active", false); });
           cyRef.current.elements().removeClass("faded");
           cyRef.current.elements().removeClass("path-highlight");
           cyRef.current.elements().unselect();
+          // Re-apply base visuals now that active is cleared
+          const { minYear: mn, maxYear: mx } = yearRangeRef.current;
+          applyVisuals(cyRef.current, sizeByRef.current, colorByRef.current, mn, mx, paperLookup, tagNamespaceRef.current, tagColorMap, showClusters ? clusterColors : null);
           setPathEndpoints([]);
           setPathLength(null);
           if (onSelectNode) onSelectNode(null);
@@ -601,7 +607,14 @@ export default function ExploreTab({
 
       cyRef.current.on("dbltap", "node", (evt) => {
         const id = evt.target.id();
-        if (id.startsWith("paper:") && openInPaperTab) openInPaperTab(id.slice("paper:".length));
+        if (id.startsWith("paper:") && openInPaperTab) {
+          openInPaperTab(id.slice("paper:".length));
+        } else if (id.startsWith("openalex:")) {
+          // Double-click external node → trigger add-to-library via Inspector
+          const node = (payload.graph.nodes || []).find((n) => n.id === id) || null;
+          setActiveExternalNode(node);
+          if (onSelectNode) onSelectNode({ kind: "external", node });
+        }
       });
 
       cyRef.current.on("mouseover", "node", (evt) => {

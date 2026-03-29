@@ -218,7 +218,8 @@ function DedupPanel() {
   );
 }
 
-export default function ActionsTab({ activePaper, actionState, triggerAction, addDoi, setAddDoi, updateLibraryEntry }) {
+export default function ActionsTab({ activePaper, actionState, triggerAction, addDoi, setAddDoi, updateLibraryEntry, paperCount }) {
+  const [expandConfirm, setExpandConfirm] = useState(false);
   return (
     <div className="panel">
       <h2>Actions</h2>
@@ -232,9 +233,17 @@ export default function ActionsTab({ activePaper, actionState, triggerAction, ad
         <button disabled={actionState.busy} onClick={() => triggerAction("openalex-resolve")}>
           Resolve OpenAlex
         </button>
-        <button disabled={actionState.busy} onClick={() => triggerAction("graph-expand")}>
-          Expand Graph
-        </button>
+        {!expandConfirm ? (
+          <button disabled={actionState.busy} onClick={() => setExpandConfirm(true)}>
+            Expand Graph
+          </button>
+        ) : (
+          <span className="expand-confirm-inline">
+            <span className="small">Query OpenAlex for {paperCount || "all"} papers? This may take several minutes.</span>
+            <button onClick={() => { setExpandConfirm(false); triggerAction("graph-expand"); }}>Expand</button>
+            <button onClick={() => setExpandConfirm(false)}>Cancel</button>
+          </span>
+        )}
         <button disabled={actionState.busy} onClick={() => triggerAction("site-build")}>
           Build Site
         </button>

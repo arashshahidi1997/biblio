@@ -74,6 +74,7 @@ export default function App() {
   const [doiReviewModal, setDoiReviewModal] = useState(null); // { dois: string[], checked: Set }
   const doiToastTimerRef = useRef(null);
   const [statsCollapsed, setStatsCollapsed] = useState(false);
+  const [expandAllConfirm, setExpandAllConfirm] = useState(false);
 
   const loadModel = useCallback(() => {
     fetch("/api/model").then((resp) => resp.json()).then((data) => {
@@ -1120,14 +1121,33 @@ export default function App() {
                   ⤢
                 </button>
                 <div className="sidebar-divider" />
-                <button
-                  className="sidebar-icon"
-                  title="Expand graph for all papers"
-                  disabled={actionState.busy}
-                  onClick={() => triggerAction("graph-expand", {})}
-                >
-                  ⊕
-                </button>
+                {expandAllConfirm ? (
+                  <>
+                    <button
+                      className="sidebar-icon"
+                      title="Confirm expand all"
+                      onClick={() => { setExpandAllConfirm(false); triggerAction("graph-expand", {}); }}
+                    >
+                      ✓
+                    </button>
+                    <button
+                      className="sidebar-icon"
+                      title="Cancel"
+                      onClick={() => setExpandAllConfirm(false)}
+                    >
+                      ✗
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    className="sidebar-icon"
+                    title={`Expand graph for all ${papers.length} papers`}
+                    disabled={actionState.busy}
+                    onClick={() => setExpandAllConfirm(true)}
+                  >
+                    ⊕
+                  </button>
+                )}
                 <button
                   className={`sidebar-icon${selectedGraphNode && selectedGraphNode.kind === "local" ? "" : " disabled-look"}`}
                   title={selectedGraphNode && selectedGraphNode.kind === "local"
@@ -1138,6 +1158,11 @@ export default function App() {
                 >
                   ⊕₁
                 </button>
+                {actionState.action === "graph-expand" && actionState.busy && actionState.progressTotal > 0 && (
+                  <span className="sidebar-progress small" title={actionState.message}>
+                    {actionState.progressCompleted}/{actionState.progressTotal}
+                  </span>
+                )}
               </nav>
               </div>
             </div>
