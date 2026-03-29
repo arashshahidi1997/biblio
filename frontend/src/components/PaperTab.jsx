@@ -697,7 +697,126 @@ function FiguresTab({ citekey }) {
   );
 }
 
-const CONTENT_SUBTABS = ["PDF", "Markdown", "Summary", "Slides", "Figures", "Refs"];
+const NOTES_VIEWS = ["split", "edit", "preview"];
+
+function NotesTab({ citekey }) {
+  const [content, setContent] = useState("");
+  const [savedContent, setSavedContent] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [saveStatus, setSaveStatus] = useState(""); // "" | "saving" | "saved" | "unsaved"
+  const [view, setView] = useState("split");
+  const loadedFor = useRef(null);
+  const saveTimer = useRef(null);
+
+  // Load notes on mount / citekey change
+  useEffect(() => {
+    if (loadedFor.current === citekey) return;
+    loadedFor.current = citekey;
+    setLoading(true);
+    setSaveStatus("");
+    fetch(`/api/papers/${encodeURIComponent(citekey)}/notes`)
+      .then((r) => r.text())
+      .then((t) => { setContent(t); setSavedContent(t); setLoading(false); })
+      .catch(() => { setContent(""); setSavedContent(""); setLoading(false); });
+  }, [citekey]);
+
+  // Reset cache when citekey changes
+  useEffect(() => { loadedFor.current = null; }, [citekey]);
+
+  // Auto-save with debounce
+  const scheduleAutosave = useCallback((text) => {
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      doSave(text);
+    }, 2000);
+  }, [citekey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function doSave(text) {
+    clearTimeout(saveTimer.current);
+    setSaveStatus("saving");
+    fetch(`/api/papers/${encodeURIComponent(citekey)}/notes`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: text }),
+    })
+      .then((r) => { if (!r.ok) throw new Error("save failed"); return r.json(); })
+      .then(() => { setSavedContent(text); setSaveStatus("saved"); })
+      .catch(() => setSaveStatus("unsaved"));
+  }
+
+  function handleChange(ev) {
+    const val = ev.target.value;
+    setContent(val);
+    setSaveStatus("unsaved");
+    scheduleAutosave(val);
+  }
+
+  function handleBlur() {
+    if (content !== savedContent) {
+      clearTimeout(saveTimer.current);
+      doSave(content);
+    }
+  }
+
+  // Cleanup timer on unmount
+  useEffect(() => () => clearTimeout(saveTimer.current), []);
+
+  if (loading) {
+    return <div className="small" style={{ padding: "1rem", opacity: 0.6 }}>Loading notes…</div>;
+  }
+
+  const html = useMemo(() => renderMarkdown(content || ""), [content]);
+  const showEditor = view === "split" || view === "edit";
+  const showPreview = view === "split" || view === "preview";
+
+  return (
+    <div className="notes-tab">
+      <div className="notes-toolbar">
+        <div className="notes-view-toggle">
+          {NOTES_VIEWS.map((v) => (
+            <button
+              key={v}
+              className={`subtab-btn${view === v ? " active" : ""}`}
+              onClick={() => setView(v)}
+            >
+              {v.charAt(0).toUpperCase() + v.slice(1)}
+            </button>
+          ))}
+        </div>
+        <span className="notes-save-status" style={{
+          fontSize: "0.72rem",
+          opacity: saveStatus ? 0.8 : 0.3,
+          color: saveStatus === "saved" ? "var(--ok, #4caf7d)"
+            : saveStatus === "unsaved" ? "var(--warn, #e0a84b)"
+            : saveStatus === "saving" ? "var(--accent, #61afef)"
+            : undefined,
+        }}>
+          {saveStatus === "saved" ? "Saved" : saveStatus === "unsaved" ? "Unsaved changes" : saveStatus === "saving" ? "Saving…" : ""}
+        </span>
+      </div>
+      <div className={`notes-body${showEditor && showPreview ? " notes-body-split" : ""}`}>
+        {showEditor && (
+          <textarea
+            className="notes-editor"
+            value={content}
+            onChange={handleChange}
+            onBlur={handleBlur}
+            placeholder="Start writing notes..."
+            spellCheck
+          />
+        )}
+        {showPreview && (
+          <div
+            className="notes-preview docling-box docling-box-full"
+            dangerouslySetInnerHTML={{ __html: content.trim() ? html : '<p class="small" style="opacity:0.5">Preview will appear here…</p>' }}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+const CONTENT_SUBTABS = ["PDF", "Markdown", "Summary", "Slides", "Figures", "Refs", "Notes"];
 
 const SLIDE_TEMPLATES = [
   { value: "journal-club", label: "Journal Club", desc: "Background, methods, key results, discussion points, and open questions for group critique" },
@@ -890,6 +1009,7 @@ export default function PaperTab({
   const hasConcepts = !!activePaper.has_concepts;
   const hasSlides = !!activePaper.has_slides;
   const hasAutotag = !!activePaper.has_autotag;
+  const hasNotes = !!activePaper.has_notes;
 
   return (
     <div className="paper-detail paper-detail-split">
@@ -957,6 +1077,10 @@ export default function PaperTab({
             busy={busy}
             onAction={!hasAutotag ? () => triggerAction("autotag", { citekey: activePaper.citekey }) : null}
             actionLabel="Auto-tag this paper"
+          />
+          <ArtifactBadge
+            exists={hasNotes}
+            label="notes"
           />
           {hasOpenalex && (
             <button
@@ -1072,6 +1196,12 @@ export default function PaperTab({
               ) : (
                 <div className="small">No GROBID data. Run GROBID on this paper first.</div>
               )}
+            </div>
+          )}
+
+          {contentTab === "Notes" && (
+            <div className="panel paper-content-panel">
+              <NotesTab citekey={activePaper.citekey} />
             </div>
           )}
         </div>

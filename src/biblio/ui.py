@@ -408,6 +408,7 @@ def create_ui_app(cfg: BiblioConfig):
             paper["has_concepts"] = load_concepts(active_cfg, ck) is not None if ck else False
             paper["has_slides"] = slides_path_for_key(active_cfg, ck).exists() if ck else False
             paper["has_autotag"] = autotag_load_cache(active_cfg, ck) is not None if ck else False
+            paper["has_notes"] = notes_path(active_cfg, ck).exists() if ck else False
         payload.pop("paper_lookup", None)
         return payload
 
@@ -1544,6 +1545,25 @@ def create_ui_app(cfg: BiblioConfig):
                 "caption": caption_map.get(fpath.stem, ""),
             })
         return {"figures": figures}
+
+    # ── notes endpoints ─────────────────────────────────────────────────────
+
+    @app.get("/api/papers/{citekey}/notes", response_class=responses.PlainTextResponse)
+    def paper_notes_get(citekey: str):
+        key = citekey.lstrip("@")
+        path = notes_path(current_cfg(), key)
+        if path.exists():
+            return responses.PlainTextResponse(path.read_text(encoding="utf-8", errors="replace"))
+        return responses.PlainTextResponse("")
+
+    @app.put("/api/papers/{citekey}/notes", response_class=responses.JSONResponse)
+    def paper_notes_put(citekey: str, payload: dict[str, Any]):
+        key = citekey.lstrip("@")
+        content = str(payload.get("content", ""))
+        path = notes_path(current_cfg(), key)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+        return {"ok": True, "citekey": key, "path": str(path)}
 
     # ── collections endpoints ─────────────────────────────────────────────────
 

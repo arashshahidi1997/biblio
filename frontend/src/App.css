@@ -2073,3 +2073,58 @@ a.cite-link:hover {
   background: #e06c75;
   color: white;
 }
+
+/* ── Notes tab ─────────────────────────────────────────────────────────── */
+.notes-tab {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.notes-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.4rem 0.8rem;
+  border-bottom: 1px solid var(--line, #ddd);
+}
+.notes-view-toggle {
+  display: flex;
+  gap: 0.2rem;
+}
+.notes-save-status {
+  margin-left: auto;
+}
+.notes-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.notes-body-split {
+  display: flex;
+  gap: 0;
+}
+.notes-body-split > * {
+  flex: 1;
+  min-width: 0;
+}
+.notes-editor {
+  flex: 1;
+  resize: none;
+  border: none;
+  outline: none;
+  padding: 0.8rem;
+  font-family: inherit;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  background: var(--bg, #1e1e2e);
+  color: var(--fg, #cdd6f4);
+  min-height: 300px;
+}
+.notes-body-split .notes-editor {
+  border-right: 1px solid var(--line, #ddd);
+}
+.notes-preview {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 300px;
+}
