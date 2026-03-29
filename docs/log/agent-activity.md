@@ -130,3 +130,9 @@ Session: `9bc695a4` | Task: `task-arash-20260329-041425-565370.md`
 **Tests** — 4 new tests added, all 161 pass.
 
 Session: `996b6801` | Task: `task-arash-20260329-041427-972311.md`
+
+## 2026-03-29 05:21 | biblio | opus | 1 steps
+
+**Tests** — 10 tests in `tests/test_dedup.py` covering DOI duplicates, DOI normalization, title similarity, threshold tuning, suggested_keep scoring, OpenAlex ID duplicates, missing bib, and helper functions. All 171 tests pass.
+
+Session: `1aab5521` | Task: `task-arash-20260329-041430-380655.md`

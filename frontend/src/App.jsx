@@ -7,6 +7,7 @@ import SearchTab from './components/SearchTab';
 import GraphInspector from './components/GraphInspector';
 import CollectionTree from './components/CollectionTree';
 import ResearchTab from './components/ResearchTab';
+import StatsPanel from './components/StatsPanel';
 import { renderMarkdown } from './utils/markdown.js';
 
 export default function App() {
@@ -71,6 +72,7 @@ export default function App() {
   const [doiToast, setDoiToast] = useState(null); // { dois: string[], timer: number }
   const [doiReviewModal, setDoiReviewModal] = useState(null); // { dois: string[], checked: Set }
   const doiToastTimerRef = useRef(null);
+  const [statsCollapsed, setStatsCollapsed] = useState(false);
 
   const loadModel = useCallback(() => {
     fetch("/api/model").then((resp) => resp.json()).then((data) => {
@@ -996,6 +998,12 @@ export default function App() {
         {/* Library list column */}
         {activeTab === "library" && libraryMode !== "graph" && (
           <div className="col col-library">
+            <StatsPanel
+              collapsed={statsCollapsed}
+              onToggle={() => setStatsCollapsed((s) => !s)}
+              onFilterStatus={(s) => setStatusFilter(s === statusFilter ? '' : s)}
+              onFilterTag={(t) => setTagFilter(t === tagFilter ? '' : t)}
+            />
             <CorpusTab
               papers={papers}
               actionState={actionState}

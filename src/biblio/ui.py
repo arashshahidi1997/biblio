@@ -423,6 +423,69 @@ def create_ui_app(cfg: BiblioConfig):
         payload = build_ui_model(current_cfg())
         return payload["status"]
 
+    @app.get("/api/stats", response_class=responses.JSONResponse)
+    def stats():
+        active_cfg = current_cfg()
+        payload = build_ui_model(active_cfg)
+        all_papers = payload.get("papers", [])
+        lib = load_library(active_cfg)
+        total = len(all_papers)
+
+        # Status counts
+        status_counts: dict[str, int] = {}
+        for paper in all_papers:
+            s = (paper.get("library") or {}).get("status") or "unset"
+            status_counts[s] = status_counts.get(s, 0) + 1
+
+        # Year histogram
+        year_counts: dict[str, int] = {}
+        for paper in all_papers:
+            y = paper.get("year")
+            if y:
+                year_counts[str(y)] = year_counts.get(str(y), 0) + 1
+
+        # Tag frequency (top 15) and namespace distribution
+        tag_freq: dict[str, int] = {}
+        ns_counts: dict[str, int] = {}
+        for paper in all_papers:
+            tags = (paper.get("library") or {}).get("tags") or []
+            for tag in tags:
+                tag_freq[tag] = tag_freq.get(tag, 0) + 1
+                ns = tag.split(":")[0] if ":" in tag else "_unnamespaced"
+                ns_counts[ns] = ns_counts.get(ns, 0) + 1
+        top_tags = sorted(tag_freq.items(), key=lambda x: -x[1])[:15]
+
+        # Derivative coverage
+        def _pct(n: int) -> float:
+            return round(100 * n / total, 1) if total else 0.0
+
+        with_pdf = sum(1 for p in all_papers if p.get("artifacts", {}).get("pdf", {}).get("exists"))
+        with_docling = sum(1 for p in all_papers if p.get("artifacts", {}).get("docling_md", {}).get("exists"))
+        with_grobid = sum(1 for p in all_papers if p.get("artifacts", {}).get("grobid", {}).get("exists"))
+        with_summary = sum(1 for p in all_papers if p.get("has_summary"))
+        with_concepts = sum(1 for p in all_papers if p.get("has_concepts"))
+
+        # Fetch queue
+        from .fetch_queue import load_queue as _load_fq
+        fq = _load_fq(active_cfg)
+
+        return {
+            "total": total,
+            "by_status": status_counts,
+            "by_year": dict(sorted(year_counts.items())),
+            "top_tags": [{"tag": t, "count": c} for t, c in top_tags],
+            "tag_namespaces": ns_counts,
+            "coverage": {
+                "pdf": {"count": with_pdf, "pct": _pct(with_pdf)},
+                "docling": {"count": with_docling, "pct": _pct(with_docling)},
+                "grobid": {"count": with_grobid, "pct": _pct(with_grobid)},
+                "summary": {"count": with_summary, "pct": _pct(with_summary)},
+                "concepts": {"count": with_concepts, "pct": _pct(with_concepts)},
+            },
+            "missing_pdf": total - with_pdf,
+            "fetch_queue": len(fq),
+        }
+
     @app.get("/api/graph", response_class=responses.JSONResponse)
     def graph():
         payload = build_ui_model(current_cfg())
