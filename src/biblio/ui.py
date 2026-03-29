@@ -1181,6 +1181,96 @@ def create_ui_app(cfg: BiblioConfig):
             doi=result.doi,
         )
 
+    # ── BibTeX file/string import ────────────────────────────────────────────
+
+    @app.post("/api/ingest/preview-bib", response_class=responses.JSONResponse)
+    async def ingest_preview_bib(
+        file: fastapi.UploadFile | None = fastapi.File(None),
+        bibtex_text: str = fastapi.Form(""),
+    ):
+        """Parse an uploaded .bib file or pasted BibTeX text and return preview entries."""
+        from .ingest import preview_bibtex
+        text = bibtex_text.strip()
+        if file and file.filename:
+            raw = await file.read()
+            text = raw.decode("utf-8", errors="replace")
+        if not text:
+            raise fastapi.HTTPException(status_code=400, detail="No BibTeX content provided")
+        active_cfg = current_cfg()
+        try:
+            entries = preview_bibtex(text, active_cfg.repo_root)
+        except Exception as e:
+            raise fastapi.HTTPException(status_code=422, detail=f"BibTeX parse error: {e}")
+        return {
+            "ok": True,
+            "entries": [
+                {
+                    "citekey": e.citekey,
+                    "title": e.title,
+                    "authors": e.authors,
+                    "year": e.year,
+                    "doi": e.doi,
+                    "entry_type": e.entry_type,
+                    "already_exists": e.already_exists,
+                }
+                for e in entries
+            ],
+        }
+
+    bib_import_job: dict[str, Any] = {
+        "running": False,
+        "completed": 0,
+        "total": 0,
+        "message": "",
+        "error": None,
+        "citekeys": [],
+    }
+    bib_import_lock = threading.Lock()
+
+    @app.post("/api/ingest/import-bib", response_class=responses.JSONResponse)
+    def ingest_import_bib(payload: dict[str, Any]):
+        """Import selected BibTeX entries into srcbib."""
+        from .ingest import import_bibtex_entries
+        bibtex_text = str(payload.get("bibtex_text") or "").strip()
+        selected = payload.get("entries") or []
+        if not bibtex_text:
+            raise fastapi.HTTPException(status_code=400, detail="Missing bibtex_text")
+        if not selected:
+            raise fastapi.HTTPException(status_code=400, detail="No entries selected")
+        # Extract citekeys from the entries list
+        citekeys = [str(e.get("citekey") or e) if isinstance(e, dict) else str(e) for e in selected]
+        active_cfg = current_cfg()
+
+        with bib_import_lock:
+            if bib_import_job["running"]:
+                raise fastapi.HTTPException(status_code=409, detail="Import already running")
+            bib_import_job.update(running=True, completed=0, total=len(citekeys), message="Importing...", error=None, citekeys=[])
+
+        def _run():
+            try:
+                count, added = import_bibtex_entries(
+                    bibtex_text=bibtex_text,
+                    selected_citekeys=citekeys,
+                    repo_root=active_cfg.repo_root,
+                )
+                with bib_import_lock:
+                    bib_import_job.update(
+                        running=False, completed=count, total=count,
+                        message=f"Imported {count} entries.",
+                        citekeys=added,
+                    )
+            except Exception as exc:
+                with bib_import_lock:
+                    bib_import_job.update(running=False, error=str(exc), message=f"Import failed: {exc}")
+
+        threading.Thread(target=_run, daemon=True).start()
+        return {"ok": True, "message": f"Importing {len(citekeys)} entries..."}
+
+    @app.get("/api/ingest/import-bib/status", response_class=responses.JSONResponse)
+    def ingest_import_bib_status():
+        with bib_import_lock:
+            return dict(bib_import_job)
+
     # ── drop paper from library (remove from citekeys.md) ────────────────────
 
     @app.delete("/api/papers/{citekey}", response_class=responses.JSONResponse)

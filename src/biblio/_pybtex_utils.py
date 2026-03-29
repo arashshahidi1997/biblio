@@ -31,3 +31,12 @@ def parse_bibtex_file(path: str | Path):
 
     with non_strict_pybtex():
         return parse_file(str(path))
+
+
+def parse_bibtex_string(text: str):
+    """Parse a BibTeX string and return a BibliographyData object."""
+    require_pybtex("BibTeX features")
+    from pybtex.database import parse_string
+
+    with non_strict_pybtex():
+        return parse_string(text, "bibtex")

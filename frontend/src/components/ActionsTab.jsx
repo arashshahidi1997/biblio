@@ -1,4 +1,331 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
+
+function BibImportPanel() {
+  const [preview, setPreview] = useState(null); // [{citekey, title, authors, year, doi, entry_type, already_exists}]
+  const [selected, setSelected] = useState({}); // {citekey: bool}
+  const [loading, setLoading] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState(null);
+  const [error, setError] = useState(null);
+  const [pasteMode, setPasteMode] = useState(false);
+  const [pasteText, setPasteText] = useState("");
+  const [rawBibtex, setRawBibtex] = useState(""); // stored for import
+  const [dragOver, setDragOver] = useState(false);
+  const fileRef = useRef(null);
+
+  async function parseFile(file) {
+    setLoading(true);
+    setError(null);
+    setPreview(null);
+    setImportResult(null);
+    const form = new FormData();
+    form.append("file", file);
+    try {
+      const resp = await fetch("/api/ingest/preview-bib", { method: "POST", body: form });
+      if (!resp.ok) {
+        const d = await resp.json().catch(() => ({}));
+        throw new Error(d.detail || `HTTP ${resp.status}`);
+      }
+      const data = await resp.json();
+      // Read file text for later import
+      const text = await file.text();
+      setRawBibtex(text);
+      applyPreview(data.entries || []);
+    } catch (err) {
+      setError(String(err.message || err));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function parseText(text) {
+    setLoading(true);
+    setError(null);
+    setPreview(null);
+    setImportResult(null);
+    const form = new FormData();
+    form.append("bibtex_text", text);
+    try {
+      const resp = await fetch("/api/ingest/preview-bib", { method: "POST", body: form });
+      if (!resp.ok) {
+        const d = await resp.json().catch(() => ({}));
+        throw new Error(d.detail || `HTTP ${resp.status}`);
+      }
+      const data = await resp.json();
+      setRawBibtex(text);
+      applyPreview(data.entries || []);
+    } catch (err) {
+      setError(String(err.message || err));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function applyPreview(entries) {
+    setPreview(entries);
+    const sel = {};
+    for (const e of entries) {
+      sel[e.citekey] = !e.already_exists;
+    }
+    setSelected(sel);
+  }
+
+  function handleDrop(ev) {
+    ev.preventDefault();
+    setDragOver(false);
+    const file = ev.dataTransfer.files?.[0];
+    if (file) parseFile(file);
+  }
+
+  function handleFileChange(ev) {
+    const file = ev.target.files?.[0];
+    if (file) parseFile(file);
+  }
+
+  function selectAllNew() {
+    if (!preview) return;
+    const sel = {};
+    for (const e of preview) sel[e.citekey] = !e.already_exists;
+    setSelected(sel);
+  }
+
+  function selectNone() {
+    if (!preview) return;
+    const sel = {};
+    for (const e of preview) sel[e.citekey] = false;
+    setSelected(sel);
+  }
+
+  const selectedCount = preview ? preview.filter((e) => selected[e.citekey]).length : 0;
+  const newCount = preview ? preview.filter((e) => !e.already_exists).length : 0;
+
+  async function doImport() {
+    const entries = preview.filter((e) => selected[e.citekey]).map((e) => ({ citekey: e.citekey }));
+    if (!entries.length) return;
+    setImporting(true);
+    setError(null);
+    setImportResult(null);
+    try {
+      const resp = await fetch("/api/ingest/import-bib", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bibtex_text: rawBibtex, entries }),
+      });
+      if (!resp.ok) {
+        const d = await resp.json().catch(() => ({}));
+        throw new Error(d.detail || `HTTP ${resp.status}`);
+      }
+      // Poll for completion
+      let done = false;
+      while (!done) {
+        await new Promise((r) => setTimeout(r, 500));
+        const sr = await fetch("/api/ingest/import-bib/status");
+        const status = await sr.json();
+        if (!status.running) {
+          done = true;
+          if (status.error) {
+            setError(status.error);
+          } else {
+            setImportResult(status);
+          }
+        }
+      }
+    } catch (err) {
+      setError(String(err.message || err));
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  function resetPanel() {
+    setPreview(null);
+    setSelected({});
+    setError(null);
+    setImportResult(null);
+    setRawBibtex("");
+    setPasteText("");
+    setPasteMode(false);
+    setDragOver(false);
+    if (fileRef.current) fileRef.current.value = "";
+  }
+
+  const onDragOver = useCallback((ev) => { ev.preventDefault(); setDragOver(true); }, []);
+  const onDragLeave = useCallback(() => setDragOver(false), []);
+
+  return (
+    <div className="lint-section">
+      <h3>Import BibTeX</h3>
+
+      {!preview && !importResult && (
+        <>
+          {/* Drag-and-drop zone */}
+          <div
+            onDrop={handleDrop}
+            onDragOver={onDragOver}
+            onDragLeave={onDragLeave}
+            onClick={() => !pasteMode && fileRef.current?.click()}
+            style={{
+              border: `2px dashed ${dragOver ? "var(--accent, #61afef)" : "var(--border, #444)"}`,
+              borderRadius: "6px",
+              padding: "1.2rem",
+              textAlign: "center",
+              cursor: pasteMode ? "default" : "pointer",
+              background: dragOver ? "rgba(97,175,239,0.06)" : "transparent",
+              transition: "border-color 0.15s, background 0.15s",
+              marginTop: "0.5rem",
+            }}
+          >
+            {pasteMode ? (
+              <div style={{ textAlign: "left" }}>
+                <textarea
+                  value={pasteText}
+                  onChange={(ev) => setPasteText(ev.target.value)}
+                  placeholder={"Paste BibTeX here...\n\n@article{example2024,\n  title = {Example Paper},\n  author = {Doe, Jane},\n  year = {2024},\n}"}
+                  rows={8}
+                  style={{
+                    width: "100%",
+                    fontFamily: "monospace",
+                    fontSize: "0.75rem",
+                    background: "var(--bg2, #1a1a1a)",
+                    color: "var(--fg, #ddd)",
+                    border: "1px solid var(--border, #444)",
+                    borderRadius: "4px",
+                    padding: "0.5rem",
+                    resize: "vertical",
+                  }}
+                />
+                <div className="actions" style={{ marginTop: "0.4rem" }}>
+                  <button disabled={loading || !pasteText.trim()} onClick={() => parseText(pasteText)}>
+                    {loading ? "Parsing..." : "Preview"}
+                  </button>
+                  <button onClick={() => setPasteMode(false)}>Back</button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div className="small" style={{ color: "var(--fg2, #aaa)" }}>
+                  {loading ? "Parsing..." : "Drop a .bib file here or click to browse"}
+                </div>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept=".bib,text/x-bibtex,application/x-bibtex"
+                  style={{ display: "none" }}
+                  onChange={handleFileChange}
+                />
+                <div style={{ marginTop: "0.4rem" }}>
+                  <button
+                    className="small"
+                    onClick={(ev) => { ev.stopPropagation(); setPasteMode(true); }}
+                    style={{ fontSize: "0.72rem", padding: "0.2rem 0.5rem" }}
+                  >
+                    Or paste BibTeX text
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {error && <div className="action-status error" style={{ marginTop: "0.5rem" }}>{error}</div>}
+
+      {/* Preview table */}
+      {preview && !importResult && (
+        <div style={{ marginTop: "0.5rem" }}>
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginBottom: "0.4rem" }}>
+            <span className="small">{preview.length} entries ({newCount} new, {preview.length - newCount} duplicates)</span>
+            <button style={{ fontSize: "0.7rem", padding: "0.15rem 0.4rem" }} onClick={selectAllNew}>Select all new</button>
+            <button style={{ fontSize: "0.7rem", padding: "0.15rem 0.4rem" }} onClick={selectNone}>Select none</button>
+          </div>
+          <div style={{
+            maxHeight: "18rem",
+            overflowY: "auto",
+            border: "1px solid var(--border, #333)",
+            borderRadius: "4px",
+          }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.75rem" }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid var(--border, #444)", position: "sticky", top: 0, background: "var(--bg, #222)" }}>
+                  <th style={{ padding: "0.3rem", width: "2rem" }}></th>
+                  <th style={{ padding: "0.3rem", textAlign: "left" }}>Citekey</th>
+                  <th style={{ padding: "0.3rem", textAlign: "left" }}>Title</th>
+                  <th style={{ padding: "0.3rem", textAlign: "left" }}>Authors</th>
+                  <th style={{ padding: "0.3rem", textAlign: "left" }}>Year</th>
+                  <th style={{ padding: "0.3rem", textAlign: "left" }}>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {preview.map((e) => (
+                  <tr
+                    key={e.citekey}
+                    style={{
+                      borderBottom: "1px solid var(--border, #333)",
+                      opacity: e.already_exists ? 0.45 : 1,
+                    }}
+                  >
+                    <td style={{ padding: "0.3rem", textAlign: "center" }}>
+                      <input
+                        type="checkbox"
+                        checked={!!selected[e.citekey]}
+                        onChange={(ev) => setSelected((s) => ({ ...s, [e.citekey]: ev.target.checked }))}
+                      />
+                    </td>
+                    <td style={{ padding: "0.3rem", fontFamily: "monospace", fontSize: "0.7rem" }}>{e.citekey}</td>
+                    <td style={{ padding: "0.3rem", maxWidth: "14rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {e.title || "—"}
+                    </td>
+                    <td style={{ padding: "0.3rem", maxWidth: "8rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {e.authors?.join(", ") || "—"}
+                    </td>
+                    <td style={{ padding: "0.3rem" }}>{e.year || "—"}</td>
+                    <td style={{ padding: "0.3rem" }}>
+                      {e.already_exists
+                        ? <span style={{ color: "var(--warning, #e5c07b)" }}>duplicate</span>
+                        : <span style={{ color: "var(--accent, #61afef)" }}>new</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="actions" style={{ marginTop: "0.5rem" }}>
+            <button
+              className="primary"
+              disabled={importing || selectedCount === 0}
+              onClick={doImport}
+            >
+              {importing ? "Importing..." : `Import ${selectedCount} Selected`}
+            </button>
+            <button onClick={resetPanel}>Cancel</button>
+          </div>
+          {importing && (
+            <div className="progress-wrap" style={{ marginTop: "0.4rem" }}>
+              <div className="progress-bar"><div className="progress-fill" style={{ width: "100%" }} /></div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Import result */}
+      {importResult && (
+        <div style={{ marginTop: "0.5rem" }}>
+          <div className="small" style={{ color: "var(--accent, #61afef)" }}>
+            {importResult.message}
+          </div>
+          {importResult.citekeys?.length > 0 && (
+            <div className="small" style={{ marginTop: "0.3rem", fontFamily: "monospace", fontSize: "0.7rem" }}>
+              {importResult.citekeys.join(", ")}
+            </div>
+          )}
+          <div className="actions" style={{ marginTop: "0.4rem" }}>
+            <button onClick={resetPanel}>Import More</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function LintPanel({ updateLibraryEntry }) {
   const [lintResults, setLintResults] = useState(null);
@@ -385,6 +712,9 @@ export default function ActionsTab({ activePaper, actionState, triggerAction, ad
           </div>
         )
       }
+
+      {/* BibTeX import panel */}
+      <BibImportPanel />
 
       {/* Tag Health lint panel */}
       <LintPanel updateLibraryEntry={updateLibraryEntry} />

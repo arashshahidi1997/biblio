@@ -1027,3 +1027,154 @@ def sync_bibtex_keywords_to_library(
             result[key] = added
 
     return result
+
+
+# ── BibTeX file/string preview & import ──────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class BibPreviewEntry:
+    """A single entry from a BibTeX preview."""
+    citekey: str
+    title: str | None
+    authors: list[str]
+    year: str | None
+    doi: str | None
+    entry_type: str
+    already_exists: bool
+
+
+def _authors_from_pybtex(persons: Any) -> list[str]:
+    """Extract author name strings from a pybtex persons dict."""
+    names: list[str] = []
+    author_list = persons.get("author", [])
+    for person in author_list:
+        parts = []
+        for part in person.first_names:
+            parts.append(str(part))
+        for part in person.last_names:
+            parts.append(str(part))
+        if parts:
+            names.append(" ".join(parts))
+    return names
+
+
+def preview_bibtex(
+    bibtex_text: str,
+    repo_root: str | Path,
+) -> list[BibPreviewEntry]:
+    """Parse BibTeX text and return preview entries with duplicate detection."""
+    from ._pybtex_utils import parse_bibtex_string
+
+    db = parse_bibtex_string(bibtex_text)
+
+    # Build sets of existing citekeys and DOIs for duplicate detection
+    repo_root = Path(repo_root).expanduser().resolve()
+    existing_dois = find_existing_dois(repo_root)
+    existing_citekeys: set[str] = set()
+    src_dir = repo_root / "bib" / "srcbib"
+    if src_dir.exists():
+        from ._pybtex_utils import parse_bibtex_file
+        for bib_path in sorted(src_dir.glob("*.bib")):
+            if bib_path.is_file():
+                try:
+                    existing_db = parse_bibtex_file(bib_path)
+                    existing_citekeys.update(existing_db.entries.keys())
+                except Exception:
+                    continue
+    # Also check citekeys.md
+    ck_path = repo_root / "bib" / "citekeys.md"
+    if ck_path.exists():
+        from .citekeys import load_citekeys_md
+        existing_citekeys.update(load_citekeys_md(ck_path))
+
+    entries: list[BibPreviewEntry] = []
+    for key, entry in db.entries.items():
+        fields = entry.fields
+        doi = _normalize_doi(fields.get("doi"))
+        authors = _authors_from_pybtex(entry.persons)
+        already_exists = (
+            key in existing_citekeys
+            or (doi is not None and doi.lower() in existing_dois)
+        )
+        entries.append(BibPreviewEntry(
+            citekey=key,
+            title=_clean_text(fields.get("title")),
+            authors=authors,
+            year=_clean_text(fields.get("year")),
+            doi=doi,
+            entry_type=entry.type,
+            already_exists=already_exists,
+        ))
+    return entries
+
+
+def import_bibtex_entries(
+    bibtex_text: str,
+    selected_citekeys: list[str],
+    repo_root: str | Path,
+    output_path: str | Path | None = None,
+) -> tuple[int, list[str]]:
+    """Import selected entries from parsed BibTeX text into srcbib.
+
+    Returns (imported_count, list_of_citekeys_added).
+    """
+    from ._pybtex_utils import parse_bibtex_string
+
+    db = parse_bibtex_string(bibtex_text)
+    repo_root = Path(repo_root).expanduser().resolve()
+    out_path = Path(output_path).expanduser().resolve() if output_path else default_import_bib_path(repo_root)
+    selected_set = set(selected_citekeys)
+
+    # Filter to selected entries that exist in the parsed BibTeX
+    to_import: list[tuple[str, IngestRecord]] = []
+    for key in selected_citekeys:
+        if key not in db.entries:
+            continue
+        entry = db.entries[key]
+        fields = entry.fields
+        authors = _authors_from_pybtex(entry.persons)
+        record = IngestRecord(
+            source_type="bibtex_import",
+            source_ref="uploaded .bib",
+            entry_type=entry.type,
+            title=_clean_text(fields.get("title")),
+            authors=tuple(authors),
+            year=_clean_text(fields.get("year")),
+            doi=_normalize_doi(fields.get("doi")),
+            url=_clean_text(fields.get("url")),
+            journal=_clean_text(fields.get("journal")),
+            booktitle=_clean_text(fields.get("booktitle")),
+            raw_id=key,
+            file=_clean_text(fields.get("file")),
+        )
+        to_import.append((key, record))
+
+    if not to_import:
+        return 0, []
+
+    # Write the selected entries preserving their original citekeys
+    bibtex_out = render_bibtex(to_import)
+    write_import_bib(out_path, bibtex_out)
+
+    # Register in citekeys.md
+    ck_path = repo_root / "bib" / "citekeys.md"
+    from .citekeys import add_citekeys_md
+    added_keys = [k for k, _ in to_import]
+    add_citekeys_md(ck_path, added_keys)
+
+    # Log the import
+    append_jsonl(
+        default_import_log_path(repo_root),
+        {
+            "run_id": new_run_id("ingest"),
+            "timestamp": utc_now_iso(),
+            "source_type": "bibtex_import",
+            "output_path": str(out_path),
+            "parsed": len(selected_citekeys),
+            "emitted": len(to_import),
+            "citekeys": added_keys,
+        },
+    )
+
+    return len(to_import), added_keys

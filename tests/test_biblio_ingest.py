@@ -297,3 +297,124 @@ def test_ingest_skipped_field_default_empty(tmp_path: Path) -> None:
     )
     assert result.skipped == ()
     assert result.emitted == 1
+
+
+# ---------------------------------------------------------------------------
+# BibTeX preview and import tests
+# ---------------------------------------------------------------------------
+
+from biblio.ingest import preview_bibtex, import_bibtex_entries
+
+_SAMPLE_BIB = """\
+@article{doe_2024_Alpha,
+  title = {Alpha Paper},
+  author = {Jane Doe},
+  year = {2024},
+  doi = {10.1000/alpha},
+}
+
+@inproceedings{roe_2025_Beta,
+  title = {Beta Paper},
+  author = {John Roe},
+  year = {2025},
+  doi = {10.1000/beta},
+}
+"""
+
+
+def test_preview_bibtex_parses_entries(tmp_path: Path) -> None:
+    init_bib_scaffold(tmp_path, force=False)
+    entries = preview_bibtex(_SAMPLE_BIB, tmp_path)
+    assert len(entries) == 2
+    keys = {e.citekey for e in entries}
+    assert "doe_2024_Alpha" in keys
+    assert "roe_2025_Beta" in keys
+    # All should be new (no existing bib)
+    for e in entries:
+        assert e.already_exists is False
+    # Check fields parsed
+    alpha = next(e for e in entries if e.citekey == "doe_2024_Alpha")
+    assert alpha.title == "Alpha Paper"
+    assert alpha.year == "2024"
+    assert alpha.doi == "10.1000/alpha"
+    assert alpha.entry_type == "article"
+    assert len(alpha.authors) > 0
+
+
+def test_preview_bibtex_detects_duplicates(tmp_path: Path) -> None:
+    init_bib_scaffold(tmp_path, force=False)
+    _seed_bib(tmp_path, (
+        "@article{existing_2024_Paper,\n"
+        "  title = {Existing Paper},\n"
+        "  doi = {10.1000/alpha}\n"
+        "}\n"
+    ))
+    entries = preview_bibtex(_SAMPLE_BIB, tmp_path)
+    alpha = next(e for e in entries if e.citekey == "doe_2024_Alpha")
+    beta = next(e for e in entries if e.citekey == "roe_2025_Beta")
+    # alpha shares DOI with existing entry → duplicate
+    assert alpha.already_exists is True
+    # beta is new
+    assert beta.already_exists is False
+
+
+def test_preview_bibtex_detects_citekey_duplicate(tmp_path: Path) -> None:
+    init_bib_scaffold(tmp_path, force=False)
+    _seed_bib(tmp_path, (
+        "@article{doe_2024_Alpha,\n"
+        "  title = {Alpha Paper Original},\n"
+        "}\n"
+    ))
+    entries = preview_bibtex(_SAMPLE_BIB, tmp_path)
+    alpha = next(e for e in entries if e.citekey == "doe_2024_Alpha")
+    assert alpha.already_exists is True
+
+
+def test_import_bibtex_entries_writes_to_srcbib(tmp_path: Path) -> None:
+    init_bib_scaffold(tmp_path, force=False)
+    count, keys = import_bibtex_entries(
+        bibtex_text=_SAMPLE_BIB,
+        selected_citekeys=["doe_2024_Alpha", "roe_2025_Beta"],
+        repo_root=tmp_path,
+    )
+    assert count == 2
+    assert set(keys) == {"doe_2024_Alpha", "roe_2025_Beta"}
+    # Check bib file written
+    bib_text = (tmp_path / "bib" / "srcbib" / "imported.bib").read_text(encoding="utf-8")
+    assert "doe_2024_Alpha" in bib_text
+    assert "roe_2025_Beta" in bib_text
+    assert "Alpha Paper" in bib_text
+    # Check citekeys.md updated
+    ck_text = (tmp_path / "bib" / "citekeys.md").read_text(encoding="utf-8")
+    assert "doe_2024_Alpha" in ck_text
+    assert "roe_2025_Beta" in ck_text
+    # Check import log
+    log = (tmp_path / "bib" / "logs" / "imports.jsonl").read_text(encoding="utf-8")
+    assert '"source_type": "bibtex_import"' in log
+
+
+def test_import_bibtex_entries_selective(tmp_path: Path) -> None:
+    """Only import selected citekeys."""
+    init_bib_scaffold(tmp_path, force=False)
+    count, keys = import_bibtex_entries(
+        bibtex_text=_SAMPLE_BIB,
+        selected_citekeys=["roe_2025_Beta"],
+        repo_root=tmp_path,
+    )
+    assert count == 1
+    assert keys == ["roe_2025_Beta"]
+    bib_text = (tmp_path / "bib" / "srcbib" / "imported.bib").read_text(encoding="utf-8")
+    assert "roe_2025_Beta" in bib_text
+    assert "doe_2024_Alpha" not in bib_text
+
+
+def test_import_bibtex_entries_empty_selection(tmp_path: Path) -> None:
+    """Import with no valid citekeys returns 0."""
+    init_bib_scaffold(tmp_path, force=False)
+    count, keys = import_bibtex_entries(
+        bibtex_text=_SAMPLE_BIB,
+        selected_citekeys=["nonexistent_key"],
+        repo_root=tmp_path,
+    )
+    assert count == 0
+    assert keys == []
