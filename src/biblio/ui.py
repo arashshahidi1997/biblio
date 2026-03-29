@@ -462,6 +462,7 @@ def create_ui_app(cfg: BiblioConfig):
         with_pdf = sum(1 for p in all_papers if p.get("artifacts", {}).get("pdf", {}).get("exists"))
         with_docling = sum(1 for p in all_papers if p.get("artifacts", {}).get("docling_md", {}).get("exists"))
         with_grobid = sum(1 for p in all_papers if p.get("artifacts", {}).get("grobid", {}).get("exists"))
+        with_openalex = sum(1 for p in all_papers if p.get("artifacts", {}).get("openalex", {}).get("exists"))
         with_summary = sum(1 for p in all_papers if p.get("has_summary"))
         with_concepts = sum(1 for p in all_papers if p.get("has_concepts"))
 
@@ -479,6 +480,7 @@ def create_ui_app(cfg: BiblioConfig):
                 "pdf": {"count": with_pdf, "pct": _pct(with_pdf)},
                 "docling": {"count": with_docling, "pct": _pct(with_docling)},
                 "grobid": {"count": with_grobid, "pct": _pct(with_grobid)},
+                "openalex": {"count": with_openalex, "pct": _pct(with_openalex)},
                 "summary": {"count": with_summary, "pct": _pct(with_summary)},
                 "concepts": {"count": with_concepts, "pct": _pct(with_concepts)},
             },
@@ -615,6 +617,9 @@ def create_ui_app(cfg: BiblioConfig):
         "citekey": None,
         "md_path": None,
         "logs": "",
+        "completed": 0,
+        "total": 0,
+        "cancelled": False,
     }
     grobid_job: dict[str, Any] = {
         "running": False,
@@ -677,49 +682,86 @@ def create_ui_app(cfg: BiblioConfig):
     @app.post("/api/actions/docling-run", response_class=responses.JSONResponse)
     def action_docling_run(payload: dict[str, Any]):
         active_cfg = current_cfg()
+        run_all = bool(payload.get("all"))
         citekey = str(payload.get("citekey") or "").strip()
-        if not citekey:
-            raise fastapi.HTTPException(status_code=400, detail="Missing citekey")
+        force = bool(payload.get("force"))
+
+        if not run_all and not citekey:
+            raise fastapi.HTTPException(status_code=400, detail="Missing citekey or all=true")
+
         with docling_lock:
             if docling_job["running"]:
                 return {"ok": True, "async": True, **dict(docling_job)}
-            docling_job.update(
-                {
-                    "running": True,
-                    "message": f"Running Docling for {citekey}...",
-                    "error": None,
-                    "citekey": citekey,
-                    "md_path": None,
-                    "completed": 0,
-                    "total": 1,
-                }
-            )
+            if run_all:
+                keys = load_citekeys_md(active_cfg.citekeys_path) if active_cfg.citekeys_path.exists() else []
+                # Only papers with PDF but no docling output
+                keys = [
+                    k for k in keys
+                    if (active_cfg.pdf_root / active_cfg.pdf_pattern.format(citekey=k)).exists()
+                    and not docling_outputs_for_key(active_cfg, k).md_path.exists()
+                ]
+                total = len(keys)
+                msg = f"Running Docling for all {total} papers with PDFs but no text extraction..."
+            else:
+                keys = [citekey]
+                total = 1
+                msg = f"Running Docling for {citekey}..."
+            docling_job.update({
+                "running": True,
+                "message": msg,
+                "error": None,
+                "citekey": citekey if not run_all else None,
+                "md_path": None,
+                "completed": 0,
+                "total": total,
+                "cancelled": False,
+                "logs": "",
+            })
 
         def _run_docling() -> None:
-            try:
-                out = run_docling_for_key(active_cfg, citekey, force=False)
+            failures = 0
+            cancelled = False
+            for idx, ck in enumerate(keys, start=1):
                 with docling_lock:
-                    docling_job["running"] = False
-                    docling_job["message"] = f"Docling finished for {citekey}."
+                    if docling_job.get("cancelled"):
+                        cancelled = True
+                        break
+                try:
+                    out = run_docling_for_key(active_cfg, ck, force=force)
+                    with docling_lock:
+                        docling_job["completed"] = idx
+                        docling_job["citekey"] = ck
+                        docling_job["md_path"] = str(out.md_path)
+                        docling_job["message"] = f"Docling {idx}/{total}: {ck}"
+                        docling_job["logs"] = ""
+                except subprocess.CalledProcessError as e:
+                    failures += 1
+                    cmd = " ".join(str(part) for part in e.cmd) if isinstance(e.cmd, (list, tuple)) else str(e.cmd)
+                    logs = "\n".join(filter(None, [e.stdout, e.stderr])).strip()
+                    with docling_lock:
+                        docling_job["completed"] = idx
+                        docling_job["citekey"] = ck
+                        docling_job["message"] = f"Docling {idx}/{total}: {ck} failed"
+                        docling_job["logs"] = logs
+                except Exception as e:
+                    failures += 1
+                    with docling_lock:
+                        docling_job["completed"] = idx
+                        docling_job["citekey"] = ck
+                        docling_job["message"] = f"Docling {idx}/{total}: {ck} failed: {e}"
+                        docling_job["logs"] = ""
+            with docling_lock:
+                docling_job["running"] = False
+                docling_job["cancelled"] = False
+                if cancelled:
                     docling_job["error"] = None
-                    docling_job["md_path"] = str(out.md_path)
-                    docling_job["completed"] = 1
-                    docling_job["total"] = 1
-                    docling_job["logs"] = ""
-            except subprocess.CalledProcessError as e:
-                cmd = " ".join(str(part) for part in e.cmd) if isinstance(e.cmd, (list, tuple)) else str(e.cmd)
-                logs = "\n".join(filter(None, [e.stdout, e.stderr])).strip()
-                with docling_lock:
-                    docling_job["running"] = False
-                    docling_job["error"] = f"Docling command failed with exit code {e.returncode}: {cmd}"
-                    docling_job["message"] = docling_job["error"]
-                    docling_job["logs"] = logs
-            except Exception as e:
-                with docling_lock:
-                    docling_job["running"] = False
-                    docling_job["error"] = str(e)
-                    docling_job["message"] = f"Docling failed: {e}"
-                    docling_job["logs"] = ""
+                    docling_job["message"] = f"Docling cancelled after {docling_job['completed']}/{total} papers."
+                elif failures == 0:
+                    docling_job["error"] = None
+                    docling_job["message"] = f"Docling finished ({total} papers, {failures} failures)."
+                else:
+                    docling_job["error"] = f"{failures} papers failed."
+                    docling_job["message"] = f"Docling done with {failures} failures out of {total}."
 
         threading.Thread(target=_run_docling, daemon=True).start()
         return {"ok": True, "async": True, **_docling_snapshot()}
@@ -732,9 +774,8 @@ def create_ui_app(cfg: BiblioConfig):
     def action_docling_run_cancel():
         with docling_lock:
             if docling_job["running"]:
-                docling_job["running"] = False
-                docling_job["error"] = None
-                docling_job["message"] = "Docling cancelled."
+                docling_job["cancelled"] = True
+                docling_job["message"] = "Cancelling Docling..."
         return _docling_snapshot()
 
     @app.post("/api/actions/openalex-resolve", response_class=responses.JSONResponse)

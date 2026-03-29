@@ -142,3 +142,108 @@ Session: `1aab5521` | Task: `task-arash-20260329-041430-380655.md`
 **Integration** (`frontend/src/App.jsx`) — StatsPanel placed above CorpusTab in library view. Status clicks set `statusFilter`, tag clicks set `tagFilter`, both filtering the paper list.
 
 Session: `e78966df` | Task: `task-arash-20260329-041432-126590.md`
+
+## 2026-03-29 05:31 | biblio | opus | 1 steps
+
+All 171 tests pass. Changes saved via datalad.
+
+Session: `2dac9f39` | Task: `task-arash-20260329-041434-028047.md`
+
+## 2026-03-29 05:32 | biblio | opus | 1 steps
+
+You've hit your limit · resets 7am (Europe/Berlin)
+
+Session: `25f50c78` | Task: `task-arash-20260329-041436-123461.md`
+
+## 2026-03-29 05:33 | biblio | opus | 1 steps
+
+You've hit your limit · resets 7am (Europe/Berlin)
+
+Session: `b6a32ec1` | Task: `task-arash-20260329-041438-478170.md`
+
+## 2026-03-29 05:34 | biblio | opus | 1 steps
+
+You've hit your limit · resets 7am (Europe/Berlin)
+
+Session: `2be8d1b3` | Task: `task-arash-20260329-041440-823343.md`
+
+## 2026-03-29 05:35 | biblio | opus | 1 steps
+
+You've hit your limit · resets 7am (Europe/Berlin)
+
+Session: `4945e7b4` | Task: `task-arash-20260329-042324-863873.md`
+
+## 2026-03-29 05:35 | biblio | opus | 1 steps
+
+You've hit your limit · resets 7am (Europe/Berlin)
+
+Session: `46453059` | Task: `task-arash-20260329-042326-064314.md`
+
+## 2026-03-29 05:36 | biblio | opus | 1 steps
+
+You've hit your limit · resets 7am (Europe/Berlin)
+
+Session: `5bf98baa` | Task: `task-arash-20260329-042655-069904.md`
+
+## 2026-03-29 05:37 | biblio | opus | 1 steps
+
+You've hit your limit · resets 7am (Europe/Berlin)
+
+Session: `d1d726a7` | Task: `task-arash-20260329-042656-523126.md`
+
+## 2026-03-29 05:38 | biblio | opus | 1 steps
+
+You've hit your limit · resets 7am (Europe/Berlin)
+
+Session: `ccc6300a` | Task: `task-arash-20260329-042657-767042.md`
+
+## 2026-03-29 05:39 | biblio | opus | 1 steps
+
+You've hit your limit · resets 7am (Europe/Berlin)
+
+Session: `f9629a39` | Task: `task-arash-20260329-042756-903726.md`
+
+## 2026-03-29 05:40 | biblio | opus | 1 steps
+
+You've hit your limit · resets 7am (Europe/Berlin)
+
+Session: `d3d3f67a` | Task: `task-arash-20260329-042952-343922.md`
+
+## 2026-03-29 05:40 | biblio | opus | 1 steps
+
+You've hit your limit · resets 7am (Europe/Berlin)
+
+Session: `9dba7ec8` | Task: `task-arash-20260329-044730-098416.md`
+
+## 2026-03-29 05:41 | biblio | opus | 1 steps
+
+You've hit your limit · resets 7am (Europe/Berlin)
+
+Session: `4bc0018a` | Task: `task-arash-20260329-044727-728422.md`
+
+## 2026-03-29 05:42 | biblio | opus | 1 steps
+
+You've hit your limit · resets 7am (Europe/Berlin)
+
+Session: `6be4d05d` | Task: `task-arash-20260329-044728-940076.md`
+
+## 2026-03-29 05:43 | biblio | opus | 1 steps
+
+You've hit your limit · resets 7am (Europe/Berlin)
+
+Session: `0aa0b5d5` | Task: `task-arash-20260329-045256-874019.md`
+
+## 2026-03-29 16:19 | biblio | opus | 1 steps
+
+**Fix 3 — Expand-all confirmation:**
+- `App.jsx:1123-1150`: The ⊕ button now shows a two-button confirm/cancel flow (✓/✗) before triggering expand-all, with a tooltip showing paper count
+- Added progress indicator (`15/42`) next to the graph toolbar during expand
+- `ActionsTab.jsx:235`: Also added inline confirmation (though ActionsTab is currently unused in App.jsx)
+
+Session: `7bf5e878` | Task: `task-arash-20260329-160941-127078.md`
+
+## 2026-03-29 16:24 | biblio | opus | 1 steps
+
+171 tests pass.
+
+Session: `f4e7705d` | Task: `task-arash-20260329-160937-683814.md`

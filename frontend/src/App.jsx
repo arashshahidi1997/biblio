@@ -8,6 +8,7 @@ import GraphInspector from './components/GraphInspector';
 import CollectionTree from './components/CollectionTree';
 import ResearchTab from './components/ResearchTab';
 import StatsPanel from './components/StatsPanel';
+import StatsBar from './components/StatsBar';
 import { renderMarkdown } from './utils/markdown.js';
 
 export default function App() {
@@ -1478,20 +1479,12 @@ export default function App() {
             </div>
           )}
 
-          {/* Stats footer */}
-          {payload && payload.status && (
-            <div className="stats-footer">
-              <span>{payload.status.papers_total} papers</span>
-              <span className="stats-sep">·</span>
-              <span>{payload.status.papers_with_pdf ?? 0} pdf</span>
-              <span className="stats-sep">·</span>
-              <span>{payload.status.papers_with_docling ?? 0} docling</span>
-              <span className="stats-sep">·</span>
-              <span>{payload.status.papers_with_openalex ?? 0} openalex</span>
-              <span className="stats-sep">·</span>
-              <span>{payload.status.papers_with_grobid ?? 0} grobid</span>
-            </div>
-          )}
+          {/* Stats bar with smart tips */}
+          <StatsBar
+            triggerAction={triggerAction}
+            cancelAction={cancelAction}
+            actionState={actionState}
+          />
 
           </>)}{/* end !showSetup */}
         </div>{/* end main-content */}

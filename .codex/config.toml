@@ -1,0 +1,10 @@
+[mcp_servers.projio]
+command = "/storage/share/python/environments/Anaconda3/envs/rag/bin/python"
+args = ["-m", "projio.mcp.server"]
+env = { PROJIO_ROOT = "/storage2/arash/projects/projio/packages/biblio" }
+enabled = true
+
+[mcp_servers.worklog]
+command = "/storage/share/python/environments/Anaconda3/envs/rag/bin/python3.11"
+args = ["-m", "worklog.mcp_server"]
+enabled = true

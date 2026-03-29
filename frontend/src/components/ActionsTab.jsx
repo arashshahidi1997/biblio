@@ -261,6 +261,12 @@ export default function ActionsTab({ activePaper, actionState, triggerAction, ad
         </button>
         <button
           disabled={actionState.busy}
+          onClick={() => triggerAction("docling-run", { all: true })}
+        >
+          Run Docling For All
+        </button>
+        <button
+          disabled={actionState.busy}
           onClick={() => triggerAction("grobid-run", { all: true })}
         >
           Run GROBID For All

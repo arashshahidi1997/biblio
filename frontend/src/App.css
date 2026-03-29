@@ -1481,6 +1481,78 @@ a.cite-link:hover {
   color: var(--muted);
 }
 .stats-sep { opacity: 0.4; }
+
+/* Stats bar with smart tips */
+.stats-bar {
+  flex-shrink: 0;
+  border-top: 1px solid var(--line, #333);
+  background: var(--bg2, #1a1a1a);
+  padding: 0.3rem 0.6rem;
+  font-size: 0.78rem;
+}
+.stats-bar-counts {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  color: var(--muted, #888);
+  flex-wrap: wrap;
+}
+.stats-bar-item {
+  cursor: default;
+  white-space: nowrap;
+}
+.stats-bar-tips {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.3rem;
+}
+.stats-bar-tip {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--fg2, #aaa);
+}
+.stats-bar-tip-icon {
+  flex-shrink: 0;
+}
+.stats-bar-tip-text {
+  flex: 1;
+  min-width: 0;
+}
+.stats-bar-tip-btn {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  padding: 0.1rem 0.5rem;
+  border: 1px solid var(--accent, #98c379);
+  background: transparent;
+  color: var(--accent, #98c379);
+  border-radius: 3px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.stats-bar-tip-btn:hover:not(:disabled) {
+  background: var(--accent, #98c379);
+  color: var(--bg, #1e1e1e);
+}
+.stats-bar-tip-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.stats-bar-tip-dismiss {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--muted, #888);
+  cursor: pointer;
+  font-size: 0.7rem;
+  padding: 0;
+  line-height: 1;
+}
+.stats-bar-tip-dismiss:hover {
+  color: var(--fg, #ccc);
+}
 /* Clickable artifact badge */
 .badge-action {
   border: 1px dashed var(--line);
