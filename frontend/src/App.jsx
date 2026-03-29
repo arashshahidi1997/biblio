@@ -67,6 +67,10 @@ export default function App() {
   const navSkipRef = useRef(false); // skip recording when navigating via back/forward
   const [navCanBack, setNavCanBack] = useState(false);
   const [navCanForward, setNavCanForward] = useState(false);
+  // DOI paste detection
+  const [doiToast, setDoiToast] = useState(null); // { dois: string[], timer: number }
+  const [doiReviewModal, setDoiReviewModal] = useState(null); // { dois: string[], checked: Set }
+  const doiToastTimerRef = useRef(null);
 
   const loadModel = useCallback(() => {
     fetch("/api/model").then((resp) => resp.json()).then((data) => {
@@ -122,6 +126,94 @@ export default function App() {
     window.addEventListener("click", close);
     return () => window.removeEventListener("click", close);
   }, [contextMenu]);
+
+  // ── DOI paste detection ────────────────────────────────────
+  useEffect(() => {
+    function extractDois(text) {
+      // Strip common DOI URL prefixes first, then match DOI pattern
+      const cleaned = text.replace(/https?:\/\/(?:dx\.)?doi\.org\//g, "");
+      const re = /10\.\d{4,}\/\S+/g;
+      const matches = [];
+      const seen = new Set();
+      let m;
+      while ((m = re.exec(cleaned)) !== null) {
+        // Strip trailing punctuation that's likely not part of the DOI
+        let doi = m[0].replace(/[.,;:)\]}>]+$/, "");
+        if (!seen.has(doi)) { seen.add(doi); matches.push(doi); }
+      }
+      // Also extract DOIs from full URLs that weren't cleaned (e.g. mixed content)
+      const urlRe = /https?:\/\/(?:dx\.)?doi\.org\/(10\.\d{4,}\/\S+)/g;
+      while ((m = urlRe.exec(text)) !== null) {
+        let doi = m[1].replace(/[.,;:)\]}>]+$/, "");
+        if (!seen.has(doi)) { seen.add(doi); matches.push(doi); }
+      }
+      return matches;
+    }
+
+    function handlePaste(ev) {
+      // Don't trigger when pasting into DOI input fields
+      const target = ev.target;
+      if (target && (target.classList.contains("absent-refs-doi-input") ||
+          target.closest?.(".absent-refs-add-row"))) {
+        return;
+      }
+      const text = ev.clipboardData?.getData("text") || "";
+      if (!text) return;
+      const dois = extractDois(text);
+      if (!dois.length) return;
+
+      // Filter out DOIs already in the library
+      const knownDois = new Set(
+        (payload?.papers || [])
+          .map((p) => p.doi)
+          .filter(Boolean)
+          .map((d) => d.toLowerCase())
+      );
+      const newDois = dois.filter((d) => !knownDois.has(d.toLowerCase()));
+      if (!newDois.length) return;
+
+      // Clear any existing timer
+      if (doiToastTimerRef.current) clearTimeout(doiToastTimerRef.current);
+
+      setDoiToast({ dois: newDois });
+      doiToastTimerRef.current = setTimeout(() => setDoiToast(null), 8000);
+    }
+
+    document.addEventListener("paste", handlePaste);
+    return () => document.removeEventListener("paste", handlePaste);
+  }, [payload]);
+
+  function doiToastAddAll(dois) {
+    dois.forEach((doi) => triggerAction("add-paper", { doi }));
+    if (doiToastTimerRef.current) clearTimeout(doiToastTimerRef.current);
+    setDoiToast(null);
+  }
+
+  function doiToastDismiss() {
+    if (doiToastTimerRef.current) clearTimeout(doiToastTimerRef.current);
+    setDoiToast(null);
+  }
+
+  function doiToastReview(dois) {
+    if (doiToastTimerRef.current) clearTimeout(doiToastTimerRef.current);
+    setDoiToast(null);
+    setDoiReviewModal({ dois, checked: new Set(dois) });
+  }
+
+  function doiReviewToggle(doi) {
+    setDoiReviewModal((prev) => {
+      if (!prev) return prev;
+      const next = new Set(prev.checked);
+      if (next.has(doi)) next.delete(doi); else next.add(doi);
+      return { ...prev, checked: next };
+    });
+  }
+
+  function doiReviewSubmit() {
+    if (!doiReviewModal) return;
+    [...doiReviewModal.checked].forEach((doi) => triggerAction("add-paper", { doi }));
+    setDoiReviewModal(null);
+  }
 
   const papers = useMemo(() => {
     if (!payload) return [];
@@ -630,6 +722,53 @@ export default function App() {
 
   return (
     <div className="app">
+      {/* DOI paste toast */}
+      {doiToast && (
+        <div className="doi-toast">
+          {doiToast.dois.length === 1 ? (
+            <>
+              <span className="doi-toast-text">DOI detected: <code>{doiToast.dois[0]}</code></span>
+              <button className="doi-toast-btn primary" onClick={() => doiToastAddAll(doiToast.dois)}>Add to library</button>
+              <button className="doi-toast-btn" onClick={doiToastDismiss}>Dismiss</button>
+            </>
+          ) : (
+            <>
+              <span className="doi-toast-text">{doiToast.dois.length} DOIs detected</span>
+              <button className="doi-toast-btn primary" onClick={() => doiToastAddAll(doiToast.dois)}>Add all</button>
+              <button className="doi-toast-btn" onClick={() => doiToastReview(doiToast.dois)}>Review</button>
+              <button className="doi-toast-btn" onClick={doiToastDismiss}>Dismiss</button>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* DOI review modal */}
+      {doiReviewModal && (
+        <div className="doi-review-overlay" onClick={() => setDoiReviewModal(null)}>
+          <div className="doi-review-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Review DOIs to add</h3>
+            <div className="doi-review-list">
+              {doiReviewModal.dois.map((doi) => (
+                <label key={doi} className="doi-review-item">
+                  <input
+                    type="checkbox"
+                    checked={doiReviewModal.checked.has(doi)}
+                    onChange={() => doiReviewToggle(doi)}
+                  />
+                  <code>{doi}</code>
+                </label>
+              ))}
+            </div>
+            <div className="doi-review-actions">
+              <button className="doi-toast-btn primary" onClick={doiReviewSubmit} disabled={doiReviewModal.checked.size === 0}>
+                Add {doiReviewModal.checked.size} selected
+              </button>
+              <button className="doi-toast-btn" onClick={() => setDoiReviewModal(null)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="header">
         <div className="header-bar">
