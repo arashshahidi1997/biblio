@@ -1946,6 +1946,57 @@ def create_ui_app(cfg: BiblioConfig):
         library = load_library(active_cfg)
         return lint_library_tags(library, vocab)
 
+    @app.post("/api/library/dedup", response_class=responses.JSONResponse)
+    def api_library_dedup():
+        active_cfg = current_cfg()
+        from .dedup import find_duplicates
+        groups = find_duplicates(active_cfg.repo_root, cfg=active_cfg)
+        return {"groups": groups, "count": len(groups)}
+
+    @app.post("/api/library/dedup/merge", response_class=responses.JSONResponse)
+    def api_library_dedup_merge(payload: dict[str, Any]):
+        """Merge duplicate citekeys: keep suggested, remove others, transfer tags."""
+        active_cfg = current_cfg()
+        keep = payload.get("keep", "")
+        remove = payload.get("remove", [])
+        if not keep or not remove:
+            return {"ok": False, "error": "Both 'keep' and 'remove' are required."}
+
+        papers = load_library(active_cfg)
+        keep_entry = dict(papers.get(keep) or {})
+        # Transfer unique tags from removed entries
+        keep_tags = list(keep_entry.get("tags") or [])
+        for ck in remove:
+            other_entry = papers.get(ck, {})
+            for tag in (other_entry.get("tags") or []):
+                if tag not in keep_tags:
+                    keep_tags.append(tag)
+        if keep_tags:
+            keep_entry["tags"] = keep_tags
+        # Transfer notes content if keep has none
+        keep_notes = keep_entry.get("notes")
+        if not keep_notes:
+            for ck in remove:
+                other_entry = papers.get(ck, {})
+                if other_entry.get("notes"):
+                    keep_entry["notes"] = other_entry["notes"]
+                    break
+        # Persist updated keep entry
+        if keep_entry:
+            papers[keep] = keep_entry
+        # Remove duplicate entries
+        for ck in remove:
+            papers.pop(ck, None)
+        from .library import save_library
+        save_library(active_cfg, papers)
+
+        # Remove duplicate citekeys from citekeys.md
+        from .citekeys import remove_citekeys_md
+        if active_cfg.citekeys_path.exists():
+            remove_citekeys_md(active_cfg.citekeys_path, remove)
+
+        return {"ok": True, "kept": keep, "removed": remove, "entry": keep_entry}
+
     # ── autotag (background action) ────────────────────────────────────────────
 
     autotag_job: dict[str, Any] = {

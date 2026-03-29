@@ -350,6 +350,11 @@ def _build_parser() -> argparse.ArgumentParser:
     lib_lint.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
     lib_lint.add_argument("--json", action="store_true", help="Emit JSON output.")
 
+    lib_dedup = lib_sub.add_parser("dedup", help="Detect duplicate papers by DOI, title similarity, or OpenAlex ID.")
+    lib_dedup.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    lib_dedup.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    lib_dedup.add_argument("--json", action="store_true", help="Emit JSON output.")
+
     lib_autotag = lib_sub.add_parser("autotag", help="Auto-tag papers via LLM classification and/or reference propagation.")
     lib_autotag.add_argument("key", nargs="?", help="Single citekey (with or without leading @).")
     lib_autotag.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
@@ -1197,6 +1202,24 @@ def main(argv: Iterable[str] | None = None) -> None:
                         print(f"  {item['citekey']}: {item['tag']} -> {item['suggestion']}")
                 if not any(report.values()):
                     print("[OK] All tags are valid.")
+            return
+        if args.library_cmd == "dedup":
+            from .dedup import find_duplicates
+
+            groups = find_duplicates(repo_root, cfg=cfg)
+            if args.json:
+                print(json.dumps(groups, indent=2))
+            else:
+                if not groups:
+                    print("[OK] No duplicate papers detected.")
+                else:
+                    print(f"Found {len(groups)} duplicate group(s):\n")
+                    for g in groups:
+                        cks = ", ".join(g["citekeys"])
+                        print(f"  [{g['reason']}] {cks}")
+                        print(f"    {g['detail']}  (confidence: {g['confidence']:.0%})")
+                        print(f"    suggested keep: {g['suggested_keep']}")
+                        print()
             return
         if args.library_cmd == "autotag":
             from .autotag import autotag as run_autotag

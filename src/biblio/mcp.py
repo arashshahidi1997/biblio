@@ -587,6 +587,19 @@ def library_lint(*, root: Path) -> dict[str, Any]:
     return lint_library_tags(library, vocab)
 
 
+def library_dedup(*, root: Path) -> dict[str, Any]:
+    """Detect duplicate papers by DOI, title similarity, or OpenAlex ID.
+
+    Returns ``{"groups": [...], "count": int}`` where each group contains
+    ``citekeys``, ``reason``, ``confidence``, ``suggested_keep``, and ``detail``.
+    """
+    cfg = _load_cfg(root)
+    from .dedup import find_duplicates
+
+    groups = find_duplicates(root, cfg=cfg)
+    return {"groups": groups, "count": len(groups)}
+
+
 # ---------------------------------------------------------------------------
 # Citation drafting
 # ---------------------------------------------------------------------------

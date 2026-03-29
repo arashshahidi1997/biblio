@@ -123,6 +123,101 @@ function LintPanel({ updateLibraryEntry }) {
   );
 }
 
+function DedupPanel() {
+  const [groups, setGroups] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [merging, setMerging] = useState({});
+
+  async function runDedup() {
+    setLoading(true);
+    setError(null);
+    try {
+      const resp = await fetch("/api/library/dedup", { method: "POST" });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = await resp.json();
+      setGroups(data.groups || []);
+    } catch (err) {
+      setError(String(err.message || err));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function mergeGroup(group) {
+    const key = group.citekeys.join(",");
+    setMerging((p) => ({ ...p, [key]: true }));
+    try {
+      const keep = group.suggested_keep;
+      const remove = group.citekeys.filter((ck) => ck !== keep);
+      const resp = await fetch("/api/library/dedup/merge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ keep, remove }),
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      // Refresh
+      runDedup();
+    } catch (err) {
+      console.error("merge failed", err);
+    } finally {
+      setMerging((p) => ({ ...p, [key]: false }));
+    }
+  }
+
+  const reasonLabel = { doi: "Same DOI", title: "Similar title", openalex: "Same OpenAlex ID" };
+
+  return (
+    <div className="lint-section">
+      <h3>Duplicates</h3>
+      <div className="actions">
+        <button onClick={runDedup} disabled={loading}>
+          {loading ? "Scanning..." : "Detect Duplicates"}
+        </button>
+      </div>
+      {error && <div className="action-status error">{error}</div>}
+      {groups !== null && groups.length === 0 && (
+        <div className="small" style={{ marginTop: "0.5rem", color: "var(--accent)" }}>
+          No duplicates found.
+        </div>
+      )}
+      {groups !== null && groups.length > 0 && (
+        <div style={{ marginTop: "0.6rem" }}>
+          {groups.map((g, idx) => {
+            const key = g.citekeys.join(",");
+            return (
+              <div key={idx} className="lint-group">
+                <div className="lint-group-title">
+                  {reasonLabel[g.reason] || g.reason}
+                  <span className="lint-issue-suggestion"> ({g.detail})</span>
+                </div>
+                {g.citekeys.map((ck) => (
+                  <div key={ck} className="lint-issue">
+                    <div className="lint-issue-detail">
+                      <span className="lint-issue-citekey">{ck}</span>
+                      {ck === g.suggested_keep && (
+                        <span className="lint-issue-suggestion"> (keep)</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                <button
+                  className="lint-apply-btn"
+                  disabled={merging[key]}
+                  onClick={() => mergeGroup(g)}
+                  style={{ marginTop: "0.3rem" }}
+                >
+                  {merging[key] ? "Merging..." : "Merge"}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ActionsTab({ activePaper, actionState, triggerAction, addDoi, setAddDoi, updateLibraryEntry }) {
   return (
     <div className="panel">
@@ -278,6 +373,9 @@ export default function ActionsTab({ activePaper, actionState, triggerAction, ad
 
       {/* Tag Health lint panel */}
       <LintPanel updateLibraryEntry={updateLibraryEntry} />
+
+      {/* Duplicate detection panel */}
+      <DedupPanel />
     </div>
   );
 }

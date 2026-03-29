@@ -124,3 +124,9 @@ Session: `892ea945` | Task: `task-arash-20260329-041423-824361.md`
 **CSS** (`App.css`): Toast positioned fixed at top-center with slide-down animation, styled with existing theme variables (`--accent`, `--panel`, `--accent-soft`). Review modal with overlay, scrollable DOI list.
 
 Session: `9bc695a4` | Task: `task-arash-20260329-041425-565370.md`
+
+## 2026-03-29 05:07 | biblio | opus | 1 steps
+
+**Tests** — 4 new tests added, all 161 pass.
+
+Session: `996b6801` | Task: `task-arash-20260329-041427-972311.md`
