@@ -1,3 +1,4 @@
+import { useState } from "react";
 import TagInput from "./TagInput.jsx";
 
 const STATUS_COLORS = {
@@ -26,13 +27,102 @@ function ArtifactBadge({ exists, label, onAction, busy, actionLabel }) {
   return <span className="badge">{`no ${label}`}</span>;
 }
 
+function BulkToolbar({ count, bulkUpdateLibrary, setBulkSelection, loadModel }) {
+  const [bulkAddTags, setBulkAddTags] = useState([]);
+  const [bulkRemoveTags, setBulkRemoveTags] = useState([]);
+
+  return (
+    <div className="bulk-toolbar">
+      <span className="bulk-toolbar-count">{count} selected</span>
+
+      <select
+        defaultValue=""
+        onChange={(ev) => {
+          if (ev.target.value) {
+            bulkUpdateLibrary({ status: ev.target.value });
+            ev.target.value = "";
+          }
+        }}
+      >
+        <option value="" disabled>Set status...</option>
+        <option value="unread">Unread</option>
+        <option value="reading">Reading</option>
+        <option value="processed">Processed</option>
+        <option value="archived">Archived</option>
+      </select>
+
+      <select
+        defaultValue=""
+        onChange={(ev) => {
+          if (ev.target.value) {
+            bulkUpdateLibrary({ priority: ev.target.value });
+            ev.target.value = "";
+          }
+        }}
+      >
+        <option value="" disabled>Set priority...</option>
+        <option value="low">Low</option>
+        <option value="normal">Normal</option>
+        <option value="high">High</option>
+      </select>
+
+      <div className="bulk-toolbar-tags">
+        <TagInput
+          tags={bulkAddTags}
+          onChange={(tags) => setBulkAddTags(tags)}
+          placeholder="Add tags..."
+        />
+        <button
+          className="bulk-toolbar-btn"
+          disabled={bulkAddTags.length === 0}
+          onClick={() => {
+            bulkUpdateLibrary({ add_tags: bulkAddTags });
+            setBulkAddTags([]);
+          }}
+        >
+          + Add
+        </button>
+      </div>
+
+      <div className="bulk-toolbar-tags">
+        <TagInput
+          tags={bulkRemoveTags}
+          onChange={(tags) => setBulkRemoveTags(tags)}
+          placeholder="Remove tags..."
+        />
+        <button
+          className="bulk-toolbar-btn bulk-toolbar-btn-danger"
+          disabled={bulkRemoveTags.length === 0}
+          onClick={() => {
+            bulkUpdateLibrary({ remove_tags: bulkRemoveTags });
+            setBulkRemoveTags([]);
+          }}
+        >
+          - Remove
+        </button>
+      </div>
+
+      <button
+        className="bulk-toolbar-btn"
+        onClick={() => setBulkSelection([])}
+      >
+        Clear
+      </button>
+    </div>
+  );
+}
+
 export default function CorpusTab({
   papers, actionState, setActiveKey, setActiveTab, openInPaperTab,
   setLibraryMode, triggerAction,
   statusFilter, setStatusFilter, tagFilter, setTagFilter, allTags,
   updateLibraryEntry, compact, onRowContextMenu,
+  bulkSelection, setBulkSelection, toggleBulkSelect, bulkUpdateLibrary, loadModel,
 }) {
   const busy = actionState.busy;
+  const allVisibleKeys = papers.map((p) => p.citekey);
+  const allSelected = allVisibleKeys.length > 0 && allVisibleKeys.every((ck) => bulkSelection.includes(ck));
+
   return (
     <div className="panel table-wrap">
       {!compact && (
@@ -61,12 +151,41 @@ export default function CorpusTab({
           </div>
         </div>
       )}
+
+      {bulkSelection.length > 0 && !compact && (
+        <BulkToolbar
+          count={bulkSelection.length}
+          bulkUpdateLibrary={bulkUpdateLibrary}
+          setBulkSelection={setBulkSelection}
+          loadModel={loadModel}
+        />
+      )}
+
       <table className={`paper-table${compact ? " paper-table-compact" : ""}`}>
         <thead>
           <tr>
+            {!compact && (
+              <th style={{ width: "2rem", textAlign: "center" }}>
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={() => {
+                    if (allSelected) {
+                      setBulkSelection((prev) => prev.filter((ck) => !allVisibleKeys.includes(ck)));
+                    } else {
+                      setBulkSelection((prev) => {
+                        const set = new Set(prev);
+                        allVisibleKeys.forEach((ck) => set.add(ck));
+                        return [...set];
+                      });
+                    }
+                  }}
+                  title={allSelected ? "Deselect all" : "Select all visible"}
+                />
+              </th>
+            )}
             <th>Citekey</th>
-            {!compact && <th>Title</th>}
-            {compact && <th>Title</th>}
+            <th>Title</th>
             {!compact && <th>Year</th>}
             {!compact && <th>Status</th>}
             {!compact && <th>Tags</th>}
@@ -80,14 +199,25 @@ export default function CorpusTab({
             const tags = lib.tags || [];
             const color = STATUS_COLORS[status] || "#aaa";
             const a = paper.artifacts;
+            const isSelected = bulkSelection.includes(paper.citekey);
             return (
               <tr
                 key={paper.citekey}
+                className={isSelected ? "bulk-selected" : ""}
                 onClick={() => setActiveKey(paper.citekey)}
                 onDoubleClick={() => openInPaperTab(paper.citekey)}
                 onContextMenu={onRowContextMenu ? (e) => onRowContextMenu(e, paper.citekey) : undefined}
                 title="Double-click to open in new tab"
               >
+                {!compact && (
+                  <td style={{ textAlign: "center" }} onClick={(ev) => ev.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={(ev) => toggleBulkSelect(paper.citekey, ev.nativeEvent)}
+                    />
+                  </td>
+                )}
                 <td>
                   <div style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
                     {!compact && <span>{paper.citekey}</span>}

@@ -58,6 +58,9 @@ export default function App() {
   const [conceptSearchQuery, setConceptSearchQuery] = useState("");
   const [conceptSearchResult, setConceptSearchResult] = useState(null);
   const [conceptSearchLoading, setConceptSearchLoading] = useState(false);
+  // Bulk selection
+  const [bulkSelection, setBulkSelection] = useState([]); // array of citekeys
+  const lastBulkClickRef = useRef(null); // for shift-click range select
   // Navigation history: stack of {activeTab, activePaperKey}
   const navHistoryRef = useRef([]);
   const navFutureRef = useRef([]);
@@ -229,6 +232,43 @@ export default function App() {
     } catch (err) {
       console.error("library update failed", err);
     }
+  }
+
+  async function bulkUpdateLibrary(updates) {
+    try {
+      await fetch("/api/library/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ citekeys: bulkSelection, ...updates }),
+      });
+      loadModel();
+    } catch (err) {
+      console.error("bulk library update failed", err);
+    }
+  }
+
+  function toggleBulkSelect(citekey, event) {
+    if (event && event.shiftKey && lastBulkClickRef.current) {
+      // Range select
+      const paperKeys = papers.map((p) => p.citekey);
+      const lastIdx = paperKeys.indexOf(lastBulkClickRef.current);
+      const curIdx = paperKeys.indexOf(citekey);
+      if (lastIdx >= 0 && curIdx >= 0) {
+        const start = Math.min(lastIdx, curIdx);
+        const end = Math.max(lastIdx, curIdx);
+        const range = paperKeys.slice(start, end + 1);
+        setBulkSelection((prev) => {
+          const set = new Set(prev);
+          range.forEach((ck) => set.add(ck));
+          return [...set];
+        });
+        return;
+      }
+    }
+    lastBulkClickRef.current = citekey;
+    setBulkSelection((prev) =>
+      prev.includes(citekey) ? prev.filter((ck) => ck !== citekey) : [...prev, citekey]
+    );
   }
 
   async function createCollection(name, parentId, query) {
@@ -833,6 +873,11 @@ export default function App() {
               updateLibraryEntry={updateLibraryEntry}
               compact={libraryMode === "split"}
               onRowContextMenu={(e, citekey) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, citekey }); }}
+              bulkSelection={bulkSelection}
+              setBulkSelection={setBulkSelection}
+              toggleBulkSelect={toggleBulkSelect}
+              bulkUpdateLibrary={bulkUpdateLibrary}
+              loadModel={loadModel}
             />
           </div>
         )}

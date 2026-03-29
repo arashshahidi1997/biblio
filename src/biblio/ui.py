@@ -31,7 +31,7 @@ from .crossref import resolve_doi_by_title
 from .grobid import check_grobid_server_as_dict, derive_start_cmd, get_absent_refs, grobid_out_root, run_grobid_for_key, run_grobid_match
 from .pdf_fetch_oa import fetch_pdfs_oa
 from .citekeys import load_citekeys_md
-from .library import load_library, notes_path, update_entry
+from .library import bulk_update, load_library, notes_path, update_entry
 from .collections import (
     load_collections, create_collection, rename_collection, move_collection,
     delete_collection, add_papers as col_add_papers, remove_papers as col_remove_papers,
@@ -1351,6 +1351,28 @@ def create_ui_app(cfg: BiblioConfig):
     @app.get("/api/library", response_class=responses.JSONResponse)
     def get_library():
         return load_library(current_cfg())
+
+    @app.post("/api/library/bulk", response_class=responses.JSONResponse)
+    def bulk_update_library(payload: dict[str, Any]):
+        active_cfg = current_cfg()
+        citekeys = payload.get("citekeys") or []
+        if not citekeys:
+            raise fastapi.HTTPException(status_code=400, detail="citekeys list is required")
+        add_tags = payload.get("add_tags")
+        if isinstance(add_tags, str):
+            add_tags = [t.strip() for t in add_tags.split(",") if t.strip()] or None
+        remove_tags = payload.get("remove_tags")
+        if isinstance(remove_tags, str):
+            remove_tags = [t.strip() for t in remove_tags.split(",") if t.strip()] or None
+        results = bulk_update(
+            active_cfg,
+            citekeys,
+            status=payload.get("status") or None,
+            priority=payload.get("priority") or None,
+            add_tags=add_tags,
+            remove_tags=remove_tags,
+        )
+        return {"ok": True, "updated": len(results), "entries": results}
 
     @app.post("/api/library/{citekey}", response_class=responses.JSONResponse)
     def update_library_entry(citekey: str, payload: dict[str, Any]):

@@ -1996,3 +1996,80 @@ a.cite-link:hover {
 .global-tabstrip-tab--research {
   color: var(--accent);
 }
+/* ── Bulk selection ──────────────────────────────────────── */
+.paper-table tr.bulk-selected {
+  background: rgba(13, 107, 95, 0.08);
+}
+.paper-table tr.bulk-selected:hover {
+  background: rgba(13, 107, 95, 0.13);
+}
+.paper-table th input[type="checkbox"],
+.paper-table td input[type="checkbox"] {
+  accent-color: var(--accent);
+  cursor: pointer;
+  width: 15px;
+  height: 15px;
+}
+/* ── Bulk action toolbar ─────────────────────────────────── */
+.bulk-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.5rem;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+}
+.bulk-toolbar-count {
+  font-weight: 700;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.bulk-toolbar select {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.3rem 0.5rem;
+  background: white;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.bulk-toolbar-tags {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 10rem;
+}
+.bulk-toolbar-tags .tag-input-wrapper {
+  min-width: 8rem;
+  flex: 1;
+}
+.bulk-toolbar-btn {
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 0.3rem 0.6rem;
+  background: white;
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.bulk-toolbar-btn:hover:not(:disabled) {
+  background: var(--accent);
+  color: white;
+}
+.bulk-toolbar-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.bulk-toolbar-btn-danger {
+  border-color: #e06c75;
+  color: #e06c75;
+}
+.bulk-toolbar-btn-danger:hover:not(:disabled) {
+  background: #e06c75;
+  color: white;
+}

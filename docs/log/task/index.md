@@ -2,6 +2,9 @@
 
 ## status: done
 
+- [task-arash-20260329-041419-108879 status:done title:Duplicate ingestion guard on DOI](task-arash-20260329-041419-108879.md)
+- [task-arash-20260329-041416-742117 status:done title:Fix test collection errors and test environment setup](task-arash-20260329-041416-742117.md)
+- [task-arash-20260329-040346-938013 status:done title:Unpaywall PDF source and institutional access settings](task-arash-20260329-040346-938013.md)
 - [task-arash-20260329-035734-363448 status:done title:Normalize citekeys: background action with progress and enrichment caching](task-arash-20260329-035734-363448.md)
 - [task-arash-20260328-210158-299797 status:done title:GUI: Citation drafting, literature review, and presentation tools](task-arash-20260328-210158-299797.md)
 - [task-arash-20260328-210157-123214 status:done title:GUI: Concept viewer, comparison, and reading list panels](task-arash-20260328-210157-123214.md)
@@ -18,7 +21,19 @@
 
 ## status: pending
 
-- [task-arash-20260329-041416-742117 status:pending title:Fix test collection errors and test environment setup](task-arash-20260329-041416-742117.md)
+- [task-arash-20260329-044730-098416 status:pending title:RAG build button with confirmation in SearchTab and build status](task-arash-20260329-044730-098416.md)
+- [task-arash-20260329-044728-940076 status:pending title:Claim-to-evidence linking and verification tool](task-arash-20260329-044728-940076.md)
+- [task-arash-20260329-044727-728422 status:pending title:Related work section generator for academic writing](task-arash-20260329-044727-728422.md)
+- [task-arash-20260329-044348-557485 status:pending title:RAG build button with confirmation in SearchTab and build status](task-arash-20260329-044348-557485.md)
+- [task-arash-20260329-044347-863251 status:pending title:Claim-to-evidence linking and verification tool](task-arash-20260329-044347-863251.md)
+- [task-arash-20260329-044347-306024 status:pending title:Related work section generator for academic writing](task-arash-20260329-044347-306024.md)
+- [task-arash-20260329-042907-229839 status:pending title:Split paper view with side-by-side and vertical paper tab layout](task-arash-20260329-042907-229839.md)
+- [task-arash-20260329-042714-899540 status:pending title:Entry type classification, flagging non-papers, and filtered views](task-arash-20260329-042714-899540.md)
+- [task-arash-20260329-042524-774287 status:pending title:Feed user notes and annotations into AI derivative context](task-arash-20260329-042524-774287.md)
+- [task-arash-20260329-042524-237785 status:pending title:PDF highlighting UI with annotation storage](task-arash-20260329-042524-237785.md)
+- [task-arash-20260329-042523-781814 status:pending title:Batch docling, smart action tips in stats bar, and missing bulk actions](task-arash-20260329-042523-781814.md)
+- [task-arash-20260329-042200-159126 status:pending title:Multi-paper workspace for literature review and cross-paper presentations](task-arash-20260329-042200-159126.md)
+- [task-arash-20260329-042159-834053 status:pending title:Docling progress streaming and AI derivative GUI triggers](task-arash-20260329-042159-834053.md)
 - [task-arash-20260329-041128-441211 status:pending title:PDF annotation extraction as derivative](task-arash-20260329-041128-441211.md)
 - [task-arash-20260329-041128-316771 status:pending title:ORCID-based author publication import](task-arash-20260329-041128-316771.md)
 - [task-arash-20260329-041127-770661 status:pending title:Batch ingest from BibTeX file with GUI preview](task-arash-20260329-041127-770661.md)
@@ -49,6 +64,22 @@
 
 ## status: scheduled
 
-- [task-arash-20260329-040346-938013 status:scheduled title:Unpaywall PDF source and institutional access settings](task-arash-20260329-040346-938013.md)
+- [task-arash-20260329-042952-343922 status:scheduled title:Split paper view with side-by-side and vertical paper tab layout](task-arash-20260329-042952-343922.md)
+- [task-arash-20260329-042756-903726 status:scheduled title:Entry type classification, flagging non-papers, and filtered views](task-arash-20260329-042756-903726.md)
+- [task-arash-20260329-042657-767042 status:scheduled title:Feed user notes and annotations into AI derivative context](task-arash-20260329-042657-767042.md)
+- [task-arash-20260329-042656-523126 status:scheduled title:PDF highlighting UI with annotation storage](task-arash-20260329-042656-523126.md)
+- [task-arash-20260329-042655-069904 status:scheduled title:Batch docling, smart action tips in stats bar, and missing bulk actions](task-arash-20260329-042655-069904.md)
+- [task-arash-20260329-042326-064314 status:scheduled title:Multi-paper workspace for literature review and cross-paper presentations](task-arash-20260329-042326-064314.md)
+- [task-arash-20260329-042324-863873 status:scheduled title:Docling progress streaming and AI derivative GUI triggers](task-arash-20260329-042324-863873.md)
+- [task-arash-20260329-041440-823343 status:scheduled title:PDF annotation extraction as derivative](task-arash-20260329-041440-823343.md)
+- [task-arash-20260329-041438-478170 status:scheduled title:ORCID-based author publication import](task-arash-20260329-041438-478170.md)
+- [task-arash-20260329-041436-123461 status:scheduled title:Batch ingest from BibTeX file with GUI preview](task-arash-20260329-041436-123461.md)
+- [task-arash-20260329-041434-028047 status:scheduled title:Citation graph visualization improvements](task-arash-20260329-041434-028047.md)
+- [task-arash-20260329-041432-126590 status:scheduled title:Library statistics dashboard panel](task-arash-20260329-041432-126590.md)
+- [task-arash-20260329-041430-380655 status:scheduled title:Duplicate paper detection and lint report](task-arash-20260329-041430-380655.md)
+- [task-arash-20260329-041427-972311 status:scheduled title:BibTeX export for selected papers](task-arash-20260329-041427-972311.md)
+- [task-arash-20260329-041425-565370 status:scheduled title:DOI clipboard paste detection in GUI](task-arash-20260329-041425-565370.md)
+- [task-arash-20260329-041423-824361 status:scheduled title:Paper notes editor in PaperTab](task-arash-20260329-041423-824361.md)
+- [task-arash-20260329-041421-534165 status:scheduled title:Bulk status and tag updates from ExploreTab](task-arash-20260329-041421-534165.md)
 - [task-arash-20260328-183535-407935 status:scheduled title:Citation drafting and literature review workflow](task-arash-20260328-183535-407935.md)
 

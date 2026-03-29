@@ -55,6 +55,44 @@ def update_entry(cfg: BiblioConfig, citekey: str, **kwargs: Any) -> dict[str, An
     return entry
 
 
+def bulk_update(
+    cfg: BiblioConfig,
+    citekeys: list[str],
+    *,
+    status: str | None = None,
+    priority: str | None = None,
+    add_tags: list[str] | None = None,
+    remove_tags: list[str] | None = None,
+) -> dict[str, dict[str, Any]]:
+    """Update multiple papers' library entries in one write."""
+    papers = load_library(cfg)
+    results: dict[str, dict[str, Any]] = {}
+    for ck in citekeys:
+        entry = dict(papers.get(ck) or {})
+        if status is not None:
+            entry["status"] = status
+        if priority is not None:
+            entry["priority"] = priority
+        if add_tags:
+            existing = list(entry.get("tags") or [])
+            for t in add_tags:
+                if t not in existing:
+                    existing.append(t)
+            entry["tags"] = existing
+        if remove_tags:
+            existing = list(entry.get("tags") or [])
+            entry["tags"] = [t for t in existing if t not in remove_tags]
+            if not entry["tags"]:
+                entry.pop("tags", None)
+        if entry:
+            papers[ck] = entry
+        else:
+            papers.pop(ck, None)
+        results[ck] = entry
+    save_library(cfg, papers)
+    return results
+
+
 def get_entry(cfg: BiblioConfig, citekey: str) -> dict[str, Any]:
     return load_library(cfg).get(citekey, {})
 
