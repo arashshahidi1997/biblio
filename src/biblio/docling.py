@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from .config import BiblioConfig
 from .ledger import append_jsonl, file_sha256, new_run_id, utc_now_iso, write_json
@@ -45,7 +46,26 @@ def _require_nonempty(path: Path, label: str) -> None:
         raise ValueError(f"Empty {label}: {path}")
 
 
-def run_docling_for_key(cfg: BiblioConfig, citekey: str, *, force: bool = False) -> DoclingOutputs:
+def _parse_docling_progress(line: str) -> dict[str, Any] | None:
+    """Parse a docling stderr/stdout line for page-level progress."""
+    # Docling typically logs lines like "Processing page 3/12" or percentage patterns
+    m = re.search(r"[Pp]age\s+(\d+)\s*/\s*(\d+)", line)
+    if m:
+        return {"done": int(m.group(1)), "total": int(m.group(2))}
+    m = re.search(r"(\d+)\s*%", line)
+    if m:
+        pct = int(m.group(1))
+        return {"done": pct, "total": 100}
+    return None
+
+
+def run_docling_for_key(
+    cfg: BiblioConfig,
+    citekey: str,
+    *,
+    force: bool = False,
+    progress_cb: Callable[[dict[str, Any]], None] | None = None,
+) -> DoclingOutputs:
     key = citekey.lstrip("@")
     pdf_path = pdf_path_for_key(cfg, key)
     if not pdf_path.exists():
@@ -120,9 +140,43 @@ def run_docling_for_key(cfg: BiblioConfig, citekey: str, *, force: bool = False)
             ]
         )
 
-        proc = subprocess.run(cmd, cwd=str(out.outdir), capture_output=True, text=True)
-        if proc.returncode != 0:
-            raise subprocess.CalledProcessError(proc.returncode, cmd, proc.stdout, proc.stderr)
+        if progress_cb is not None:
+            # Stream stderr line-by-line for progress reporting
+            proc = subprocess.Popen(
+                cmd, cwd=str(out.outdir),
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                text=True,
+            )
+            accumulated_stderr: list[str] = []
+            accumulated_stdout: list[str] = []
+            assert proc.stderr is not None  # for type checker
+            assert proc.stdout is not None
+            for line in proc.stderr:
+                accumulated_stderr.append(line)
+                stripped = line.rstrip()
+                if not stripped:
+                    continue
+                parsed = _parse_docling_progress(stripped)
+                cb_payload: dict[str, Any] = {"line": stripped, "logs": "".join(accumulated_stderr)}
+                if parsed:
+                    cb_payload["progress"] = parsed
+                    cb_payload["message"] = f"Processing page {parsed['done']}/{parsed['total']}"
+                else:
+                    cb_payload["message"] = stripped[:120]
+                progress_cb(cb_payload)
+            stdout_data = proc.stdout.read()
+            accumulated_stdout.append(stdout_data)
+            proc.wait()
+            if proc.returncode != 0:
+                raise subprocess.CalledProcessError(
+                    proc.returncode, cmd,
+                    "".join(accumulated_stdout),
+                    "".join(accumulated_stderr),
+                )
+        else:
+            proc_result = subprocess.run(cmd, cwd=str(out.outdir), capture_output=True, text=True)
+            if proc_result.returncode != 0:
+                raise subprocess.CalledProcessError(proc_result.returncode, cmd, proc_result.stdout, proc_result.stderr)
 
     _require_nonempty(out.md_path, "Docling Markdown output")
     _require_nonempty(out.json_path, "Docling JSON output")

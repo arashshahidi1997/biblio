@@ -674,7 +674,11 @@ def create_ui_app(cfg: BiblioConfig):
 
     def _docling_snapshot() -> dict[str, Any]:
         with docling_lock:
-            return dict(docling_job)
+            snap = dict(docling_job)
+            # Include sub_progress if present
+            if "sub_progress" in snap:
+                snap["sub_progress"] = dict(snap["sub_progress"])
+            return snap
 
     def _grobid_snapshot() -> dict[str, Any]:
         with grobid_lock:
@@ -758,23 +762,34 @@ def create_ui_app(cfg: BiblioConfig):
                     if docling_job.get("cancelled"):
                         cancelled = True
                         break
+
+                def _docling_progress(payload: dict) -> None:
+                    with docling_lock:
+                        msg = payload.get("message", "")
+                        docling_job["message"] = f"Docling {idx}/{total}: {ck} — {msg}"
+                        docling_job["logs"] = payload.get("logs", "")
+                        progress = payload.get("progress")
+                        if progress:
+                            docling_job["sub_progress"] = progress
+
                 try:
-                    out = run_docling_for_key(active_cfg, ck, force=force)
+                    out = run_docling_for_key(active_cfg, ck, force=force, progress_cb=_docling_progress)
                     with docling_lock:
                         docling_job["completed"] = idx
                         docling_job["citekey"] = ck
                         docling_job["md_path"] = str(out.md_path)
                         docling_job["message"] = f"Docling {idx}/{total}: {ck}"
                         docling_job["logs"] = ""
+                        docling_job.pop("sub_progress", None)
                 except subprocess.CalledProcessError as e:
                     failures += 1
-                    cmd = " ".join(str(part) for part in e.cmd) if isinstance(e.cmd, (list, tuple)) else str(e.cmd)
                     logs = "\n".join(filter(None, [e.stdout, e.stderr])).strip()
                     with docling_lock:
                         docling_job["completed"] = idx
                         docling_job["citekey"] = ck
                         docling_job["message"] = f"Docling {idx}/{total}: {ck} failed"
                         docling_job["logs"] = logs
+                        docling_job.pop("sub_progress", None)
                 except Exception as e:
                     failures += 1
                     with docling_lock:
@@ -782,9 +797,11 @@ def create_ui_app(cfg: BiblioConfig):
                         docling_job["citekey"] = ck
                         docling_job["message"] = f"Docling {idx}/{total}: {ck} failed: {e}"
                         docling_job["logs"] = ""
+                        docling_job.pop("sub_progress", None)
             with docling_lock:
                 docling_job["running"] = False
                 docling_job["cancelled"] = False
+                docling_job.pop("sub_progress", None)
                 if cancelled:
                     docling_job["error"] = None
                     docling_job["message"] = f"Docling cancelled after {docling_job['completed']}/{total} papers."

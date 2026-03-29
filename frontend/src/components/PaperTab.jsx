@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { renderMarkdown } from "../utils/markdown.js";
 import TagInput from "./TagInput.jsx";
+import ActionProgress from "./ActionProgress.jsx";
 
 const STATUSES = ["", "unread", "reading", "processed", "archived"];
 const PRIORITIES = ["", "low", "normal", "high"];
@@ -27,23 +28,53 @@ const CONCEPT_GROUPS = ["methods", "datasets", "metrics", "domains", "techniques
 function ConceptsPanel({ citekey, hasConcepts, triggerAction, busy, onConceptClick }) {
   const [concepts, setConcepts] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [extracting, setExtracting] = useState(false);
   const loadedFor = useRef(null);
 
-  useEffect(() => {
-    if (loadedFor.current === citekey) return;
-    loadedFor.current = citekey;
-    setConcepts(null);
-    if (!hasConcepts) { setLoading(false); return; }
+  function fetchConcepts() {
     setLoading(true);
     fetch(`/api/papers/${encodeURIComponent(citekey)}/concepts`)
       .then((r) => { if (!r.ok) throw new Error("not found"); return r.json(); })
       .then((data) => { setConcepts(data); setLoading(false); })
       .catch(() => { setConcepts(null); setLoading(false); });
+  }
+
+  useEffect(() => {
+    if (loadedFor.current === citekey) return;
+    loadedFor.current = citekey;
+    setConcepts(null);
+    setExtracting(false);
+    if (!hasConcepts) { setLoading(false); return; }
+    fetchConcepts();
   }, [citekey, hasConcepts]);
 
   useEffect(() => { loadedFor.current = null; }, [citekey]);
 
+  function handleComplete() {
+    setExtracting(false);
+    loadedFor.current = null;
+    fetchConcepts();
+  }
+
   if (loading) return <div className="panel"><h3>Concepts</h3><div className="small" style={{ opacity: 0.6 }}>Loading…</div></div>;
+
+  if (extracting) {
+    return (
+      <div className="panel">
+        <h3>Concepts</h3>
+        <div style={{ textAlign: "center", padding: "0.5rem 0" }}>
+          <ActionProgress
+            endpoint="/api/actions/concepts-extract"
+            body={{ citekey }}
+            onComplete={handleComplete}
+            onError={() => setExtracting(false)}
+            label="Extracting concepts"
+            autoTrigger
+          />
+        </div>
+      </div>
+    );
+  }
 
   if (!concepts) {
     return (
@@ -54,7 +85,7 @@ function ConceptsPanel({ citekey, hasConcepts, triggerAction, busy, onConceptCli
           <button
             className="absent-refs-btn-small absent-refs-btn-primary"
             disabled={busy}
-            onClick={() => triggerAction("concepts-extract", { citekey })}
+            onClick={() => setExtracting(true)}
           >Extract Concepts</button>
         </div>
       </div>
@@ -105,18 +136,29 @@ function LibraryPanel({ activePaper, updateLibraryEntry, triggerAction, busy }) 
   const [priority, setPriority] = useState(lib.priority || "");
   const [tags, setTags] = useState(lib.tags || []);
   const [saving, setSaving] = useState(false);
+  const [autotagging, setAutotagging] = useState(false);
 
   useEffect(() => {
     const l = activePaper.library || {};
     setStatus(l.status || "");
     setPriority(l.priority || "");
     setTags(l.tags || []);
+    setAutotagging(false);
   }, [activePaper.citekey]);
 
   async function save() {
     setSaving(true);
     await updateLibraryEntry(activePaper.citekey, { status: status || null, priority: priority || null, tags });
     setSaving(false);
+  }
+
+  function handleAutotagComplete(data) {
+    setAutotagging(false);
+    // Refresh library entry to get new tags
+    fetch(`/api/library/${encodeURIComponent(activePaper.citekey)}`)
+      .then((r) => r.json())
+      .then((lib) => { setTags(lib.tags || []); })
+      .catch(() => {});
   }
 
   return (
@@ -134,16 +176,27 @@ function LibraryPanel({ activePaper, updateLibraryEntry, triggerAction, busy }) 
         <div className="small">Tags</div>
         <TagInput tags={tags} onChange={setTags} placeholder="Add tags..." />
       </div>
-      <div className="actions" style={{ marginTop: "0.6rem", display: "flex", gap: "0.4rem" }}>
+      <div className="actions" style={{ marginTop: "0.6rem", display: "flex", gap: "0.4rem", alignItems: "center" }}>
         <button onClick={save} disabled={saving}>{saving ? "Saving..." : "Save"}</button>
-        <button
-          className="badge-action"
-          disabled={busy}
-          onClick={() => triggerAction("autotag", { citekey: activePaper.citekey })}
-          title="Auto-tag this paper using LLM"
-        >
-          Auto-tag
-        </button>
+        {autotagging ? (
+          <ActionProgress
+            endpoint="/api/actions/autotag"
+            body={{ citekey: activePaper.citekey }}
+            onComplete={handleAutotagComplete}
+            onError={() => setAutotagging(false)}
+            label="Auto-tagging"
+            autoTrigger
+          />
+        ) : (
+          <button
+            className="badge-action"
+            disabled={busy}
+            onClick={() => setAutotagging(true)}
+            title="Auto-tag this paper using LLM"
+          >
+            Auto-tag
+          </button>
+        )}
       </div>
     </div>
   );
@@ -827,13 +880,10 @@ const SLIDE_TEMPLATES = [
 function SummaryTab({ citekey, hasSummary, triggerAction, busy }) {
   const [text, setText] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const loadedFor = useRef(null);
 
-  useEffect(() => {
-    if (loadedFor.current === citekey) return;
-    loadedFor.current = citekey;
-    setText(null);
-    if (!hasSummary) { setLoading(false); return; }
+  function fetchSummary() {
     setLoading(true);
     fetch(`/api/papers/${encodeURIComponent(citekey)}/summary`)
       .then((r) => {
@@ -842,15 +892,42 @@ function SummaryTab({ citekey, hasSummary, triggerAction, busy }) {
       })
       .then((t) => { setText(t); setLoading(false); })
       .catch(() => { setText(null); setLoading(false); });
+  }
+
+  useEffect(() => {
+    if (loadedFor.current === citekey) return;
+    loadedFor.current = citekey;
+    setText(null);
+    setGenerating(false);
+    if (!hasSummary) { setLoading(false); return; }
+    fetchSummary();
   }, [citekey, hasSummary]);
 
-  // Reset cache when citekey changes
-  useEffect(() => {
+  useEffect(() => { loadedFor.current = null; }, [citekey]);
+
+  function handleComplete() {
+    setGenerating(false);
     loadedFor.current = null;
-  }, [citekey]);
+    fetchSummary();
+  }
 
   if (loading) {
     return <div className="small" style={{ padding: "1rem", opacity: 0.6 }}>Loading summary…</div>;
+  }
+
+  if (generating) {
+    return (
+      <div style={{ padding: "1.5rem", textAlign: "center" }}>
+        <ActionProgress
+          endpoint="/api/actions/summarize"
+          body={{ citekey }}
+          onComplete={handleComplete}
+          onError={() => setGenerating(false)}
+          label="Generating summary"
+          autoTrigger
+        />
+      </div>
+    );
   }
 
   if (text) {
@@ -861,7 +938,7 @@ function SummaryTab({ citekey, hasSummary, triggerAction, busy }) {
           <button
             className="absent-refs-btn-small"
             disabled={busy}
-            onClick={() => { loadedFor.current = null; triggerAction("summarize", { citekey, force: true }); }}
+            onClick={() => { setGenerating(true); }}
           >
             Regenerate
           </button>
@@ -877,7 +954,7 @@ function SummaryTab({ citekey, hasSummary, triggerAction, busy }) {
       <button
         className="absent-refs-btn-small absent-refs-btn-primary"
         disabled={busy}
-        onClick={() => triggerAction("summarize", { citekey })}
+        onClick={() => setGenerating(true)}
       >
         Generate Summary
       </button>
@@ -890,13 +967,10 @@ function SlidesTab({ citekey, hasSlides, triggerAction, busy }) {
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [template, setTemplate] = useState("journal-club");
+  const [generating, setGenerating] = useState(false);
   const loadedFor = useRef(null);
 
-  useEffect(() => {
-    if (loadedFor.current === citekey) return;
-    loadedFor.current = citekey;
-    setText(null);
-    if (!hasSlides) { setLoading(false); return; }
+  function fetchSlides() {
     setLoading(true);
     fetch(`/api/papers/${encodeURIComponent(citekey)}/slides`)
       .then((r) => {
@@ -905,11 +979,24 @@ function SlidesTab({ citekey, hasSlides, triggerAction, busy }) {
       })
       .then((t) => { setText(t); setLoading(false); })
       .catch(() => { setText(null); setLoading(false); });
-  }, [citekey, hasSlides]);
+  }
 
   useEffect(() => {
+    if (loadedFor.current === citekey) return;
+    loadedFor.current = citekey;
+    setText(null);
+    setGenerating(false);
+    if (!hasSlides) { setLoading(false); return; }
+    fetchSlides();
+  }, [citekey, hasSlides]);
+
+  useEffect(() => { loadedFor.current = null; }, [citekey]);
+
+  function handleComplete() {
+    setGenerating(false);
     loadedFor.current = null;
-  }, [citekey]);
+    fetchSlides();
+  }
 
   function copyToClipboard() {
     if (!text) return;
@@ -934,6 +1021,21 @@ function SlidesTab({ citekey, hasSlides, triggerAction, busy }) {
     ));
   }
 
+  if (generating) {
+    return (
+      <div style={{ padding: "1.5rem", textAlign: "center" }}>
+        <ActionProgress
+          endpoint="/api/actions/present"
+          body={{ citekey, template }}
+          onComplete={handleComplete}
+          onError={() => setGenerating(false)}
+          label={`Generating ${template} slides`}
+          autoTrigger
+        />
+      </div>
+    );
+  }
+
   if (text) {
     return (
       <div>
@@ -947,7 +1049,7 @@ function SlidesTab({ citekey, hasSlides, triggerAction, busy }) {
           <button
             className="absent-refs-btn-small"
             disabled={busy}
-            onClick={() => { loadedFor.current = null; triggerAction("present", { citekey, template }); }}
+            onClick={() => setGenerating(true)}
           >
             Regenerate
           </button>
@@ -978,7 +1080,7 @@ function SlidesTab({ citekey, hasSlides, triggerAction, busy }) {
         <button
           className="absent-refs-btn-small absent-refs-btn-primary"
           disabled={busy}
-          onClick={() => triggerAction("present", { citekey, template })}
+          onClick={() => setGenerating(true)}
         >
           Generate Slides
         </button>
@@ -1144,7 +1246,26 @@ export default function PaperTab({
 
           {contentTab === "Markdown" && (
             <div className="panel paper-content-panel">
-              <StandardizedTab citekey={activePaper.citekey} papers={papers} openInPaperTab={openInPaperTab} />
+              {!hasDocling && actionState && actionState.action === "docling-run" && actionState.busy ? (
+                <div style={{ padding: "1.5rem", textAlign: "center" }}>
+                  <div className="action-progress-status">
+                    <span className="action-spinner">&#x27F3;</span>
+                    <span className="action-progress-label">{actionState.message || "Running Docling..."}</span>
+                  </div>
+                  {actionState.progressTotal > 0 && (
+                    <div className="progress-bar" style={{ marginTop: "0.5rem", height: "4px", maxWidth: "300px", margin: "0.5rem auto 0" }}>
+                      <div className="progress-fill" style={{ width: `${actionState.progressPercent || 0}%` }} />
+                    </div>
+                  )}
+                  {actionState.logs && (
+                    <pre style={{ marginTop: "0.5rem", fontSize: "0.72rem", opacity: 0.6, maxHeight: "8rem", overflowY: "auto", textAlign: "left", whiteSpace: "pre-wrap" }}>
+                      {actionState.logs}
+                    </pre>
+                  )}
+                </div>
+              ) : (
+                <StandardizedTab citekey={activePaper.citekey} papers={papers} openInPaperTab={openInPaperTab} />
+              )}
             </div>
           )}
 
@@ -1168,7 +1289,19 @@ export default function PaperTab({
 
           {contentTab === "Refs" && (
             <div className="panel paper-content-panel">
-              {activePaper.grobid && activePaper.grobid.header && Object.keys(activePaper.grobid.header).length > 0 ? (
+              {!hasGrobid && actionState && actionState.action === "grobid-run" && actionState.busy ? (
+                <div style={{ padding: "1.5rem", textAlign: "center" }}>
+                  <div className="action-progress-status">
+                    <span className="action-spinner">&#x27F3;</span>
+                    <span className="action-progress-label">{actionState.message || "Running GROBID..."}</span>
+                  </div>
+                  {actionState.progressTotal > 0 && (
+                    <div className="progress-bar" style={{ marginTop: "0.5rem", height: "4px", maxWidth: "300px", margin: "0.5rem auto 0" }}>
+                      <div className="progress-fill" style={{ width: `${actionState.progressPercent || 0}%` }} />
+                    </div>
+                  )}
+                </div>
+              ) : activePaper.grobid && activePaper.grobid.header && Object.keys(activePaper.grobid.header).length > 0 ? (
                 <>
                   <div className="kv" style={{ marginBottom: "0.8rem" }}>
                     {activePaper.grobid.header.title && (
