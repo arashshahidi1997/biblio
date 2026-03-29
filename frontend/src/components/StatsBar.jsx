@@ -32,9 +32,12 @@ export default function StatsBar({ triggerAction, cancelAction, actionState }) {
 
   const cov = stats.coverage || {};
   const total = stats.total || 0;
+  const papersCount = stats.papers_count ?? total;
+  const nonPapers = stats.non_papers ?? 0;
 
   const items = [
-    { key: "total", label: "papers", count: total },
+    { key: "papers", label: "papers", count: papersCount },
+    ...(nonPapers > 0 ? [{ key: "other", label: "other entries", count: nonPapers }] : []),
     { key: "pdf", label: "pdf", count: cov.pdf?.count ?? 0, pct: cov.pdf?.pct ?? 0 },
     { key: "docling", label: "docling", count: cov.docling?.count ?? 0, pct: cov.docling?.pct ?? 0 },
     { key: "openalex", label: "openalex", count: cov.openalex?.count ?? 0, pct: cov.openalex?.pct ?? 0 },
@@ -76,7 +79,7 @@ export default function StatsBar({ triggerAction, cancelAction, actionState }) {
       label: "Run GROBID For All",
     });
   }
-  if (openalexCount < total * 0.5 && !dismissed.has("openalex")) {
+  if (openalexCount < papersCount * 0.5 && !dismissed.has("openalex")) {
     tips.push({
       id: "openalex",
       text: "Resolve OpenAlex for metadata enrichment",

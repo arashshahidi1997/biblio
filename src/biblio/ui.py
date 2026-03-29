@@ -49,7 +49,7 @@ from .cite_draft import cite_draft
 from .lit_review import review_query, review_plan
 from .present import slides_path_for_key, generate_slides
 from .site import build_biblio_site
-from .site import BiblioSiteOptions, _build_site_model, default_site_out_dir
+from .site import BiblioSiteOptions, _build_site_model, default_site_out_dir, classify_entry_type
 
 
 def _try_import_indexio():
@@ -143,6 +143,29 @@ def find_available_port(host: str, start_port: int, *, max_tries: int = 25) -> i
                 continue
             return port
     raise OSError(f"No available port found starting at {start_port} on host {host}")
+
+
+def _paper_citekeys_from_bib(cfg: BiblioConfig) -> set[str]:
+    """Return citekeys that are classified as papers (not books, theses, etc.).
+
+    Uses the merged bib file for entry type info. Falls back to treating
+    all entries as papers if the bib file is unavailable.
+    """
+    bib_path = cfg.bibtex_merge.out_bib
+    if not bib_path.exists():
+        return set()  # empty = no filtering possible; callers fall back to all
+    try:
+        from ._pybtex_utils import parse_bibtex_file
+        db = parse_bibtex_file(bib_path)
+        paper_keys: set[str] = set()
+        for key, entry in db.entries.items():
+            entry_type = (entry.type or "misc").lower()
+            doi = (entry.fields.get("doi") or "").strip() or None
+            if classify_entry_type(entry_type, doi):
+                paper_keys.add(key)
+        return paper_keys
+    except Exception:
+        return set()
 
 
 def build_ui_model(cfg: BiblioConfig) -> dict[str, Any]:
@@ -430,6 +453,8 @@ def create_ui_app(cfg: BiblioConfig):
         all_papers = payload.get("papers", [])
         lib = load_library(active_cfg)
         total = len(all_papers)
+        papers_only = [p for p in all_papers if p.get("is_paper", True)]
+        non_papers = total - len(papers_only)
 
         # Status counts
         status_counts: dict[str, int] = {}
@@ -472,6 +497,8 @@ def create_ui_app(cfg: BiblioConfig):
 
         return {
             "total": total,
+            "papers_count": len(papers_only),
+            "non_papers": non_papers,
             "by_status": status_counts,
             "by_year": dict(sorted(year_counts.items())),
             "top_tags": [{"tag": t, "count": c} for t, c in top_tags],
@@ -685,6 +712,7 @@ def create_ui_app(cfg: BiblioConfig):
         run_all = bool(payload.get("all"))
         citekey = str(payload.get("citekey") or "").strip()
         force = bool(payload.get("force"))
+        include_non_papers = bool(payload.get("include_non_papers"))
 
         if not run_all and not citekey:
             raise fastapi.HTTPException(status_code=400, detail="Missing citekey or all=true")
@@ -694,6 +722,10 @@ def create_ui_app(cfg: BiblioConfig):
                 return {"ok": True, "async": True, **dict(docling_job)}
             if run_all:
                 keys = load_citekeys_md(active_cfg.citekeys_path) if active_cfg.citekeys_path.exists() else []
+                if not include_non_papers:
+                    paper_keys = _paper_citekeys_from_bib(active_cfg)
+                    if paper_keys:
+                        keys = [k for k in keys if k in paper_keys]
                 # Only papers with PDF but no docling output
                 keys = [
                     k for k in keys
@@ -957,6 +989,7 @@ def create_ui_app(cfg: BiblioConfig):
         run_all = bool(payload.get("all"))
         citekey = str(payload.get("citekey") or "").strip()
         force = bool(payload.get("force"))
+        include_non_papers = bool(payload.get("include_non_papers"))
 
         if not run_all and not citekey:
             raise fastapi.HTTPException(status_code=400, detail="Missing citekey or all=true")
@@ -966,6 +999,10 @@ def create_ui_app(cfg: BiblioConfig):
                 return {"ok": True, "async": True, **dict(grobid_job)}
             if run_all:
                 keys = load_citekeys_md(active_cfg.citekeys_path) if active_cfg.citekeys_path.exists() else []
+                if not include_non_papers:
+                    paper_keys = _paper_citekeys_from_bib(active_cfg)
+                    if paper_keys:
+                        keys = [k for k in keys if k in paper_keys]
                 keys = [k for k in keys if (active_cfg.pdf_root / active_cfg.pdf_pattern.format(citekey=k)).exists()]
                 total = len(keys)
                 msg = f"Running GROBID for all {total} papers with PDFs..."
@@ -1767,6 +1804,12 @@ def create_ui_app(cfg: BiblioConfig):
     def action_fetch_pdfs_oa(payload: dict[str, Any]):
         active_cfg = current_cfg()
         force = bool(payload.get("force"))
+        include_non_papers = bool(payload.get("include_non_papers"))
+        ck_filter: set[str] | None = None
+        if not include_non_papers:
+            paper_keys = _paper_citekeys_from_bib(active_cfg)
+            if paper_keys:
+                ck_filter = paper_keys
         with fetch_oa_lock:
             if fetch_oa_job["running"]:
                 return {"ok": True, "async": True, **dict(fetch_oa_job)}
@@ -1789,7 +1832,7 @@ def create_ui_app(cfg: BiblioConfig):
 
         def _run() -> None:
             try:
-                results = fetch_pdfs_oa(active_cfg, force=force, progress_cb=_progress)
+                results = fetch_pdfs_oa(active_cfg, force=force, progress_cb=_progress, citekey_filter=ck_filter)
                 from .pdf_fetch_oa import ALL_STATUSES as _all_st
                 counts = {s: sum(1 for r in results if r.status == s) for s in _all_st}
                 error_lines = [f"{r.citekey}: {r.error}" for r in results if r.status == "error"]
@@ -2193,6 +2236,7 @@ def create_ui_app(cfg: BiblioConfig):
         citekey = str(payload.get("citekey") or "").strip() or None
         tiers = payload.get("tiers") or None
         model_name = str(payload.get("model") or "").strip() or None
+        include_non_papers = bool(payload.get("include_non_papers"))
         with autotag_lock:
             if autotag_job["running"]:
                 return {"ok": True, "async": True, **dict(autotag_job)}
@@ -2200,6 +2244,10 @@ def create_ui_app(cfg: BiblioConfig):
                 keys = [citekey]
             else:
                 keys = load_citekeys_md(active_cfg.citekeys_path) if active_cfg.citekeys_path.exists() else []
+                if not include_non_papers:
+                    paper_keys = _paper_citekeys_from_bib(active_cfg)
+                    if paper_keys:
+                        keys = [k for k in keys if k in paper_keys]
             autotag_job.update({
                 "running": True, "message": f"Auto-tagging {len(keys)} papers...",
                 "error": None, "completed": 0, "total": len(keys),

@@ -156,12 +156,25 @@ function BulkToolbar({ count, bulkSelection, bulkUpdateLibrary, setBulkSelection
   );
 }
 
+const ENTRY_TYPE_LABELS = {
+  book: "book",
+  proceedings: "proceedings",
+  phdthesis: "PhD thesis",
+  mastersthesis: "MSc thesis",
+  techreport: "tech report",
+  misc: "misc",
+  manual: "manual",
+  booklet: "booklet",
+  online: "online",
+};
+
 export default function CorpusTab({
   papers, actionState, setActiveKey, setActiveTab, openInPaperTab,
   setLibraryMode, triggerAction,
   statusFilter, setStatusFilter, tagFilter, setTagFilter, allTags,
   updateLibraryEntry, compact, onRowContextMenu,
   bulkSelection, setBulkSelection, toggleBulkSelect, bulkUpdateLibrary, loadModel,
+  papersOnly, setPapersOnly,
 }) {
   const busy = actionState.busy;
   const allVisibleKeys = papers.map((p) => p.citekey);
@@ -191,7 +204,17 @@ export default function CorpusTab({
             />
           </div>
           <div className="field" style={{ alignSelf: "flex-end" }}>
-            <span className="small">{papers.length} papers</span>
+            <label style={{ display: "flex", alignItems: "center", gap: "0.3rem", cursor: "pointer", fontSize: "0.8rem" }}>
+              <input
+                type="checkbox"
+                checked={papersOnly}
+                onChange={(ev) => setPapersOnly(ev.target.checked)}
+              />
+              Papers only
+            </label>
+          </div>
+          <div className="field" style={{ alignSelf: "flex-end" }}>
+            <span className="small">{papers.length} {papersOnly ? "papers" : "entries"}</span>
           </div>
         </div>
       )}
@@ -299,7 +322,20 @@ export default function CorpusTab({
                     )}
                   </div>
                 </td>
-                <td>{paper.title}</td>
+                <td>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
+                    <span>{paper.title}</span>
+                    {!paper.is_paper && (
+                      <span
+                        className="badge"
+                        style={{ background: "#6a5acd", color: "#fff", border: "1px solid #6a5acd", fontSize: "0.65rem", padding: "0.05rem 0.35rem", whiteSpace: "nowrap" }}
+                        title={`Entry type: ${paper.entry_type}`}
+                      >
+                        {ENTRY_TYPE_LABELS[paper.entry_type] || paper.entry_type}
+                      </span>
+                    )}
+                  </div>
+                </td>
                 {!compact && <td>{paper.year || "n.d."}</td>}
                 {!compact && (
                   <td>

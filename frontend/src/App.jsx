@@ -76,6 +76,7 @@ export default function App() {
   const doiToastTimerRef = useRef(null);
   const [statsCollapsed, setStatsCollapsed] = useState(false);
   const [expandAllConfirm, setExpandAllConfirm] = useState(false);
+  const [papersOnly, setPapersOnly] = useState(true);
 
   const loadModel = useCallback(() => {
     fetch("/api/model").then((resp) => resp.json()).then((data) => {
@@ -228,13 +229,14 @@ export default function App() {
       ? (activeCol.smart ? activeCol.resolved_citekeys : activeCol.citekeys) || []
       : null;
     return (payload.papers || []).filter((paper) => {
+      if (papersOnly && !paper.is_paper) return false;
       if (q && !`${paper.citekey} ${paper.title}`.toLowerCase().includes(q)) return false;
       if (statusFilter && (paper.library || {}).status !== statusFilter) return false;
       if (tagFilter && !((paper.library || {}).tags || []).includes(tagFilter)) return false;
       if (colCitekeys && !colCitekeys.includes(paper.citekey)) return false;
       return true;
     });
-  }, [payload, query, statusFilter, tagFilter, activeCollectionId, collections]);
+  }, [payload, query, statusFilter, tagFilter, activeCollectionId, collections, papersOnly]);
 
   const allTags = useMemo(() => {
     if (!payload) return [];
@@ -1042,6 +1044,8 @@ export default function App() {
               toggleBulkSelect={toggleBulkSelect}
               bulkUpdateLibrary={bulkUpdateLibrary}
               loadModel={loadModel}
+              papersOnly={papersOnly}
+              setPapersOnly={setPapersOnly}
             />
           </div>
         )}

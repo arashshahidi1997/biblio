@@ -1018,6 +1018,16 @@ export default function PaperTab({
         <div className="paper-card-title">
           <h2>{activePaper.citekey}</h2>
           <span className="small">{activePaper.year || "n.d."}</span>
+          {!activePaper.is_paper && (
+            <span
+              className="badge"
+              style={{ background: "#6a5acd", color: "#fff", border: "1px solid #6a5acd", fontSize: "0.72rem", padding: "0.1rem 0.45rem", marginLeft: "0.4rem" }}
+            >
+              {activePaper.entry_type === "phdthesis" ? "PhD thesis"
+                : activePaper.entry_type === "mastersthesis" ? "MSc thesis"
+                : activePaper.entry_type || "misc"}
+            </span>
+          )}
         </div>
         <div className="small">{activePaper.title}</div>
         <p>{(activePaper.authors || []).join(", ") || "Unknown authors"}</p>

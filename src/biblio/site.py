@@ -118,6 +118,7 @@ def _iter_srcbib_records(cfg: BiblioConfig) -> list[dict[str, Any]]:
                     "year": year,
                     "doi": doi,
                     "authors": authors,
+                    "entry_type": entry.type.lower() if entry.type else "misc",
                 }
             )
     return records
@@ -549,6 +550,20 @@ def _load_grobid_data(grobid_root: Path, key: str) -> dict[str, Any]:
     return {"header": header, "reference_count": ref_count}
 
 
+_PAPER_TYPES = frozenset({"article", "inproceedings", "conference", "incollection", "unpublished"})
+_NON_PAPER_TYPES = frozenset({"book", "proceedings", "phdthesis", "mastersthesis", "techreport", "misc", "manual", "booklet", "online"})
+
+
+def classify_entry_type(entry_type: str, doi: str | None = None) -> bool:
+    """Return True if the entry should be classified as a paper."""
+    et = (entry_type or "misc").lower()
+    if et in _PAPER_TYPES:
+        return True
+    if et == "misc":
+        return bool(doi)
+    return False
+
+
 def _build_site_model(cfg: BiblioConfig, options: BiblioSiteOptions) -> dict[str, Any]:
     repo_root = cfg.repo_root.resolve()
     citekeys = load_citekeys_md(cfg.citekeys_path) if cfg.citekeys_path.exists() else []
@@ -638,12 +653,18 @@ def _build_site_model(cfg: BiblioConfig, options: BiblioSiteOptions) -> dict[str
                         }
                     )
 
+        entry_type = (primary or {}).get("entry_type") or "misc"
+        doi = (primary or {}).get("doi") or (openalex_row or {}).get("doi")
+        is_paper = classify_entry_type(entry_type, doi)
+
         paper = {
             "citekey": citekey,
             "title": (primary or {}).get("title") or (openalex_row or {}).get("display_name") or citekey,
             "year": (primary or {}).get("year") or (openalex_row or {}).get("publication_year"),
-            "doi": (primary or {}).get("doi") or (openalex_row or {}).get("doi"),
+            "doi": doi,
             "authors": (primary or {}).get("authors") or [],
+            "entry_type": entry_type,
+            "is_paper": is_paper,
             "source_bibs": sorted({str(item["source_bib"]) for item in source_list}),
             "configured": citekey in citekeys,
             "artifacts": {

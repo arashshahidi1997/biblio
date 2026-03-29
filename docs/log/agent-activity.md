@@ -247,3 +247,10 @@ Session: `7bf5e878` | Task: `task-arash-20260329-160941-127078.md`
 171 tests pass.
 
 Session: `f4e7705d` | Task: `task-arash-20260329-160937-683814.md`
+
+## 2026-03-29 16:29 | biblio | opus | 1 steps
+
+### 6. Fetch OA PDFs progress
+- Already working via the existing `pollJobStatus` pattern — verified, no changes needed
+
+Session: `dbbf4d25` | Task: `task-arash-20260329-160931-804984.md`

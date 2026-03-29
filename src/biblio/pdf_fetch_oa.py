@@ -107,6 +107,7 @@ def fetch_pdfs_oa(
     delay: float | None = None,
     queue: bool = True,
     progress_cb: Callable[[dict[str, Any]], None] | None = None,
+    citekey_filter: set[str] | None = None,
 ) -> list[OaFetchResult]:
     """Download PDFs for all papers using a configurable source cascade.
 
@@ -145,6 +146,9 @@ def fetch_pdfs_oa(
                 records.append(json.loads(line))
             except json.JSONDecodeError:
                 continue
+
+    if citekey_filter is not None:
+        records = [r for r in records if str(r.get("citekey") or "") in citekey_filter]
 
     results: list[OaFetchResult] = []
     run_id = new_run_id("pdf_fetch_oa")

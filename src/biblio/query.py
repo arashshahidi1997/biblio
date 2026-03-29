@@ -218,8 +218,14 @@ def _match_predicate(pred: Predicate, library_entry: dict[str, Any], bib_entry: 
         return artifacts.get(v.lower(), False)
 
     if f == "type":
-        entry_type = bib_entry.get("type") or ""
-        return entry_type.lower() == v.lower()
+        entry_type = (bib_entry.get("type") or "").lower()
+        v_lower = v.lower()
+        if v_lower == "paper":
+            from .site import classify_entry_type
+            return classify_entry_type(entry_type, bib_entry.get("doi"))
+        if v_lower == "thesis":
+            return entry_type in ("phdthesis", "mastersthesis")
+        return entry_type == v_lower
 
     if f == "keyword":
         kw_str = bib_entry.get("keywords") or bib_entry.get("keyword") or ""
