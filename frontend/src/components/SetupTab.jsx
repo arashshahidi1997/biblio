@@ -180,7 +180,101 @@ function GrobidConfigForm({ setup, actionState, triggerSetupAction }) {
   );
 }
 
-const SUBTABS = ["Overview", "Docling", "GROBID", "RAG"];
+const ALL_SOURCES = [
+  { id: "pool", label: "Pool" },
+  { id: "openalex", label: "OpenAlex" },
+  { id: "unpaywall", label: "Unpaywall" },
+  { id: "ezproxy", label: "EZProxy" },
+];
+
+function PdfFetchConfigForm({ setup, actionState, triggerSetupAction }) {
+  const pf = setup.pdf_fetch || {};
+  const [email, setEmail] = useState(pf.unpaywall_email || "");
+  const [proxyBase, setProxyBase] = useState(pf.ezproxy_base || "");
+  const [proxyMode, setProxyMode] = useState(pf.ezproxy_mode || "prefix");
+  const [sources, setSources] = useState(pf.sources || ["pool", "openalex", "unpaywall", "ezproxy"]);
+  const [fetchDelay, setFetchDelay] = useState(String(pf.delay ?? 1.0));
+
+  const toggleSource = (id) => {
+    setSources((prev) => prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]);
+  };
+
+  const moveSource = (id, direction) => {
+    setSources((prev) => {
+      const idx = prev.indexOf(id);
+      if (idx < 0) return prev;
+      const next = [...prev];
+      const swap = idx + direction;
+      if (swap < 0 || swap >= next.length) return prev;
+      [next[idx], next[swap]] = [next[swap], next[idx]];
+      return next;
+    });
+  };
+
+  const save = () => {
+    triggerSetupAction("/api/setup/pdf-fetch-config", {
+      unpaywall_email: email.trim(),
+      ezproxy_base: proxyBase.trim(),
+      ezproxy_mode: proxyMode,
+      sources,
+      delay: parseFloat(fetchDelay) || 1.0,
+    });
+  };
+
+  return (
+    <div className="setup-grid" style={{ marginTop: "0.9rem" }}>
+      <div className="subpanel">
+        <div className="field">
+          <label>Unpaywall email</label>
+          <input value={email} onChange={(ev) => setEmail(ev.target.value)} placeholder="your.email@university.edu" />
+          <div className="small" style={{ opacity: 0.6, marginTop: "0.2rem" }}>Required for Unpaywall API access (free, 100k queries/day).</div>
+        </div>
+        <div className="field">
+          <label>EZProxy base URL</label>
+          <input value={proxyBase} onChange={(ev) => setProxyBase(ev.target.value)} placeholder="https://emedien.ub.uni-muenchen.de" />
+          <div className="small" style={{ opacity: 0.6, marginTop: "0.2rem" }}>Your university library proxy URL. Required for accessing paywalled papers.</div>
+        </div>
+        <div className="field">
+          <label>EZProxy mode</label>
+          <select value={proxyMode} onChange={(ev) => setProxyMode(ev.target.value)}>
+            <option value="prefix">prefix</option>
+            <option value="suffix">suffix</option>
+          </select>
+        </div>
+        <div className="field">
+          <label>Delay between requests (seconds)</label>
+          <input value={fetchDelay} onChange={(ev) => setFetchDelay(ev.target.value)} placeholder="1.0" style={{ width: "5rem" }} />
+        </div>
+      </div>
+      <div className="subpanel">
+        <label>Source cascade order</label>
+        <div className="small" style={{ opacity: 0.6, marginBottom: "0.4rem" }}>Enable sources and set priority. Papers are tried top-to-bottom.</div>
+        {ALL_SOURCES.map((s) => {
+          const enabled = sources.includes(s.id);
+          const idx = sources.indexOf(s.id);
+          return (
+            <div key={s.id} style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.2rem 0" }}>
+              <input type="checkbox" checked={enabled} onChange={() => toggleSource(s.id)} />
+              <span style={{ minWidth: "5rem", opacity: enabled ? 1 : 0.4 }}>{s.label}</span>
+              {enabled && (
+                <>
+                  <button disabled={idx <= 0} onClick={() => moveSource(s.id, -1)} style={{ padding: "0 0.3rem", fontSize: "0.7rem" }}>&uarr;</button>
+                  <button disabled={idx >= sources.length - 1} onClick={() => moveSource(s.id, 1)} style={{ padding: "0 0.3rem", fontSize: "0.7rem" }}>&darr;</button>
+                </>
+              )}
+              {enabled && <span className="small" style={{ opacity: 0.5 }}>#{idx + 1}</span>}
+            </div>
+          );
+        })}
+        <div className="actions" style={{ marginTop: "0.6rem" }}>
+          <button disabled={actionState.busy} onClick={save}>Save PDF fetch config</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const SUBTABS = ["Overview", "Docling", "GROBID", "RAG", "PDF Fetch"];
 
 export default function SetupTab({
   setup,
@@ -267,7 +361,7 @@ export default function SetupTab({
             <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
                 <span className="badge" style={{ minWidth: "1.4rem", textAlign: "center" }}>1</span>
-                <span className="small" style={{ flex: 1 }}>Fetch PDFs (OpenAlex OA)</span>
+                <span className="small" style={{ flex: 1 }}>Fetch PDFs (cascade: {(setup.pdf_fetch?.sources || []).join(" → ") || "openalex"})</span>
                 <button disabled={actionState.busy} onClick={() => triggerAction("fetch-pdfs-oa", {})}>Fetch PDFs</button>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
@@ -406,6 +500,16 @@ export default function SetupTab({
               <GrobidConfigForm setup={setup} actionState={actionState} triggerSetupAction={triggerSetupAction} />
             </>
           )}
+        </div>
+      )}
+
+      {subtab === "PDF Fetch" && (
+        <div className="panel">
+          <h2>PDF Fetch</h2>
+          <div className="small">
+            Configure the PDF download cascade: Pool, OpenAlex, Unpaywall, and EZProxy (institutional proxy).
+          </div>
+          <PdfFetchConfigForm setup={setup} actionState={actionState} triggerSetupAction={triggerSetupAction} />
         </div>
       )}
 

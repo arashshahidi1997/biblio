@@ -226,6 +226,13 @@ def build_setup_report(cfg: BiblioConfig) -> dict[str, Any]:
             "message": "Click Check to verify.",
             "latency_ms": None,
         },
+        "pdf_fetch": {
+            "unpaywall_email": cfg.pdf_fetch_cascade.unpaywall_email or "",
+            "ezproxy_base": cfg.pdf_fetch_cascade.ezproxy_base or "",
+            "ezproxy_mode": cfg.pdf_fetch_cascade.ezproxy_mode,
+            "sources": list(cfg.pdf_fetch_cascade.sources),
+            "delay": cfg.pdf_fetch_cascade.delay,
+        },
     }
 
 
@@ -310,6 +317,23 @@ def _update_grobid_config(repo_root: Path, updates: dict[str, Any]) -> Path:
     for key in ("url", "installation_path", "timeout_seconds", "consolidate_header", "consolidate_citations"):
         if key in updates and updates[key] is not None:
             grobid[key] = updates[key]
+    return _write_config_mapping(repo_root, payload)
+
+
+def _update_pdf_fetch_config(repo_root: Path, updates: dict[str, Any]) -> Path:
+    payload = _load_config_mapping(repo_root)
+    pf = payload.get("pdf_fetch")
+    if not isinstance(pf, dict):
+        pf = {}
+        payload["pdf_fetch"] = pf
+    for key in ("unpaywall_email", "ezproxy_base", "ezproxy_mode", "sources", "delay"):
+        if key in updates:
+            val = updates[key]
+            if key in ("unpaywall_email", "ezproxy_base") and isinstance(val, str):
+                val = val.strip()
+                if not val:
+                    val = None
+            pf[key] = val
     return _write_config_mapping(repo_root, payload)
 
 
@@ -1567,6 +1591,7 @@ def create_ui_app(cfg: BiblioConfig):
     fetch_oa_job: dict[str, Any] = {
         "running": False, "message": "", "error": None,
         "completed": 0, "total": 0,
+        "openalex": 0, "unpaywall": 0, "ezproxy": 0, "pool_linked": 0,
         "downloaded": 0, "skipped": 0, "no_url": 0, "errors": 0, "logs": "",
     }
     fetch_oa_lock = threading.Lock()
@@ -1583,8 +1608,9 @@ def create_ui_app(cfg: BiblioConfig):
             if fetch_oa_job["running"]:
                 return {"ok": True, "async": True, **dict(fetch_oa_job)}
             fetch_oa_job.update({
-                "running": True, "message": "Fetching OA PDFs...", "error": None,
+                "running": True, "message": "Fetching PDFs...", "error": None,
                 "completed": 0, "total": 0,
+                "openalex": 0, "unpaywall": 0, "ezproxy": 0, "pool_linked": 0,
                 "downloaded": 0, "skipped": 0, "no_url": 0, "errors": 0, "logs": "",
             })
 
@@ -1601,21 +1627,37 @@ def create_ui_app(cfg: BiblioConfig):
         def _run() -> None:
             try:
                 results = fetch_pdfs_oa(active_cfg, force=force, progress_cb=_progress)
-                counts = {s: sum(1 for r in results if r.status == s) for s in ("downloaded", "skipped", "no_url", "error")}
+                from .pdf_fetch_oa import ALL_STATUSES as _all_st
+                counts = {s: sum(1 for r in results if r.status == s) for s in _all_st}
                 error_lines = [f"{r.citekey}: {r.error}" for r in results if r.status == "error"]
+                total_fetched = counts.get("openalex", 0) + counts.get("unpaywall", 0) + counts.get("ezproxy", 0)
+                parts = []
+                if counts.get("openalex"):
+                    parts.append(f"{counts['openalex']} OpenAlex")
+                if counts.get("unpaywall"):
+                    parts.append(f"{counts['unpaywall']} Unpaywall")
+                if counts.get("ezproxy"):
+                    parts.append(f"{counts['ezproxy']} EZProxy")
+                if counts.get("pool_linked"):
+                    parts.append(f"{counts['pool_linked']} pool")
+                source_msg = ", ".join(parts) if parts else "0 downloaded"
                 with fetch_oa_lock:
                     fetch_oa_job.update({
                         "running": False, "error": None,
                         "completed": len(results), "total": len(results),
-                        "downloaded": counts["downloaded"],
-                        "skipped": counts["skipped"],
-                        "no_url": counts["no_url"],
-                        "errors": counts["error"],
+                        "openalex": counts.get("openalex", 0),
+                        "unpaywall": counts.get("unpaywall", 0),
+                        "ezproxy": counts.get("ezproxy", 0),
+                        "pool_linked": counts.get("pool_linked", 0),
+                        "downloaded": total_fetched,
+                        "skipped": counts.get("skipped", 0),
+                        "no_url": counts.get("no_url", 0),
+                        "errors": counts.get("error", 0),
                         "logs": "\n".join(error_lines),
                         "message": (
-                            f"OA fetch done: {counts['downloaded']} downloaded, "
-                            f"{counts['no_url']} no URL, {counts['skipped']} skipped, "
-                            f"{counts['error']} errors."
+                            f"Fetch done: {source_msg}, "
+                            f"{counts.get('no_url', 0)} queued, {counts.get('skipped', 0)} skipped, "
+                            f"{counts.get('error', 0)} errors."
                         ),
                     })
             except Exception as e:
@@ -1770,6 +1812,17 @@ def create_ui_app(cfg: BiblioConfig):
         return {
             "ok": True,
             "message": "Saved GROBID config.",
+            "setup": build_setup_report(updated),
+        }
+
+    @app.post("/api/setup/pdf-fetch-config", response_class=responses.JSONResponse)
+    def setup_pdf_fetch_config(payload: dict[str, Any]):
+        repo_root = current_cfg().repo_root
+        _update_pdf_fetch_config(repo_root, payload)
+        updated = reload_cfg()
+        return {
+            "ok": True,
+            "message": "Saved PDF fetch config.",
             "setup": build_setup_report(updated),
         }
 

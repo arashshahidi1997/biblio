@@ -32,6 +32,18 @@ def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any
     return result
 
 
+DEFAULT_CASCADE_SOURCES = ("pool", "openalex", "unpaywall", "ezproxy")
+
+
+@dataclass(frozen=True)
+class PdfFetchCascadeConfig:
+    unpaywall_email: str | None
+    ezproxy_base: str | None
+    ezproxy_mode: str          # "prefix" or "suffix"
+    sources: tuple[str, ...]   # cascade order
+    delay: float               # seconds between API calls
+
+
 @dataclass(frozen=True)
 class GrobidConfig:
     url: str
@@ -63,6 +75,7 @@ class BiblioConfig:
     common_pool_path: Path | None
     pool_search: tuple[Path, ...]
     fetch_queue_path: Path
+    pdf_fetch_cascade: PdfFetchCascadeConfig
 
 
 def _as_cmd(value: Any) -> list[str]:
@@ -167,6 +180,22 @@ def load_biblio_config(path: str | Path, *, root: str | Path | None = None) -> B
 
     fetch_queue_path = _abs(Path(_get(payload, "fetch_queue", default="bib/config/fetch_queue.yml")))
 
+    pf_mapping = payload.get("pdf_fetch") if isinstance(payload, dict) else None
+    if not isinstance(pf_mapping, dict):
+        pf_mapping = {}
+    raw_sources = pf_mapping.get("sources")
+    if isinstance(raw_sources, list) and all(isinstance(s, str) for s in raw_sources):
+        cascade_sources = tuple(raw_sources)
+    else:
+        cascade_sources = DEFAULT_CASCADE_SOURCES
+    pdf_fetch_cascade = PdfFetchCascadeConfig(
+        unpaywall_email=str(pf_mapping["unpaywall_email"]) if pf_mapping.get("unpaywall_email") else None,
+        ezproxy_base=str(pf_mapping["ezproxy_base"]).rstrip("/") if pf_mapping.get("ezproxy_base") else None,
+        ezproxy_mode=str(pf_mapping.get("ezproxy_mode") or "prefix"),
+        sources=cascade_sources,
+        delay=float(pf_mapping.get("delay") or 1.0),
+    )
+
     return BiblioConfig(
         repo_root=repo_root.resolve(),
         citekeys_path=_abs(citekeys),
@@ -188,6 +217,7 @@ def load_biblio_config(path: str | Path, *, root: str | Path | None = None) -> B
         common_pool_path=common_pool_path,
         pool_search=pool_search,
         fetch_queue_path=fetch_queue_path,
+        pdf_fetch_cascade=pdf_fetch_cascade,
     )
 
 

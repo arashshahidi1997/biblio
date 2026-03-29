@@ -18,11 +18,13 @@ USER_AGENT = "biblio-tools (https://github.com/arashshahidi1997/biblio)"
 _CHUNK = 1024 * 256  # 256 KB
 _DEFAULT_TIMEOUT = 30
 
+ALL_STATUSES = ("openalex", "unpaywall", "ezproxy", "pool_linked", "skipped", "no_url", "error")
+
 
 @dataclass
 class OaFetchResult:
     citekey: str
-    status: str          # "downloaded" | "skipped" | "no_url" | "error"
+    status: str          # "openalex" | "unpaywall" | "ezproxy" | "pool_linked" | "skipped" | "no_url" | "error"
     url: str | None
     dest: str | None
     error: str | None
@@ -66,26 +68,65 @@ def _download(url: str, dest: Path, timeout: int = _DEFAULT_TIMEOUT) -> None:
         raise
 
 
+def _try_unpaywall(doi: str, cfg: BiblioConfig, dest: Path) -> str | None:
+    """Try to get a PDF URL from Unpaywall. Returns URL on success, None otherwise."""
+    cascade = cfg.pdf_fetch_cascade
+    if not cascade.unpaywall_email or not doi:
+        return None
+    from .unpaywall import query_unpaywall, best_pdf_url
+    resp = query_unpaywall(doi, cascade.unpaywall_email, repo_root=cfg.repo_root)
+    url = best_pdf_url(resp)
+    if not url:
+        return None
+    try:
+        _download(url, dest)
+        return url
+    except Exception:
+        return None
+
+
+def _try_ezproxy(doi: str, cfg: BiblioConfig, dest: Path) -> str | None:
+    """Try to download via EZProxy using the DOI URL. Returns URL on success."""
+    cascade = cfg.pdf_fetch_cascade
+    if not cascade.ezproxy_base or not doi:
+        return None
+    from .ezproxy import download_via_proxy
+    doi_url = f"https://doi.org/{doi}"
+    ok = download_via_proxy(
+        doi_url, cascade.ezproxy_base, dest, mode=cascade.ezproxy_mode,
+    )
+    if ok:
+        return doi_url
+    return None
+
+
 def fetch_pdfs_oa(
     cfg: BiblioConfig,
     *,
     force: bool = False,
-    delay: float = 1.0,
+    delay: float | None = None,
     queue: bool = True,
     progress_cb: Callable[[dict[str, Any]], None] | None = None,
 ) -> list[OaFetchResult]:
-    """Download OA PDFs for all papers in the OpenAlex resolved JSONL that lack local PDFs.
+    """Download PDFs for all papers using a configurable source cascade.
 
-    Reads cfg.openalex.out_jsonl; skips records without an OA URL or with existing PDFs
+    Cascade order is determined by cfg.pdf_fetch_cascade.sources:
+      pool → openalex → unpaywall → ezproxy
+
+    Reads cfg.openalex.out_jsonl; skips records with existing PDFs
     (unless force=True). Downloads to the configured pdf_root/pdf_pattern location.
     """
+    cascade = cfg.pdf_fetch_cascade
+    if delay is None:
+        delay = cascade.delay
+
     jsonl_path = cfg.openalex.out_jsonl
     if not jsonl_path.exists():
         raise FileNotFoundError(f"OpenAlex data not found: {jsonl_path}. Run 'Resolve OpenAlex' first.")
 
     # Pre-load (pdf_root, pdf_pattern) for each pool in search order.
     pool_pdf_locs: list[tuple[Path, str]] = []
-    if cfg.pool_search:
+    if cfg.pool_search and "pool" in cascade.sources:
         from .pool import load_pool_config as _load_pool_config
         for _pool_root in cfg.pool_search:
             try:
@@ -118,50 +159,70 @@ def fetch_pdfs_oa(
             progress_cb({"completed": idx - 1, "total": total, "citekey": citekey})
 
         dest = (cfg.pdf_root / cfg.pdf_pattern.format(citekey=citekey)).resolve()
+        doi = str(record.get("doi") or "").strip() or None
 
         if dest.exists() and not force:
             results.append(OaFetchResult(citekey=citekey, status="skipped", url=None, dest=str(dest), error=None))
             continue
 
-        # Check pools (in search order) before network fetch
-        pool_hit: Path | None = None
-        for _pdf_root, _pdf_pat in pool_pdf_locs:
-            _candidate = (_pdf_root / _pdf_pat.format(citekey=citekey)).resolve()
-            if _candidate.exists():
-                pool_hit = _candidate
-                break
-        if pool_hit is not None:
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            if dest.is_symlink() or dest.exists():
-                dest.unlink()
-            dest.symlink_to(pool_hit)
-            results.append(OaFetchResult(citekey=citekey, status="pool_linked", url=None, dest=str(dest), error=None))
-            continue
+        # Walk through the configured source cascade
+        fetched = False
+        for source in cascade.sources:
+            if source == "pool":
+                pool_hit: Path | None = None
+                for _pdf_root, _pdf_pat in pool_pdf_locs:
+                    _candidate = (_pdf_root / _pdf_pat.format(citekey=citekey)).resolve()
+                    if _candidate.exists():
+                        pool_hit = _candidate
+                        break
+                if pool_hit is not None:
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    if dest.is_symlink() or dest.exists():
+                        dest.unlink()
+                    dest.symlink_to(pool_hit)
+                    results.append(OaFetchResult(citekey=citekey, status="pool_linked", url=None, dest=str(dest), error=None))
+                    fetched = True
+                    break
 
-        url = _oa_pdf_url(record)
-        if not url:
+            elif source == "openalex":
+                url = _oa_pdf_url(record)
+                if url:
+                    try:
+                        _download(url, dest)
+                        results.append(OaFetchResult(citekey=citekey, status="openalex", url=url, dest=str(dest), error=None))
+                        fetched = True
+                        if delay > 0:
+                            time.sleep(delay)
+                        break
+                    except Exception:
+                        pass  # fall through to next source
+
+            elif source == "unpaywall":
+                url = _try_unpaywall(doi, cfg, dest)
+                if url:
+                    results.append(OaFetchResult(citekey=citekey, status="unpaywall", url=url, dest=str(dest), error=None))
+                    fetched = True
+                    if delay > 0:
+                        time.sleep(delay)
+                    break
+
+            elif source == "ezproxy":
+                url = _try_ezproxy(doi, cfg, dest)
+                if url:
+                    results.append(OaFetchResult(citekey=citekey, status="ezproxy", url=url, dest=str(dest), error=None))
+                    fetched = True
+                    break
+
+        if not fetched:
             if queue:
-                doi = str(record.get("doi") or "").strip() or None
                 paper_url = str((record.get("primary_location") or {}).get("landing_page_url") or "").strip() or None
                 add_to_queue(cfg, citekey, doi=doi, url=paper_url, oa_status="no_url")
             results.append(OaFetchResult(citekey=citekey, status="no_url", url=None, dest=None, error=None))
-            continue
-
-        try:
-            _download(url, dest)
-            results.append(OaFetchResult(citekey=citekey, status="downloaded", url=url, dest=str(dest), error=None))
-            if delay > 0:
-                time.sleep(delay)
-        except Exception as e:
-            if queue:
-                doi = str(record.get("doi") or "").strip() or None
-                add_to_queue(cfg, citekey, doi=doi, url=url, oa_status="error")
-            results.append(OaFetchResult(citekey=citekey, status="error", url=url, dest=None, error=str(e)))
 
     if progress_cb:
         progress_cb({"completed": total, "total": total, "citekey": None})
 
-    counts = {s: sum(1 for r in results if r.status == s) for s in ("downloaded", "skipped", "no_url", "error", "pool_linked")}
+    counts = {s: sum(1 for r in results if r.status == s) for s in ALL_STATUSES}
     append_jsonl(
         cfg.ledger.docling_runs.parent.parent / "runs" / "pdf_fetch_oa.jsonl",
         {
