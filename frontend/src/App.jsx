@@ -20,6 +20,7 @@ export default function App() {
   const [graphDirection, setGraphDirection] = useState("both");
   const [sizeBy, setSizeBy] = useState("cited_by");
   const [colorBy, setColorBy] = useState("year");
+  const [tagNamespace, setTagNamespace] = useState("");
   const [activeTab, setActiveTab] = useState(urlCitekey ? "paper" : "library");
   const [openPaperKeys, setOpenPaperKeys] = useState(urlCitekey ? [urlCitekey] : []);
   const [activePaperKey, setActivePaperKey] = useState(urlCitekey);
@@ -238,6 +239,18 @@ export default function App() {
     const tags = new Set();
     (payload.papers || []).forEach((p) => ((p.library || {}).tags || []).forEach((t) => tags.add(t)));
     return [...tags].sort();
+  }, [payload]);
+
+  const tagNamespaces = useMemo(() => {
+    if (!payload) return [];
+    const nsSet = new Set();
+    (payload.papers || []).forEach((p) => {
+      ((p.library || {}).tags || []).forEach((t) => {
+        const idx = t.indexOf(":");
+        if (idx > 0) nsSet.add(t.slice(0, idx));
+      });
+    });
+    return [...nsSet].sort();
   }, [payload]);
 
   // Paper focused in the graph/inspector
@@ -1051,10 +1064,20 @@ export default function App() {
                   <option value="cited_by">Size: citations</option>
                   <option value="uniform">Size: uniform</option>
                 </select>
-                <select value={colorBy} onChange={(ev) => setColorBy(ev.target.value)} title="Color by">
+                <select value={colorBy} onChange={(ev) => {
+                  setColorBy(ev.target.value);
+                  if (ev.target.value === "tag" && !tagNamespace && tagNamespaces.length) setTagNamespace(tagNamespaces[0]);
+                }} title="Color by">
                   <option value="year">Color: year</option>
                   <option value="type">Color: type</option>
+                  <option value="status">Color: status</option>
+                  <option value="tag">Color: tag</option>
                 </select>
+                {colorBy === "tag" && tagNamespaces.length > 0 && (
+                  <select value={tagNamespace} onChange={(ev) => setTagNamespace(ev.target.value)} title="Tag namespace">
+                    {tagNamespaces.map((ns) => <option key={ns} value={ns}>{ns}</option>)}
+                  </select>
+                )}
               </div>
               <div className="graph-body-row">
               <ExploreTab
@@ -1070,6 +1093,7 @@ export default function App() {
                 onCyInit={(cy) => { cyInstanceRef.current = cy; }}
                 sizeBy={sizeBy}
                 colorBy={colorBy}
+                tagNamespace={tagNamespace}
                 setGraphDirection={setGraphDirection}
                 setGraphMode={setGraphMode}
               />
