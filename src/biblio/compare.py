@@ -42,7 +42,7 @@ Format your response as:
 Be concise. Use technical language appropriate for researchers.\
 """
 
-DEFAULT_MODEL = "claude-sonnet-4-20250514"
+DEFAULT_MODEL = "sonnet"
 
 
 def _compare_dir(root: Path) -> Path:
@@ -185,37 +185,19 @@ def compare(
         }
 
     # Call LLM
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
+    from .llm import call_llm
+
+    result = call_llm(system=system, prompt=prompt_text, model=model, max_tokens=3000)
+    if result["error"]:
         return {
             "citekeys": keys,
             "prompt": prompt_text,
             "comparison_text": None,
             "comparison_path": None,
             "skipped": False,
-            "error": "ANTHROPIC_API_KEY not set",
+            "error": result["error"],
         }
-
-    try:
-        import anthropic
-    except ImportError:
-        return {
-            "citekeys": keys,
-            "prompt": prompt_text,
-            "comparison_text": None,
-            "comparison_path": None,
-            "skipped": False,
-            "error": "anthropic package not installed",
-        }
-
-    client = anthropic.Anthropic(api_key=api_key)
-    message = client.messages.create(
-        model=model,
-        max_tokens=3000,
-        system=system,
-        messages=[{"role": "user", "content": prompt_text}],
-    )
-    comparison_text = message.content[0].text
+    comparison_text = result["text"]
 
     # Write output
     out_path.parent.mkdir(parents=True, exist_ok=True)

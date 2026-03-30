@@ -266,3 +266,15 @@ Session: `19ccb7d4` | Task: `task-arash-20260329-160935-352483.md`
 171 tests pass, frontend builds clean.
 
 Session: `c825949a` | Task: `task-arash-20260329-160929-500066.md`
+
+## 2026-03-29 16:57 | biblio | opus | 1 steps
+
+171 existing tests pass, frontend builds clean.
+
+Session: `17be28cd` | Task: `task-arash-20260329-160925-867604.md`
+
+## 2026-03-30 03:13 | biblio | opus | 1 steps
+
+**Note:** The projio MCP server registration (`src/projio/mcp/server.py` and `biblio.py`) needs write access to the parent package to add the `biblio_author_works` tool. The `biblio.mcp.author_works` function is already in place.
+
+Session: `c64185df` | Task: `task-arash-20260329-170716-353700.md`

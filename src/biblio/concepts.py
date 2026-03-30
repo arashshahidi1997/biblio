@@ -41,7 +41,7 @@ Example:
 Respond ONLY with the JSON object, no other text.\
 """
 
-DEFAULT_MODEL = "claude-haiku-4-5-20251001"
+DEFAULT_MODEL = "haiku"
 
 
 def _concepts_dir(cfg: BiblioConfig) -> Path:
@@ -166,39 +166,20 @@ def extract_concepts(
         }
 
     # Call LLM
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        return {
-            "citekey": key,
-            "prompt": prompt_text,
-            "concepts": None,
-            "concepts_path": None,
-            "skipped": False,
-            "error": "ANTHROPIC_API_KEY not set",
-        }
-
-    try:
-        import anthropic
-    except ImportError:
-        return {
-            "citekey": key,
-            "prompt": prompt_text,
-            "concepts": None,
-            "concepts_path": None,
-            "skipped": False,
-            "error": "anthropic package not installed",
-        }
-
+    from .llm import call_llm
     import json
 
-    client = anthropic.Anthropic(api_key=api_key)
-    message = client.messages.create(
-        model=model,
-        max_tokens=1000,
-        system=SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": prompt_text}],
-    )
-    raw_text = message.content[0].text.strip()
+    result = call_llm(system=SYSTEM_PROMPT, prompt=prompt_text, model=model, max_tokens=1000)
+    if result["error"]:
+        return {
+            "citekey": key,
+            "prompt": prompt_text,
+            "concepts": None,
+            "concepts_path": None,
+            "skipped": False,
+            "error": result["error"],
+        }
+    raw_text = result["text"].strip()
     try:
         raw = json.loads(raw_text)
     except json.JSONDecodeError:

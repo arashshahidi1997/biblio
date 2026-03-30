@@ -6,7 +6,6 @@ and optionally calls an LLM to produce a structured summary.
 from __future__ import annotations
 
 import json
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -168,7 +167,7 @@ def summarize(
     *,
     prompt_only: bool = False,
     force: bool = False,
-    model: str = "claude-sonnet-4-20250514",
+    model: str = "sonnet",
 ) -> dict[str, Any]:
     """Assemble context and optionally call LLM to generate a structured summary.
 
@@ -204,8 +203,10 @@ def summarize(
         }
 
     # Call LLM
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
+    from .llm import call_llm
+
+    result = call_llm(system=SYSTEM_PROMPT, prompt=prompt_text, model=model, max_tokens=2000)
+    if result["error"]:
         return {
             "citekey": key,
             "prompt": prompt_text,
@@ -213,30 +214,9 @@ def summarize(
             "summary_text": None,
             "model_used": None,
             "skipped": False,
-            "error": "ANTHROPIC_API_KEY not set",
+            "error": result["error"],
         }
-
-    try:
-        import anthropic
-    except ImportError:
-        return {
-            "citekey": key,
-            "prompt": prompt_text,
-            "summary_path": None,
-            "summary_text": None,
-            "model_used": None,
-            "skipped": False,
-            "error": "anthropic package not installed",
-        }
-
-    client = anthropic.Anthropic(api_key=api_key)
-    message = client.messages.create(
-        model=model,
-        max_tokens=2000,
-        system=SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": prompt_text}],
-    )
-    summary_text = message.content[0].text
+    summary_text = result["text"]
 
     # Write output
     out_path.parent.mkdir(parents=True, exist_ok=True)

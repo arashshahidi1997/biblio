@@ -31,7 +31,7 @@ Example:
 Respond ONLY with the JSON array, no other text.\
 """
 
-DEFAULT_MODEL = "claude-haiku-4-5-20251001"
+DEFAULT_MODEL = "haiku"
 
 
 def _gather_candidates(root: Path) -> list[dict[str, Any]]:
@@ -153,37 +153,19 @@ def reading_list(
         }
 
     # Call LLM
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        return {
-            "question": question,
-            "candidates_count": len(candidates),
-            "prompt": prompt_text,
-            "recommendations": None,
-            "error": "ANTHROPIC_API_KEY not set",
-        }
-
-    try:
-        import anthropic
-    except ImportError:
-        return {
-            "question": question,
-            "candidates_count": len(candidates),
-            "prompt": prompt_text,
-            "recommendations": None,
-            "error": "anthropic package not installed",
-        }
-
+    from .llm import call_llm
     import json
 
-    client = anthropic.Anthropic(api_key=api_key)
-    message = client.messages.create(
-        model=model,
-        max_tokens=2000,
-        system=system,
-        messages=[{"role": "user", "content": prompt_text}],
-    )
-    raw_text = message.content[0].text.strip()
+    result = call_llm(system=system, prompt=prompt_text, model=model, max_tokens=2000)
+    if result["error"]:
+        return {
+            "question": question,
+            "candidates_count": len(candidates),
+            "prompt": prompt_text,
+            "recommendations": None,
+            "error": result["error"],
+        }
+    raw_text = result["text"].strip()
     try:
         recommendations = json.loads(raw_text)
     except json.JSONDecodeError:

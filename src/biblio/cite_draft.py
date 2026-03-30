@@ -22,7 +22,7 @@ the claim. Do not fabricate references — only use citekeys from the provided p
 Write in formal academic style. Be precise and concise.\
 """
 
-DEFAULT_MODEL = "claude-sonnet-4-20250514"
+DEFAULT_MODEL = "sonnet"
 
 
 def _extract_citekey_from_source(source_path: str) -> str | None:
@@ -152,8 +152,10 @@ def cite_draft(
         }
 
     # Call LLM
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
+    from .llm import call_llm
+
+    result = call_llm(system=system, prompt=prompt_text, model=model, max_tokens=1500)
+    if result["error"]:
         return {
             "text": text,
             "style": style,
@@ -161,30 +163,9 @@ def cite_draft(
             "prompt": prompt_text,
             "draft": None,
             "model_used": None,
-            "error": "ANTHROPIC_API_KEY not set",
+            "error": result["error"],
         }
-
-    try:
-        import anthropic
-    except ImportError:
-        return {
-            "text": text,
-            "style": style,
-            "passages": passages,
-            "prompt": prompt_text,
-            "draft": None,
-            "model_used": None,
-            "error": "anthropic package not installed",
-        }
-
-    client = anthropic.Anthropic(api_key=api_key)
-    message = client.messages.create(
-        model=model,
-        max_tokens=1500,
-        system=system,
-        messages=[{"role": "user", "content": prompt_text}],
-    )
-    draft_text = message.content[0].text
+    draft_text = result["text"]
 
     return {
         "text": text,

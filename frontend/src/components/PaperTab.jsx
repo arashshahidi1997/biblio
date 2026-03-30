@@ -85,7 +85,9 @@ function ConceptsPanel({ citekey, hasConcepts, triggerAction, busy, onConceptCli
           <button
             className="absent-refs-btn-small absent-refs-btn-primary"
             disabled={busy}
-            onClick={() => setExtracting(true)}
+            onClick={() => {
+              if (window.confirm("Extract concepts using a Claude session?")) setExtracting(true);
+            }}
           >Extract Concepts</button>
         </div>
       </div>
@@ -191,8 +193,10 @@ function LibraryPanel({ activePaper, updateLibraryEntry, triggerAction, busy }) 
           <button
             className="badge-action"
             disabled={busy}
-            onClick={() => setAutotagging(true)}
-            title="Auto-tag this paper using LLM"
+            onClick={() => {
+              if (window.confirm("Auto-tag this paper using a Claude session?")) setAutotagging(true);
+            }}
+            title="Auto-tag this paper using Claude"
           >
             Auto-tag
           </button>
@@ -938,7 +942,11 @@ function SummaryTab({ citekey, hasSummary, triggerAction, busy }) {
           <button
             className="absent-refs-btn-small"
             disabled={busy}
-            onClick={() => { setGenerating(true); }}
+            onClick={() => {
+              if (window.confirm("Regenerate summary? This will use a Claude session and overwrite the existing summary.")) {
+                setGenerating(true);
+              }
+            }}
           >
             Regenerate
           </button>
@@ -951,10 +959,15 @@ function SummaryTab({ citekey, hasSummary, triggerAction, busy }) {
   return (
     <div style={{ padding: "1.5rem", textAlign: "center" }}>
       <p className="small" style={{ marginBottom: "0.8rem", opacity: 0.6 }}>No summary generated yet.</p>
+      <p className="small" style={{ marginBottom: "0.8rem", opacity: 0.45 }}>This will run a Claude session to generate a structured summary.</p>
       <button
         className="absent-refs-btn-small absent-refs-btn-primary"
         disabled={busy}
-        onClick={() => setGenerating(true)}
+        onClick={() => {
+          if (window.confirm("Generate summary using a Claude session?")) {
+            setGenerating(true);
+          }
+        }}
       >
         Generate Summary
       </button>
@@ -1049,7 +1062,11 @@ function SlidesTab({ citekey, hasSlides, triggerAction, busy }) {
           <button
             className="absent-refs-btn-small"
             disabled={busy}
-            onClick={() => setGenerating(true)}
+            onClick={() => {
+              if (window.confirm("Regenerate slides? This will use a Claude session and overwrite the existing slides.")) {
+                setGenerating(true);
+              }
+            }}
           >
             Regenerate
           </button>
@@ -1077,10 +1094,15 @@ function SlidesTab({ citekey, hasSlides, triggerAction, busy }) {
         ))}
       </div>
       <div style={{ textAlign: "center", marginTop: "0.8rem" }}>
+        <p className="small" style={{ marginBottom: "0.6rem", opacity: 0.45 }}>This will run a Claude session to generate slides.</p>
         <button
           className="absent-refs-btn-small absent-refs-btn-primary"
           disabled={busy}
-          onClick={() => setGenerating(true)}
+          onClick={() => {
+            if (window.confirm("Generate slides using a Claude session?")) {
+              setGenerating(true);
+            }
+          }}
         >
           Generate Slides
         </button>

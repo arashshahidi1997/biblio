@@ -20,7 +20,7 @@ from .config import BiblioConfig, default_config_path, load_biblio_config
 
 AUTOTAG_DIR_REL = Path("bib/derivatives/autotag")
 
-DEFAULT_MODEL = "claude-haiku-4-5-20251001"
+DEFAULT_MODEL = "haiku"
 
 SYSTEM_PROMPT_TEMPLATE = """\
 You are a research paper classifier. Given a paper's title and abstract, assign \
@@ -145,24 +145,13 @@ def autotag_llm(
 
     system_prompt, user_prompt = build_llm_prompt(title, abstract, vocab)
 
-    # Check API key
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        return {"citekey": key, "error": "ANTHROPIC_API_KEY not set", "tier": "llm"}
+    # Call LLM
+    from .llm import call_llm
 
-    try:
-        import anthropic
-    except ImportError:
-        return {"citekey": key, "error": "anthropic package not installed", "tier": "llm"}
-
-    client = anthropic.Anthropic(api_key=api_key)
-    message = client.messages.create(
-        model=model,
-        max_tokens=500,
-        system=system_prompt,
-        messages=[{"role": "user", "content": user_prompt}],
-    )
-    raw_text = message.content[0].text.strip()
+    result = call_llm(system=system_prompt, prompt=user_prompt, model=model, max_tokens=500)
+    if result["error"]:
+        return {"citekey": key, "error": result["error"], "tier": "llm"}
+    raw_text = result["text"].strip()
 
     # Parse JSON response
     try:

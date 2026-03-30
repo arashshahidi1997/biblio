@@ -11,6 +11,7 @@ function CiteDraftSection() {
 
   async function draftParagraph() {
     if (!text.trim()) return;
+    if (!window.confirm("Draft a citation paragraph using a Claude session?")) return;
     setResult({ draft: null, loading: true, error: null });
     try {
       const resp = await fetch("/api/cite-draft", {
@@ -147,6 +148,7 @@ function LitReviewSection() {
 
   async function runReviewQuery() {
     if (!question.trim()) return;
+    if (!window.confirm("Synthesize a literature review using a Claude session?")) return;
     setResult({ content: null, loading: true, error: null, action: "review-query" });
     try {
       const resp = await fetch("/api/actions/review-query", {
@@ -165,6 +167,7 @@ function LitReviewSection() {
   async function runReviewPlan() {
     const keys = seedCitekeys.split(",").map((s) => s.trim()).filter(Boolean);
     if (keys.length === 0) return;
+    if (!window.confirm("Generate a review plan using a Claude session?")) return;
     setResult({ content: null, loading: true, error: null, action: "review-plan" });
     try {
       const resp = await fetch("/api/actions/review-plan", {
@@ -324,6 +327,7 @@ function ReadingListSection({ openInPaperTab }) {
 
   async function generate() {
     if (!question.trim()) return;
+    if (!window.confirm("Generate a reading list using a Claude session?")) return;
     setResult({ recommendations: null, loading: true, error: null });
     try {
       const resp = await fetch("/api/reading-list", {

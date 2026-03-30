@@ -212,7 +212,7 @@ def generate_slides(
     template: str = "journal-club",
     prompt_only: bool = False,
     force: bool = False,
-    model: str = "claude-sonnet-4-20250514",
+    model: str = "sonnet",
 ) -> dict[str, Any]:
     """Assemble context and optionally call LLM to generate a Marp slide deck.
 
@@ -256,8 +256,10 @@ def generate_slides(
         }
 
     # Call LLM
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
+    from .llm import call_llm
+
+    result = call_llm(system=SYSTEM_PROMPT, prompt=prompt_text, model=model, max_tokens=4000)
+    if result["error"]:
         return {
             "citekey": key,
             "prompt": prompt_text,
@@ -266,31 +268,9 @@ def generate_slides(
             "model_used": None,
             "skipped": False,
             "template": template,
-            "error": "ANTHROPIC_API_KEY not set",
+            "error": result["error"],
         }
-
-    try:
-        import anthropic
-    except ImportError:
-        return {
-            "citekey": key,
-            "prompt": prompt_text,
-            "slides_path": None,
-            "slides_text": None,
-            "model_used": None,
-            "skipped": False,
-            "template": template,
-            "error": "anthropic package not installed",
-        }
-
-    client = anthropic.Anthropic(api_key=api_key)
-    message = client.messages.create(
-        model=model,
-        max_tokens=4000,
-        system=SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": prompt_text}],
-    )
-    slides_body = message.content[0].text
+    slides_body = result["text"]
 
     # Prepend Marp frontmatter
     frontmatter = _build_marp_frontmatter(context.get("bib") or {})

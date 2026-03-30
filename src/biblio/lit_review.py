@@ -44,7 +44,7 @@ Return a JSON object with these keys:
 Respond ONLY with the JSON object, no other text.\
 """
 
-DEFAULT_MODEL = "claude-sonnet-4-20250514"
+DEFAULT_MODEL = "sonnet"
 
 
 def _query_rag_multi(root: Path, queries: list[str], k: int = 4) -> list[dict[str, Any]]:
@@ -167,37 +167,19 @@ def review_query(
         }
 
     # Call LLM
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
+    from .llm import call_llm
+
+    llm_result = call_llm(system=system, prompt=prompt_text, model=model, max_tokens=3000)
+    if llm_result["error"]:
         return {
             "question": question,
             "passages": passages,
             "prompt": prompt_text,
             "synthesis": None,
             "model_used": None,
-            "error": "ANTHROPIC_API_KEY not set",
+            "error": llm_result["error"],
         }
-
-    try:
-        import anthropic
-    except ImportError:
-        return {
-            "question": question,
-            "passages": passages,
-            "prompt": prompt_text,
-            "synthesis": None,
-            "model_used": None,
-            "error": "anthropic package not installed",
-        }
-
-    client = anthropic.Anthropic(api_key=api_key)
-    message = client.messages.create(
-        model=model,
-        max_tokens=3000,
-        system=system,
-        messages=[{"role": "user", "content": prompt_text}],
-    )
-    synthesis_text = message.content[0].text
+    synthesis_text = llm_result["text"]
 
     return {
         "question": question,
@@ -320,39 +302,20 @@ def review_plan(
         }
 
     # Call LLM
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        return {
-            "question": question,
-            "seeds": seeds,
-            "prompt": prompt_text,
-            "plan": None,
-            "model_used": None,
-            "error": "ANTHROPIC_API_KEY not set",
-        }
-
-    try:
-        import anthropic
-    except ImportError:
-        return {
-            "question": question,
-            "seeds": seeds,
-            "prompt": prompt_text,
-            "plan": None,
-            "model_used": None,
-            "error": "anthropic package not installed",
-        }
-
+    from .llm import call_llm
     import json
 
-    client = anthropic.Anthropic(api_key=api_key)
-    message = client.messages.create(
-        model=model,
-        max_tokens=3000,
-        system=system,
-        messages=[{"role": "user", "content": prompt_text}],
-    )
-    raw_text = message.content[0].text.strip()
+    llm_result = call_llm(system=system, prompt=prompt_text, model=model, max_tokens=3000)
+    if llm_result["error"]:
+        return {
+            "question": question,
+            "seeds": seeds,
+            "prompt": prompt_text,
+            "plan": None,
+            "model_used": None,
+            "error": llm_result["error"],
+        }
+    raw_text = llm_result["text"].strip()
     try:
         plan = json.loads(raw_text)
     except json.JSONDecodeError:
