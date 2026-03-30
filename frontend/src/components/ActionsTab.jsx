@@ -545,6 +545,251 @@ function DedupPanel() {
   );
 }
 
+function AuthorImportPanel() {
+  const [orcid, setOrcid] = useState("");
+  const [sinceYear, setSinceYear] = useState("");
+  const [minCitations, setMinCitations] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [author, setAuthor] = useState(null);
+  const [works, setWorks] = useState(null);
+  const [selected, setSelected] = useState({});
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState(null);
+  const [error, setError] = useState(null);
+
+  async function doSearch() {
+    setLoading(true);
+    setError(null);
+    setAuthor(null);
+    setWorks(null);
+    setImportResult(null);
+    try {
+      const body = { orcid: orcid.trim() };
+      if (sinceYear.trim()) body.since_year = parseInt(sinceYear, 10);
+      if (minCitations.trim()) body.min_citations = parseInt(minCitations, 10);
+      const resp = await fetch("/api/authors/search-orcid", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!resp.ok) {
+        const d = await resp.json().catch(() => ({}));
+        throw new Error(d.detail || `HTTP ${resp.status}`);
+      }
+      const data = await resp.json();
+      setAuthor(data.author);
+      setWorks(data.works || []);
+      const sel = {};
+      for (const w of data.works || []) {
+        if (w.doi && !w.in_library) sel[w.doi] = true;
+      }
+      setSelected(sel);
+    } catch (err) {
+      setError(String(err.message || err));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function selectAllNew() {
+    if (!works) return;
+    const sel = {};
+    for (const w of works) {
+      if (w.doi && !w.in_library) sel[w.doi] = true;
+    }
+    setSelected(sel);
+  }
+  function selectNone() {
+    setSelected({});
+  }
+
+  const selectedCount = Object.values(selected).filter(Boolean).length;
+  const newCount = works ? works.filter((w) => w.doi && !w.in_library).length : 0;
+
+  async function doImport() {
+    const dois = Object.entries(selected).filter(([, v]) => v).map(([k]) => k);
+    if (!dois.length) return;
+    setImporting(true);
+    setError(null);
+    setImportResult(null);
+    try {
+      const resp = await fetch("/api/authors/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dois }),
+      });
+      if (!resp.ok) {
+        const d = await resp.json().catch(() => ({}));
+        throw new Error(d.detail || `HTTP ${resp.status}`);
+      }
+      const data = await resp.json();
+      setImportResult(data);
+    } catch (err) {
+      setError(String(err.message || err));
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  function resetPanel() {
+    setAuthor(null);
+    setWorks(null);
+    setSelected({});
+    setError(null);
+    setImportResult(null);
+  }
+
+  return (
+    <div className="lint-section">
+      <h3>Import by Author (ORCID)</h3>
+
+      {!works && !importResult && (
+        <div style={{ marginTop: "0.5rem" }}>
+          <div className="field">
+            <label>ORCID</label>
+            <input
+              value={orcid}
+              onChange={(ev) => setOrcid(ev.target.value)}
+              placeholder="0000-0002-1234-5678"
+              style={{ fontFamily: "monospace" }}
+            />
+          </div>
+          <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.3rem" }}>
+            <div className="field" style={{ flex: 1 }}>
+              <label>Since year</label>
+              <input
+                value={sinceYear}
+                onChange={(ev) => setSinceYear(ev.target.value)}
+                placeholder="e.g. 2020"
+                type="number"
+              />
+            </div>
+            <div className="field" style={{ flex: 1 }}>
+              <label>Min citations</label>
+              <input
+                value={minCitations}
+                onChange={(ev) => setMinCitations(ev.target.value)}
+                placeholder="e.g. 10"
+                type="number"
+              />
+            </div>
+          </div>
+          <div className="actions" style={{ marginTop: "0.4rem" }}>
+            <button disabled={loading || !orcid.trim()} onClick={doSearch}>
+              {loading ? "Searching..." : "Search"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {error && <div className="action-status error" style={{ marginTop: "0.5rem" }}>{error}</div>}
+
+      {/* Author info + works table */}
+      {author && works && !importResult && (
+        <div style={{ marginTop: "0.5rem" }}>
+          <div className="small" style={{ marginBottom: "0.4rem" }}>
+            <strong>{author.display_name}</strong>
+            {author.affiliation && <span> — {author.affiliation}</span>}
+            {author.h_index != null && <span> (h-index: {author.h_index})</span>}
+          </div>
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginBottom: "0.4rem" }}>
+            <span className="small">{works.length} works ({newCount} new)</span>
+            <button style={{ fontSize: "0.7rem", padding: "0.15rem 0.4rem" }} onClick={selectAllNew}>Select all new</button>
+            <button style={{ fontSize: "0.7rem", padding: "0.15rem 0.4rem" }} onClick={selectNone}>Select none</button>
+          </div>
+          <div style={{
+            maxHeight: "20rem",
+            overflowY: "auto",
+            border: "1px solid var(--border, #333)",
+            borderRadius: "4px",
+          }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.75rem" }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid var(--border, #444)", position: "sticky", top: 0, background: "var(--bg, #222)" }}>
+                  <th style={{ padding: "0.3rem", width: "2rem" }}></th>
+                  <th style={{ padding: "0.3rem", textAlign: "left" }}>Title</th>
+                  <th style={{ padding: "0.3rem", textAlign: "left" }}>Year</th>
+                  <th style={{ padding: "0.3rem", textAlign: "left" }}>Journal</th>
+                  <th style={{ padding: "0.3rem", textAlign: "right" }}>Citations</th>
+                  <th style={{ padding: "0.3rem", textAlign: "center" }}>OA</th>
+                  <th style={{ padding: "0.3rem", textAlign: "left" }}>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {works.map((w, idx) => {
+                  const hasDoi = !!w.doi;
+                  const inLib = w.in_library;
+                  return (
+                    <tr
+                      key={w.openalex_id || idx}
+                      style={{
+                        borderBottom: "1px solid var(--border, #333)",
+                        opacity: inLib ? 0.45 : hasDoi ? 1 : 0.6,
+                      }}
+                    >
+                      <td style={{ padding: "0.3rem", textAlign: "center" }}>
+                        <input
+                          type="checkbox"
+                          disabled={!hasDoi || inLib}
+                          checked={!!selected[w.doi]}
+                          onChange={(ev) => setSelected((s) => ({ ...s, [w.doi]: ev.target.checked }))}
+                        />
+                      </td>
+                      <td style={{ padding: "0.3rem", maxWidth: "14rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {w.title || "—"}
+                      </td>
+                      <td style={{ padding: "0.3rem" }}>{w.year || "—"}</td>
+                      <td style={{ padding: "0.3rem", maxWidth: "8rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {w.journal || "—"}
+                      </td>
+                      <td style={{ padding: "0.3rem", textAlign: "right" }}>{w.cited_by_count}</td>
+                      <td style={{ padding: "0.3rem", textAlign: "center" }}>{w.is_oa ? "Y" : ""}</td>
+                      <td style={{ padding: "0.3rem" }}>
+                        {inLib
+                          ? <span style={{ color: "var(--warning, #e5c07b)" }}>exists</span>
+                          : !hasDoi
+                            ? <span style={{ color: "var(--fg2, #888)" }}>no DOI</span>
+                            : <span style={{ color: "var(--accent, #61afef)" }}>new</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div className="actions" style={{ marginTop: "0.5rem" }}>
+            <button
+              className="primary"
+              disabled={importing || selectedCount === 0}
+              onClick={doImport}
+            >
+              {importing ? "Importing..." : `Import ${selectedCount} Selected`}
+            </button>
+            <button onClick={resetPanel}>Back</button>
+          </div>
+        </div>
+      )}
+
+      {/* Import result */}
+      {importResult && (
+        <div style={{ marginTop: "0.5rem" }}>
+          <div className="small" style={{ color: "var(--accent, #61afef)" }}>
+            {importResult.message}
+          </div>
+          {importResult.added?.length > 0 && (
+            <div className="small" style={{ marginTop: "0.3rem", fontFamily: "monospace", fontSize: "0.7rem" }}>
+              {importResult.added.join(", ")}
+            </div>
+          )}
+          <div className="actions" style={{ marginTop: "0.4rem" }}>
+            <button onClick={resetPanel}>Search Again</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ActionsTab({ activePaper, actionState, triggerAction, addDoi, setAddDoi, updateLibraryEntry, paperCount }) {
   const [expandConfirm, setExpandConfirm] = useState(false);
   return (
@@ -639,19 +884,31 @@ export default function ActionsTab({ activePaper, actionState, triggerAction, ad
       <div className="actions">
         <button
           disabled={actionState.busy}
-          onClick={() => triggerAction("summarize", { status: "unread" })}
+          onClick={() => {
+            if (window.confirm("Summarize all unread papers? This will run multiple Claude sessions.")) {
+              triggerAction("summarize", { status: "unread" });
+            }
+          }}
         >
           Summarize All Unread
         </button>
         <button
           disabled={actionState.busy}
-          onClick={() => triggerAction("concepts-extract", { all: true })}
+          onClick={() => {
+            if (window.confirm("Extract concepts for all papers? This will run multiple Claude sessions.")) {
+              triggerAction("concepts-extract", { all: true });
+            }
+          }}
         >
           Extract All Concepts
         </button>
         <button
           disabled={actionState.busy}
-          onClick={() => triggerAction("autotag", { all_untagged: true })}
+          onClick={() => {
+            if (window.confirm("Auto-tag all untagged papers? This will run multiple Claude sessions.")) {
+              triggerAction("autotag", { all_untagged: true });
+            }
+          }}
         >
           Auto-tag All Untagged
         </button>
@@ -721,6 +978,9 @@ export default function ActionsTab({ activePaper, actionState, triggerAction, ad
 
       {/* Duplicate detection panel */}
       <DedupPanel />
+
+      {/* Author ORCID import panel */}
+      <AuthorImportPanel />
     </div>
   );
 }

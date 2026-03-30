@@ -1181,6 +1181,83 @@ def create_ui_app(cfg: BiblioConfig):
             doi=result.doi,
         )
 
+    # ── ORCID author search & import ─────────────────────────────────────────
+
+    @app.post("/api/authors/search-orcid", response_class=responses.JSONResponse)
+    def authors_search_orcid(payload: dict[str, Any]):
+        from .author_search import search_by_orcid, get_author_works
+        from .ingest import find_existing_dois
+        active_cfg = current_cfg()
+        orcid = str(payload.get("orcid") or "").strip()
+        if not orcid:
+            raise fastapi.HTTPException(status_code=400, detail="Missing orcid")
+        since_year = payload.get("since_year")
+        if since_year is not None:
+            since_year = int(since_year)
+        min_citations = payload.get("min_citations")
+        if min_citations is not None:
+            min_citations = int(min_citations)
+        try:
+            author = search_by_orcid(active_cfg.openalex_client, orcid)
+        except ValueError as exc:
+            raise fastapi.HTTPException(status_code=404, detail=str(exc))
+        works = get_author_works(
+            active_cfg.openalex_client,
+            author.openalex_id,
+            since_year=since_year,
+            min_citations=min_citations,
+        )
+        existing_dois = find_existing_dois(active_cfg.repo_root)
+        return {
+            "ok": True,
+            "author": {
+                "openalex_id": author.openalex_id,
+                "orcid": author.orcid,
+                "display_name": author.display_name,
+                "affiliation": author.affiliation,
+                "works_count": author.works_count,
+                "cited_by_count": author.cited_by_count,
+                "h_index": author.h_index,
+            },
+            "works": [
+                {
+                    "openalex_id": w.openalex_id,
+                    "doi": w.doi,
+                    "title": w.title,
+                    "year": w.year,
+                    "journal": w.journal,
+                    "cited_by_count": w.cited_by_count,
+                    "is_oa": w.is_oa,
+                    "in_library": bool(w.doi and w.doi.lower() in existing_dois),
+                }
+                for w in works
+            ],
+        }
+
+    @app.post("/api/authors/import", response_class=responses.JSONResponse)
+    def authors_import(payload: dict[str, Any]):
+        active_cfg = current_cfg()
+        dois: list[str] = [str(d).strip() for d in (payload.get("dois") or []) if str(d).strip()]
+        if not dois:
+            raise fastapi.HTTPException(status_code=400, detail="Missing dois list")
+        added, failed = [], []
+        for doi in dois:
+            try:
+                result = add_openalex_work_to_bib(
+                    cfg=active_cfg.openalex_client,
+                    cache=active_cfg.openalex_cache,
+                    repo_root=active_cfg.repo_root,
+                    doi=doi,
+                )
+                added.append(result.citekey)
+            except Exception as e:
+                failed.append({"doi": doi, "error": str(e)})
+        return _action_result(
+            f"Author import: {len(added)} added, {len(failed)} failed.",
+            added=added,
+            failed=failed,
+        )
+
     # ── BibTeX file/string import ────────────────────────────────────────────
 
     @app.post("/api/ingest/preview-bib", response_class=responses.JSONResponse)

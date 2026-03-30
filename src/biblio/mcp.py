@@ -339,6 +339,53 @@ def graph_expand(
     }
 
 
+def author_works(
+    *,
+    root: Path,
+    orcid: str,
+    since_year: int | None = None,
+    min_citations: int | None = None,
+) -> dict[str, Any]:
+    """Search OpenAlex for an author by ORCID and return their publications."""
+    cfg = _load_cfg(root)
+    from .author_search import search_by_orcid as _search, get_author_works as _get_works
+    from .ingest import find_existing_dois
+
+    author = _search(cfg.openalex_client, orcid)
+    works = _get_works(
+        cfg.openalex_client,
+        author.openalex_id,
+        since_year=since_year,
+        min_citations=min_citations,
+    )
+    existing_dois = find_existing_dois(root)
+    return {
+        "author": {
+            "openalex_id": author.openalex_id,
+            "orcid": author.orcid,
+            "display_name": author.display_name,
+            "affiliation": author.affiliation,
+            "works_count": author.works_count,
+            "cited_by_count": author.cited_by_count,
+            "h_index": author.h_index,
+        },
+        "works": [
+            {
+                "openalex_id": w.openalex_id,
+                "doi": w.doi,
+                "title": w.title,
+                "year": w.year,
+                "journal": w.journal,
+                "cited_by_count": w.cited_by_count,
+                "is_oa": w.is_oa,
+                "in_library": bool(w.doi and w.doi.lower() in existing_dois),
+            }
+            for w in works
+        ],
+        "total": len(works),
+    }
+
+
 def tag_vocab(*, root: Path) -> dict[str, Any]:
     """Return the current tag vocabulary (namespaces, values, aliases).
 

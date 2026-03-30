@@ -227,6 +227,12 @@ def _build_parser() -> argparse.ArgumentParser:
     add_oa.add_argument("openalex_id", help="OpenAlex ID like W123 or https://openalex.org/W123.")
     add_oa.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
     add_oa.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    add_orcid = add_sub.add_parser("orcid", help="Add papers by author ORCID via OpenAlex.")
+    add_orcid.add_argument("orcid", help="ORCID identifier (e.g. 0000-0002-1234-5678).")
+    add_orcid.add_argument("--since", type=int, default=None, help="Only include works from this year onward.")
+    add_orcid.add_argument("--min-citations", type=int, default=None, help="Only include works with at least N citations.")
+    add_orcid.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    add_orcid.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
 
     p_graph = sub.add_parser("graph", help="Expand graph-style literature candidates from OpenAlex results.")
     graph_sub = p_graph.add_subparsers(dest="graph_cmd", required=True)
@@ -934,6 +940,59 @@ def main(argv: Iterable[str] | None = None) -> None:
                 repo_root=repo_root,
                 openalex_id=str(args.openalex_id),
             )
+        elif args.add_cmd == "orcid":
+            from .author_search import search_by_orcid, get_author_works
+            from .ingest import find_existing_dois
+            author = search_by_orcid(cfg.openalex_client, args.orcid)
+            print(f"Author: {author.display_name}")
+            if author.affiliation:
+                print(f"Affiliation: {author.affiliation}")
+            if author.h_index is not None:
+                print(f"h-index: {author.h_index}")
+            print(f"Works: {author.works_count}  Citations: {author.cited_by_count}")
+            works = get_author_works(
+                cfg.openalex_client,
+                author.openalex_id,
+                since_year=args.since,
+                min_citations=args.min_citations,
+            )
+            if not works:
+                print("No works found matching filters.")
+                return
+            existing_dois = find_existing_dois(repo_root)
+            print(f"\n{'#':>3}  {'Year':>4}  {'Cit':>5}  {'OA':>2}  {'Status':>8}  Title")
+            print("-" * 80)
+            for i, w in enumerate(works, 1):
+                doi_norm = (w.doi or "").lower()
+                in_lib = "exists" if doi_norm and doi_norm in existing_dois else "new"
+                oa_mark = "Y" if w.is_oa else " "
+                title_trunc = (w.title[:50] + "...") if len(w.title) > 53 else w.title
+                print(f"{i:>3}  {w.year or '':>4}  {w.cited_by_count:>5}  {oa_mark:>2}  {in_lib:>8}  {title_trunc}")
+            print(f"\nTotal: {len(works)} works")
+            # Collect DOIs of new works for import
+            new_dois = [w.doi for w in works if w.doi and (w.doi.lower() not in existing_dois)]
+            if not new_dois:
+                print("All works already in library.")
+                return
+            answer = input(f"\nImport {len(new_dois)} new papers? [y/N] ").strip().lower()
+            if answer not in ("y", "yes"):
+                print("Aborted.")
+                return
+            added = []
+            for doi in new_dois:
+                try:
+                    r = add_openalex_work_to_bib(
+                        cfg=cfg.openalex_client,
+                        cache=cfg.openalex_cache,
+                        repo_root=repo_root,
+                        doi=doi,
+                    )
+                    added.append(r.citekey)
+                    print(f"  + {r.citekey} ({doi})")
+                except Exception as exc:
+                    print(f"  ! Failed {doi}: {exc}")
+            print(f"\n[OK] Imported {len(added)} papers.")
+            return
         else:
             raise SystemExit(2)
         print(
