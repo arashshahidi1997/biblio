@@ -74,6 +74,18 @@ def resolve_citekeys(citekeys: list[str], *, root: Path) -> dict[str, Any]:
             entry_data.update(lib_entry)
 
         if entry_data:
+            # Add quality score
+            try:
+                from .quality import score_entry
+                q = score_entry(
+                    key,
+                    {k: v for k, v in entry_data.items() if k not in ("type", "authors")},
+                    authors=entry_data.get("authors"),
+                    entry_type=entry_data.get("type", ""),
+                )
+                entry_data["_quality"] = {"tier": q.tier, "score": q.score, "issues": list(q.issues)}
+            except Exception:
+                pass
             results[key] = entry_data
         else:
             missing.append(key)
@@ -632,6 +644,41 @@ def library_lint(*, root: Path) -> dict[str, Any]:
     vocab = load_tag_vocab(default_tag_vocab_path(root))
     library = load_library(cfg)
     return lint_library_tags(library, vocab)
+
+
+def library_quality(*, root: Path) -> dict[str, Any]:
+    """Scan the merged bibliography for entry quality issues.
+
+    Returns per-tier counts and lists of problematic entries (noise, stub, sparse)
+    with specific issues for each.
+    """
+    cfg = _load_cfg(root)
+    bib_db = _load_bib_database(cfg)
+    if bib_db is None:
+        return {"error": "No merged bibliography found. Run biblio_merge() first."}
+
+    from .quality import score_bib_database
+    scored = score_bib_database(bib_db)
+
+    by_tier: dict[str, list] = {"good": [], "sparse": [], "stub": [], "noise": []}
+    for q in scored:
+        by_tier[q.tier].append({
+            "citekey": q.citekey,
+            "score": q.score,
+            "issues": list(q.issues),
+            "has_doi": q.has_doi,
+            "has_authors": q.has_authors,
+            "has_year": q.has_year,
+            "field_count": q.field_count,
+        })
+
+    return {
+        "total": len(scored),
+        "counts": {tier: len(entries) for tier, entries in by_tier.items()},
+        "noise": by_tier["noise"],
+        "stubs": by_tier["stub"],
+        "sparse": by_tier["sparse"][:20],
+    }
 
 
 def library_dedup(*, root: Path) -> dict[str, Any]:

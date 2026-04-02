@@ -27,9 +27,14 @@ and `runtime_conventions()` to see available Makefile targets.
 | Check paper status | `library_get(citekey)` | Read library.yml directly |
 | Update paper status | `biblio_library_set(citekeys)` | Edit library.yml directly |
 | Merge bibliography | `biblio_merge()` | Run `biblio merge` in terminal |
+| Fetch PDFs from BibTeX | `biblio_pdf_fetch(dry_run, force)` | Copy PDFs manually |
+| Fetch PDFs via OA cascade | `biblio_pdf_fetch_oa(force, citekeys)` | Run `biblio bibtex fetch-pdfs-oa` |
 | Extract full text | `biblio_docling(citekey)` | Run `biblio docling` in terminal |
+| Batch extract full text | `biblio_docling_batch(force, background)` | Run docling loop manually |
+| Check Docling job status | `biblio_docling_status(job_id)` | Poll job manually |
 | Extract references | `biblio_grobid(citekey)` | Run `biblio grobid` in terminal |
 | Check GROBID server | `biblio_grobid_check()` | Curl the GROBID API manually |
+| Expand reference graph | `biblio_graph_expand(citekeys)` | Run `biblio graph expand` |
 | Create a note/task/idea | `note_create(note_type)` | Create markdown files directly |
 | List recent notes | `note_list()` | List files in notes/ directory |
 | Read a note | `note_read(path)` | Read the file directly |
@@ -46,7 +51,7 @@ and `runtime_conventions()` to see available Makefile targets.
 ## Workflow conventions
 
 1. **Search first** — check existing knowledge before creating new content
-2. **Ingest pipeline** — after `biblio_ingest`, run `biblio_merge` → `biblio_docling` → `biblio_grobid` → `indexio_build`
+2. **Ingest pipeline** — after `biblio_ingest`, run `biblio_merge` → `biblio_pdf_fetch_oa` → `biblio_docling_batch` → `biblio_grobid` → `biblio_graph_expand` → `indexio_build`
 3. **Record decisions** — create notes to capture analysis and decisions
 
 ## Development

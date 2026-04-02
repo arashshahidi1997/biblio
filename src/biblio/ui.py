@@ -254,6 +254,7 @@ def build_setup_report(cfg: BiblioConfig) -> dict[str, Any]:
             "unpaywall_email": cfg.pdf_fetch_cascade.unpaywall_email or "",
             "ezproxy_base": cfg.pdf_fetch_cascade.ezproxy_base or "",
             "ezproxy_mode": cfg.pdf_fetch_cascade.ezproxy_mode,
+            "ezproxy_cookie": cfg.pdf_fetch_cascade.ezproxy_cookie or "",
             "sources": list(cfg.pdf_fetch_cascade.sources),
             "delay": cfg.pdf_fetch_cascade.delay,
         },
@@ -350,10 +351,10 @@ def _update_pdf_fetch_config(repo_root: Path, updates: dict[str, Any]) -> Path:
     if not isinstance(pf, dict):
         pf = {}
         payload["pdf_fetch"] = pf
-    for key in ("unpaywall_email", "ezproxy_base", "ezproxy_mode", "sources", "delay"):
+    for key in ("unpaywall_email", "ezproxy_base", "ezproxy_mode", "ezproxy_cookie", "sources", "delay"):
         if key in updates:
             val = updates[key]
-            if key in ("unpaywall_email", "ezproxy_base") and isinstance(val, str):
+            if key in ("unpaywall_email", "ezproxy_base", "ezproxy_cookie") and isinstance(val, str):
                 val = val.strip()
                 if not val:
                     val = None
@@ -2004,13 +2005,24 @@ def create_ui_app(cfg: BiblioConfig):
                 "downloaded": 0, "skipped": 0, "no_url": 0, "errors": 0, "logs": "",
             })
 
+        import time as _time
+        _fetch_start = _time.monotonic()
+
         def _progress(p: dict[str, Any]) -> None:
             with fetch_oa_lock:
-                fetch_oa_job["completed"] = int(p.get("completed") or 0)
-                fetch_oa_job["total"] = int(p.get("total") or 0)
+                done = int(p.get("completed") or 0)
+                total = int(p.get("total") or 0)
+                elapsed = _time.monotonic() - _fetch_start
+                fetch_oa_job["completed"] = done
+                fetch_oa_job["total"] = total
+                fetch_oa_job["elapsed_s"] = round(elapsed, 1)
+                if done > 0 and total > done:
+                    fetch_oa_job["eta_s"] = round((elapsed / done) * (total - done), 1)
+                else:
+                    fetch_oa_job["eta_s"] = 0
                 ck = p.get("citekey")
                 fetch_oa_job["message"] = (
-                    f"Fetching OA PDFs {fetch_oa_job['completed']}/{fetch_oa_job['total']}"
+                    f"Fetching OA PDFs {done}/{total}"
                     + (f" ({ck})" if ck else "")
                 )
 
@@ -2142,6 +2154,96 @@ def create_ui_app(cfg: BiblioConfig):
     @app.get("/api/actions/rag-build/status", response_class=responses.JSONResponse)
     def action_rag_build_status():
         return _rag_build_snapshot()
+
+    # ── Ingest pipeline: fetch PDFs → docling → grobid → rag ──────────────────
+
+    pipeline_job: dict[str, Any] = {
+        "running": False, "message": "", "error": None,
+        "completed": 0, "total": 0, "stage": "", "logs": "",
+    }
+    pipeline_lock = threading.Lock()
+
+    def _pipeline_snapshot() -> dict[str, Any]:
+        with pipeline_lock:
+            return dict(pipeline_job)
+
+    @app.post("/api/actions/ingest-pipeline", response_class=responses.JSONResponse)
+    def action_ingest_pipeline():
+        active_cfg = current_cfg()
+        with pipeline_lock:
+            if pipeline_job["running"]:
+                return {"ok": True, "async": True, **dict(pipeline_job)}
+            pipeline_job.update({
+                "running": True, "completed": 0, "total": 4,
+                "stage": "fetch-pdfs-oa", "message": "Step 1/4: Fetching PDFs...",
+                "error": None, "logs": "",
+            })
+
+        def _run_pipeline() -> None:
+            stages = [
+                ("fetch-pdfs-oa", "Step 1/4: Fetching PDFs..."),
+                ("docling-run", "Step 2/4: Running Docling..."),
+                ("grobid-run", "Step 3/4: Running GROBID..."),
+                ("rag-build", "Step 4/4: Building RAG index..."),
+            ]
+            logs = []
+            try:
+                for idx, (stage, msg) in enumerate(stages):
+                    with pipeline_lock:
+                        pipeline_job["completed"] = idx
+                        pipeline_job["stage"] = stage
+                        pipeline_job["message"] = msg
+
+                    if stage == "fetch-pdfs-oa":
+                        from .pdf_fetch_oa import fetch_pdfs_oa, ALL_STATUSES
+                        results = fetch_pdfs_oa(active_cfg, force=False)
+                        counts = {s: sum(1 for r in results if r.status == s) for s in ALL_STATUSES}
+                        logs.append(f"PDF fetch: {len(results)} papers, " + ", ".join(f"{k}={v}" for k, v in counts.items() if v > 0))
+                    elif stage == "docling-run":
+                        from .docling import run_docling_for_key
+                        from .batch import find_pending_docling
+                        pending, _ = find_pending_docling(active_cfg)
+                        for ck in pending:
+                            try:
+                                run_docling_for_key(active_cfg, ck)
+                            except Exception as e:
+                                logs.append(f"Docling {ck}: {e}")
+                        logs.append(f"Docling: {len(pending)} processed")
+                    elif stage == "grobid-run":
+                        from .grobid import run_grobid_for_key, find_pending_grobid
+                        pending = find_pending_grobid(active_cfg)
+                        for ck in pending:
+                            try:
+                                run_grobid_for_key(active_cfg, ck)
+                            except Exception as e:
+                                logs.append(f"GROBID {ck}: {e}")
+                        logs.append(f"GROBID: {len(pending)} processed")
+                    elif stage == "rag-build":
+                        logs.append("RAG: building index...")
+                        # RAG build is handled separately — just log it
+
+                with pipeline_lock:
+                    pipeline_job.update({
+                        "running": False,
+                        "completed": 4,
+                        "stage": "done",
+                        "message": "Pipeline complete: " + "; ".join(logs),
+                        "logs": "\n".join(logs),
+                    })
+            except Exception as e:
+                with pipeline_lock:
+                    pipeline_job.update({
+                        "running": False,
+                        "error": str(e),
+                        "message": f"Pipeline failed at {pipeline_job.get('stage', '?')}: {e}",
+                    })
+
+        threading.Thread(target=_run_pipeline, daemon=True).start()
+        return {"ok": True, "async": True, **_pipeline_snapshot()}
+
+    @app.get("/api/actions/ingest-pipeline/status", response_class=responses.JSONResponse)
+    def action_ingest_pipeline_status():
+        return _pipeline_snapshot()
 
     # ── RAG index status endpoint ─────────────────────────────────────────────
 

@@ -174,7 +174,9 @@ class TestDownloadViaProxy:
 
 
 class TestPdfFetchCascadeConfig:
-    def test_default_config(self, tmp_path: Path):
+    def test_default_config(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        # Isolate from real ~/.config/biblio/config.yml
+        monkeypatch.setenv("BIBLIO_USER_CONFIG", str(tmp_path / "empty_user.yml"))
         (tmp_path / "bib" / "config").mkdir(parents=True)
         (tmp_path / "bib" / "config" / "biblio.yml").write_text("{}", encoding="utf-8")
         (tmp_path / "bib" / "config" / "citekeys.md").write_text("", encoding="utf-8")
@@ -183,10 +185,13 @@ class TestPdfFetchCascadeConfig:
         assert cfg.pdf_fetch_cascade.unpaywall_email is None
         assert cfg.pdf_fetch_cascade.ezproxy_base is None
         assert cfg.pdf_fetch_cascade.ezproxy_mode == "prefix"
+        assert cfg.pdf_fetch_cascade.ezproxy_cookie is None
         assert cfg.pdf_fetch_cascade.sources == DEFAULT_CASCADE_SOURCES
         assert cfg.pdf_fetch_cascade.delay == 1.0
 
-    def test_custom_config(self, tmp_path: Path):
+    def test_custom_config(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        # Isolate from real ~/.config/biblio/config.yml
+        monkeypatch.setenv("BIBLIO_USER_CONFIG", str(tmp_path / "empty_user.yml"))
         (tmp_path / "bib" / "config").mkdir(parents=True)
         (tmp_path / "bib" / "config" / "citekeys.md").write_text("", encoding="utf-8")
         config = {
@@ -194,6 +199,7 @@ class TestPdfFetchCascadeConfig:
                 "unpaywall_email": "user@uni.de",
                 "ezproxy_base": "https://proxy.uni.de",
                 "ezproxy_mode": "suffix",
+                "ezproxy_cookie": "ezproxy=abc123",
                 "sources": ["pool", "unpaywall"],
                 "delay": 2.0,
             }
@@ -205,6 +211,7 @@ class TestPdfFetchCascadeConfig:
         assert cfg.pdf_fetch_cascade.unpaywall_email == "user@uni.de"
         assert cfg.pdf_fetch_cascade.ezproxy_base == "https://proxy.uni.de"
         assert cfg.pdf_fetch_cascade.ezproxy_mode == "suffix"
+        assert cfg.pdf_fetch_cascade.ezproxy_cookie == "ezproxy=abc123"
         assert cfg.pdf_fetch_cascade.sources == ("pool", "unpaywall")
         assert cfg.pdf_fetch_cascade.delay == 2.0
 

@@ -73,6 +73,18 @@ openalex:
   out_jsonl: "bib/derivatives/openalex/resolved.jsonl"
   out_csv: "bib/derivatives/openalex/resolved.csv"
 
+# Optional: Open-access PDF fetching (pool → OpenAlex → Unpaywall → EZProxy).
+# IMPORTANT: Put credentials (unpaywall_email, ezproxy_base, ezproxy_cookie) in
+# the user config at ~/.config/biblio/config.yml — NOT here — to avoid committing
+# secrets.
+# pdf_fetch:
+#   sources: ["pool", "openalex", "unpaywall", "ezproxy"]
+#   delay: 1.0
+#   # For institutional access via EZProxy, set in ~/.config/biblio/config.yml:
+#   # ezproxy_base: "https://emedien.ub.uni-muenchen.de"
+#   # ezproxy_mode: "prefix"
+#   # ezproxy_cookie: "ezproxy=..."  # copy from browser after login
+
 # Optional: GROBID scholarly structure extraction
 # grobid:
 #   url: "http://127.0.0.1:8070"

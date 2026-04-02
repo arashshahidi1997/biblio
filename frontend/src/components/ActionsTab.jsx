@@ -833,13 +833,22 @@ export default function ActionsTab({ activePaper, actionState, triggerAction, ad
         </button>
         <button
           disabled={actionState.busy}
+          onClick={() => triggerAction("fetch-pdfs-oa")}
+          title={paperCount ? `~${Math.ceil(paperCount * 2 / 60)}min (${paperCount} papers, ~2s each)` : ""}
+        >
+          Fetch OA PDFs
+        </button>
+        <button
+          disabled={actionState.busy}
           onClick={() => triggerAction("docling-run", { all: true })}
+          title={paperCount ? `~${Math.ceil(paperCount * 45 / 60)}min (${paperCount} papers, ~45s each)` : ""}
         >
           Run Docling For All
         </button>
         <button
           disabled={actionState.busy}
           onClick={() => triggerAction("grobid-run", { all: true })}
+          title={paperCount ? `~${Math.ceil(paperCount * 10 / 60)}min (${paperCount} papers, ~10s each)` : ""}
         >
           Run GROBID For All
         </button>
@@ -857,9 +866,11 @@ export default function ActionsTab({ activePaper, actionState, triggerAction, ad
         </button>
         <button
           disabled={actionState.busy}
-          onClick={() => triggerAction("fetch-pdfs-oa")}
+          onClick={() => triggerAction("ingest-pipeline")}
+          title={paperCount ? `Runs: Fetch PDFs → Docling → GROBID → RAG. ~${Math.ceil(paperCount * 57 / 60)}min for ${paperCount} papers` : "Full ingest pipeline"}
+          style={{ fontWeight: "bold" }}
         >
-          Fetch OA PDFs
+          Run Full Pipeline
         </button>
       </div>
 
@@ -952,13 +963,20 @@ export default function ActionsTab({ activePaper, actionState, triggerAction, ad
           {actionState.logs}
         </pre>
       )}
-      {(actionState.action === "openalex-resolve" || actionState.action === "graph-expand" || actionState.action === "docling-run" || actionState.action === "grobid-run" || actionState.action === "grobid-match" || actionState.action === "rag-build" || actionState.action === "fetch-pdfs-oa" || actionState.action === "autotag") &&
+      {(actionState.action === "openalex-resolve" || actionState.action === "graph-expand" || actionState.action === "docling-run" || actionState.action === "grobid-run" || actionState.action === "grobid-match" || actionState.action === "rag-build" || actionState.action === "fetch-pdfs-oa" || actionState.action === "autotag" || actionState.action === "ingest-pipeline") &&
         (actionState.progressTotal > 0 || actionState.busy) && (
           <div className="progress-wrap">
             <div className="small">
               {actionState.progressTotal > 0
                 ? `${actionState.progressCompleted}/${actionState.progressTotal} entries`
                 : "Running..."}
+              {actionState.etaSeconds > 0 && actionState.busy && (
+                <span style={{ marginLeft: "0.5em", opacity: 0.7 }}>
+                  (~{actionState.etaSeconds < 60
+                    ? `${Math.round(actionState.etaSeconds)}s`
+                    : `${Math.round(actionState.etaSeconds / 60)}min`} remaining)
+                </span>
+              )}
             </div>
             <div className="progress-bar">
               <div

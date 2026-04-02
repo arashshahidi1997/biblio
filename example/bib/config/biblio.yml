@@ -1,0 +1,54 @@
+# biblio example project — PDF fetch cascade demo
+#
+# This project demonstrates fetching PDFs through multiple sources:
+#   pool → OpenAlex → Unpaywall → EZProxy
+#
+# Expected results with default config (no EZProxy cookie):
+#   silver2021  → "openalex" or "unpaywall" (open-access)
+#   buzsaki2012 → "no_url" or "ezproxy" (paywalled — needs institutional access)
+#   zipf1949    → "no_url" (1949 book, no PDF online)
+#
+# With LMU Munich EZProxy configured in ~/.config/biblio/config.yml:
+#   buzsaki2012 → "ezproxy" (downloaded through institutional proxy)
+
+citekeys: "bib/config/citekeys.md"
+
+pdf_root: "bib/articles"
+pdf_pattern: "{citekey}/{citekey}.pdf"
+
+out_root: "bib/derivatives/docling"
+
+docling:
+  cmd: "docling"
+  to: ["md", "json"]
+  image_export_mode: "referenced"
+
+bibtex:
+  fetch:
+    src_dir: "bib/srcbib"
+    src_glob: "*.bib"
+    mode: "copy"
+    hash: "md5"
+    manifest: "bib/logs/pdf_manifest.json"
+    missing_log: "bib/logs/missing_pdfs.txt"
+
+  merge:
+    src_dir: "bib/srcbib"
+    src_glob: "*.bib"
+    out_bib: "bib/main.bib"
+    file_field_mode: "drop"
+    duplicates_log: "bib/logs/duplicate_bib_ids.txt"
+
+# Open-access cascade settings.
+# Credentials (unpaywall_email, ezproxy_cookie) should be in
+# ~/.config/biblio/config.yml — not here.
+pdf_fetch:
+  sources: ["pool", "openalex", "unpaywall", "ezproxy"]
+  delay: 1.0
+
+openalex:
+  src_dir: "bib/srcbib"
+  src_glob: "*.bib"
+  cache_root: "bib/derivatives/openalex/cache"
+  out_jsonl: "bib/derivatives/openalex/resolved.jsonl"
+  out_csv: "bib/derivatives/openalex/resolved.csv"

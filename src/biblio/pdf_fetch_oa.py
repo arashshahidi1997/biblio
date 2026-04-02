@@ -93,7 +93,9 @@ def _try_ezproxy(doi: str, cfg: BiblioConfig, dest: Path) -> str | None:
     from .ezproxy import download_via_proxy
     doi_url = f"https://doi.org/{doi}"
     ok = download_via_proxy(
-        doi_url, cascade.ezproxy_base, dest, mode=cascade.ezproxy_mode,
+        doi_url, cascade.ezproxy_base, dest,
+        mode=cascade.ezproxy_mode,
+        cookie=cascade.ezproxy_cookie,
     )
     if ok:
         return doi_url

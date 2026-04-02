@@ -11,7 +11,13 @@ from .config import BiblioConfig
 
 
 def default_tag_vocab_path(repo_root: Path) -> Path:
-    return (repo_root / "bib" / "config" / "tag_vocab.yml").resolve()
+    new_path = (repo_root / ".projio" / "biblio" / "tag_vocab.yml").resolve()
+    if new_path.exists():
+        return new_path
+    legacy = (repo_root / "bib" / "config" / "tag_vocab.yml").resolve()
+    if legacy.exists():
+        return legacy
+    return new_path
 
 
 def load_tag_vocab(path: Path) -> dict[str, Any]:

@@ -12,7 +12,15 @@ VALID_PRIORITIES = {"low", "normal", "high"}
 
 
 def library_path(cfg: BiblioConfig) -> Path:
-    return (cfg.repo_root / "bib" / "config" / "library.yml").resolve()
+    new_path = (cfg.repo_root / ".projio" / "biblio" / "library.yml").resolve()
+    if new_path.exists():
+        return new_path
+    # Fall back to legacy location
+    legacy = (cfg.repo_root / "bib" / "config" / "library.yml").resolve()
+    if legacy.exists():
+        return legacy
+    # Return new path as write target
+    return new_path
 
 
 def load_library(cfg: BiblioConfig) -> dict[str, dict[str, Any]]:

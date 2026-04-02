@@ -1,0 +1,12 @@
+name: LMU Munich
+description: Profile for LMU Munich members — EZProxy institutional access via emedien.ub.uni-muenchen.de
+
+# EZProxy configuration for LMU Munich library proxy
+pdf_fetch:
+  ezproxy_base: "https://emedien.ub.uni-muenchen.de"
+  ezproxy_mode: "prefix"
+  sources: ["pool", "openalex", "unpaywall", "ezproxy"]
+  delay: 1.0
+
+grobid:
+  url: http://127.0.0.1:8070

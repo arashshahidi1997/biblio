@@ -8,7 +8,8 @@ from .rag_support import OwnedSourcesSyncResult, sync_owned_sources
 
 BIBLIO_DOCLING_SOURCE_ID = "biblio_docling"
 BIBLIO_OWNED_SOURCE_IDS = (BIBLIO_DOCLING_SOURCE_ID,)
-BIBLIO_RAG_CONFIG_REL = Path("bib/config/rag.yaml")
+BIBLIO_RAG_CONFIG_REL = Path(".projio/biblio/rag.yaml")
+_LEGACY_RAG_CONFIG_REL = Path("bib/config/rag.yaml")
 
 
 @dataclass(frozen=True)
@@ -24,7 +25,13 @@ class BiblioRagSyncResult:
 
 def default_rag_config_path(repo_root: str | Path) -> Path:
     repo_root = Path(repo_root).expanduser().resolve()
-    return (repo_root / BIBLIO_RAG_CONFIG_REL).resolve()
+    new_path = (repo_root / BIBLIO_RAG_CONFIG_REL).resolve()
+    if new_path.exists():
+        return new_path
+    legacy = (repo_root / _LEGACY_RAG_CONFIG_REL).resolve()
+    if legacy.exists():
+        return legacy
+    return new_path
 
 
 def default_biblio_rag_template() -> str:

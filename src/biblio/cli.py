@@ -209,6 +209,15 @@ def _build_parser() -> argparse.ArgumentParser:
     bt_fetch.add_argument("--dry-run", action="store_true")
     bt_fetch.add_argument("--force", action="store_true", help="Overwrite/recopy even if unchanged.")
 
+    bt_fetch_oa = bt_sub.add_parser(
+        "fetch-pdfs-oa",
+        help="Download PDFs via open-access cascade (pool → OpenAlex → Unpaywall → EZProxy).",
+    )
+    bt_fetch_oa.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    bt_fetch_oa.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    bt_fetch_oa.add_argument("--force", action="store_true", help="Download even if PDF already exists.")
+    bt_fetch_oa.add_argument("--citekeys", nargs="*", default=None, help="Only fetch these citekeys (default: all).")
+
     p_oa = sub.add_parser("openalex", help="Resolve srcbib entries to OpenAlex works.")
     oa_sub = p_oa.add_subparsers(dest="openalex_cmd", required=True)
     oa_resolve = oa_sub.add_parser("resolve", help="Resolve bib/srcbib/*.bib entries to OpenAlex works.")
@@ -520,6 +529,18 @@ def _build_parser() -> argparse.ArgumentParser:
                              help="Accept detected storage path without prompting.")
 
     profile_sub.add_parser("show", help="Print current ~/.config/biblio/config.yml.")
+
+    p_auth = sub.add_parser("auth", help="Manage authentication for external services.")
+    auth_sub = p_auth.add_subparsers(dest="auth_cmd", required=True)
+
+    auth_ez = auth_sub.add_parser(
+        "ezproxy",
+        help="Set up EZProxy session cookie for institutional PDF access.",
+    )
+    auth_ez.add_argument("--open", action="store_true", default=True,
+                         help="Open EZProxy login page in browser (default: yes).")
+    auth_ez.add_argument("--no-open", action="store_true",
+                         help="Skip opening browser.")
 
     p_ui = sub.add_parser("ui", help="Serve a local interactive bibliography UI.")
     ui_sub = p_ui.add_subparsers(dest="ui_cmd", required=True)
@@ -909,11 +930,18 @@ def main(argv: Iterable[str] | None = None) -> None:
         cfg_path = (repo_root / args.config).resolve() if args.config else (repo_root / "bib" / "config" / "biblio.yml")
         cfg = load_biblio_config(cfg_path, root=repo_root)
         if args.bibtex_cmd == "merge":
-            n_sources, n_entries = merge_srcbib(cfg.bibtex_merge, dry_run=args.dry_run)
+            n_sources, n_entries, quality_warnings = merge_srcbib(cfg.bibtex_merge, dry_run=args.dry_run)
             suffix = " (dry-run)" if args.dry_run else ""
             print(f"[OK] merged sources={n_sources} entries={n_entries} -> {cfg.bibtex_merge.out_bib}{suffix}")
             if cfg.bibtex_merge.duplicates_log.exists() and not args.dry_run:
                 print(f"[WARN] duplicates log: {cfg.bibtex_merge.duplicates_log}", file=sys.stderr)
+            if quality_warnings:
+                print(f"[WARN] {len(quality_warnings)} low-quality entries (noise/stub):", file=sys.stderr)
+                for w in quality_warnings[:5]:
+                    print(f"  {w}", file=sys.stderr)
+                if len(quality_warnings) > 5:
+                    log_path = cfg.bibtex_merge.duplicates_log.parent / "low_quality_entries.txt"
+                    print(f"  ... and {len(quality_warnings) - 5} more. See {log_path}", file=sys.stderr)
             return
         if args.bibtex_cmd == "export":
             citekeys = list(args.citekeys)
@@ -956,6 +984,26 @@ def main(argv: Iterable[str] | None = None) -> None:
             )
             if not args.dry_run and counts["missing"]:
                 print(f"[WARN] missing log: {cfg.pdf_fetch.missing_log}", file=sys.stderr)
+            return
+        if args.bibtex_cmd == "fetch-pdfs-oa":
+            from .pdf_fetch_oa import fetch_pdfs_oa, ALL_STATUSES
+            ck_filter = set(args.citekeys) if args.citekeys else None
+
+            def _progress(p: dict) -> None:
+                total = p.get("total", "?")
+                done = p.get("completed", 0)
+                ck = p.get("citekey", "")
+                print(f"  [{done}/{total}] {ck}", flush=True)
+
+            results = fetch_pdfs_oa(cfg, force=args.force, citekey_filter=ck_filter, progress_cb=_progress)
+            counts = {s: sum(1 for r in results if r.status == s) for s in ALL_STATUSES}
+            parts = [f"{k}={v}" for k, v in counts.items() if v > 0]
+            print(f"[OK] total={len(results)} {' '.join(parts)}")
+            errors = [r for r in results if r.error]
+            for r in errors[:5]:
+                print(f"[ERROR] {r.citekey}: {r.error}", file=sys.stderr)
+            if len(errors) > 5:
+                print(f"  ... and {len(errors) - 5} more errors", file=sys.stderr)
             return
         raise SystemExit(2)
 
@@ -1993,6 +2041,61 @@ def main(argv: Iterable[str] | None = None) -> None:
             storage = args.storage.expanduser().resolve() if args.storage else None
             dest = apply_profile(args.name, personal_storage=storage, yes=args.yes)
             print(f"Profile '{args.name}' applied → {dest}")
+            return
+
+    if args.command == "auth":
+        from .profile import load_user_config, user_config_path
+        if args.auth_cmd == "ezproxy":
+            cfg_path = user_config_path()
+            user_cfg = load_user_config()
+
+            # Read current ezproxy_base from config
+            pf = user_cfg.get("pdf_fetch") or {}
+            ezproxy_base = pf.get("ezproxy_base") or ""
+
+            if not ezproxy_base:
+                print("No ezproxy_base configured in your user config.")
+                print("Run 'biblio profile use lmu-munich' first, or enter the URL now.")
+                ezproxy_base = input("EZProxy base URL: ").strip()
+                if not ezproxy_base:
+                    print("Aborted.", file=sys.stderr)
+                    raise SystemExit(1)
+
+            login_url = f"{ezproxy_base.rstrip('/')}/login"
+            print(f"\nEZProxy base: {ezproxy_base}")
+            print(f"Login URL:    {login_url}")
+
+            # Open browser if requested
+            if not args.no_open:
+                import webbrowser
+                print(f"\nOpening {login_url} in your browser...")
+                webbrowser.open(login_url)
+
+            print("\nAfter logging in:")
+            print("  1. Open DevTools (F12)")
+            print("  2. Go to Application > Cookies > " + ezproxy_base)
+            print("  3. Copy all cookie Name=Value pairs\n")
+            print("Paste cookies (format: name1=value1; name2=value2):")
+            cookie_input = input("> ").strip()
+
+            if not cookie_input:
+                print("No cookie provided. Aborted.", file=sys.stderr)
+                raise SystemExit(1)
+
+            # Update user config
+            if not isinstance(user_cfg.get("pdf_fetch"), dict):
+                user_cfg["pdf_fetch"] = {}
+            user_cfg["pdf_fetch"]["ezproxy_base"] = ezproxy_base
+            user_cfg["pdf_fetch"]["ezproxy_cookie"] = cookie_input
+
+            cfg_path.parent.mkdir(parents=True, exist_ok=True)
+            cfg_path.write_text(
+                yaml.safe_dump(user_cfg, sort_keys=False, allow_unicode=True, default_flow_style=False),
+                encoding="utf-8",
+            )
+            os.chmod(cfg_path, 0o600)
+            print(f"\nCookie saved to {cfg_path} (permissions: 600)")
+            print("You can now run: biblio bibtex fetch-pdfs-oa")
             return
 
     raise SystemExit(2)

@@ -13,7 +13,8 @@ from .grobid import parse_tei_header, process_pdf_header
 from .ingest import IngestRecord, canonical_citekey, render_bibtex, write_import_bib
 from .ledger import append_jsonl, new_run_id, utc_now_iso
 
-_DEFAULT_CONFIG_REL = Path("bib/config/biblio.yml")
+_DEFAULT_CONFIG_REL = Path(".projio/biblio/biblio.yml")
+_LEGACY_CONFIG_REL = Path("bib/config/biblio.yml")
 
 
 @dataclass
@@ -28,6 +29,10 @@ class PoolIngestResult:
 def load_pool_config(pool_root: Path) -> BiblioConfig:
     """Load biblio config from a pool workspace root."""
     cfg_path = (pool_root / _DEFAULT_CONFIG_REL).resolve()
+    if not cfg_path.exists():
+        legacy = (pool_root / _LEGACY_CONFIG_REL).resolve()
+        if legacy.exists():
+            cfg_path = legacy
     return load_biblio_config(cfg_path, root=pool_root)
 
 

@@ -479,6 +479,11 @@ export default function App() {
       const total = Number(data.total || 0);
       const completed = Number(data.completed || 0);
       const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+      const eta = Number(data.eta_s || 0) || (
+        completed > 0 && total > completed && Number(data.elapsed_s || 0) > 0
+          ? Math.round((Number(data.elapsed_s) / completed) * (total - completed))
+          : 0
+      );
       setActionState({
         busy: !!data.running,
         message: data.message || `${action} running...`,
@@ -487,6 +492,7 @@ export default function App() {
         progressCompleted: completed,
         progressTotal: total,
         progressPercent: pct,
+        etaSeconds: eta,
         action,
       });
       if (data.running) {
@@ -536,7 +542,7 @@ export default function App() {
         window.setTimeout(pollOpenAlexProgress, 150);
         return;
       }
-      if (data.async && (action === "graph-expand" || action === "docling-run" || action === "grobid-run" || action === "grobid-match" || action === "rag-build" || action === "fetch-pdfs-oa" || action === "autotag" || action === "summarize" || action === "present" || action === "concepts-extract")) {
+      if (data.async && (action === "graph-expand" || action === "docling-run" || action === "grobid-run" || action === "grobid-match" || action === "rag-build" || action === "fetch-pdfs-oa" || action === "autotag" || action === "summarize" || action === "present" || action === "concepts-extract" || action === "ingest-pipeline")) {
         const total = Number(data.total || 0);
         const completed = Number(data.completed || 0);
         setActionState({

@@ -282,6 +282,162 @@ def launch_docling_batch_background(
     return job_id, total
 
 
+def launch_pdf_fetch_oa_background(
+    root: Path,
+    *,
+    force: bool = False,
+    citekey_filter: set[str] | None = None,
+) -> tuple[str, int]:
+    """Spawn a background subprocess that runs open-access PDF fetching.
+
+    Returns ``(job_id, total_papers)`` immediately.
+    """
+    from .config import default_config_path, load_biblio_config
+
+    cfg_path = default_config_path(root=root)
+    cfg = load_biblio_config(cfg_path, root=root)
+
+    # Count papers to process (fast — reads resolved.jsonl line count)
+    total = 0
+    if cfg.openalex.out_jsonl.exists():
+        total = sum(1 for line in cfg.openalex.out_jsonl.open(encoding="utf-8") if line.strip())
+    if citekey_filter:
+        total = min(total, len(citekey_filter))
+
+    job_id = new_run_id("pdf_fetch_oa")
+    job_file = _job_path(root, job_id)
+    job_file.parent.mkdir(parents=True, exist_ok=True)
+
+    worker_code = _build_pdf_fetch_oa_worker_script(
+        root=str(root),
+        force=force,
+        citekey_filter=sorted(citekey_filter) if citekey_filter else None,
+        job_id=job_id,
+        job_file=str(job_file),
+    )
+
+    proc = subprocess.Popen(
+        [sys.executable, "-c", worker_code],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+    )
+
+    _write_job(root, job_id, {
+        "job_id": job_id,
+        "type": "pdf_fetch_oa",
+        "status": "running",
+        "citekey": "(batch)",
+        "pid": proc.pid,
+        "started": utc_now_iso(),
+        "finished": None,
+        "result": None,
+        "error": None,
+        "progress": {"total": total, "done": 0, "failed": 0},
+    })
+
+    return job_id, total
+
+
+def _build_pdf_fetch_oa_worker_script(
+    root: str,
+    force: bool,
+    citekey_filter: list[str] | None,
+    job_id: str,
+    job_file: str,
+) -> str:
+    """Build the Python code for the background PDF fetch subprocess."""
+    return f"""\
+import json, sys, time, traceback
+from pathlib import Path
+
+def _utc_now_iso():
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).isoformat()
+
+def _write(data):
+    p = Path({job_file!r})
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(data, indent=2, sort_keys=True) + "\\n", encoding="utf-8")
+
+def _read():
+    p = Path({job_file!r})
+    return json.loads(p.read_text(encoding="utf-8"))
+
+try:
+    from biblio.config import default_config_path, load_biblio_config
+    from biblio.pdf_fetch_oa import fetch_pdfs_oa, ALL_STATUSES
+
+    root = Path({root!r})
+    cfg = load_biblio_config(default_config_path(root=root), root=root)
+    ck_filter = set({citekey_filter!r}) if {citekey_filter!r} else None
+
+    _start = time.monotonic()
+
+    def _progress_cb(prog):
+        try:
+            elapsed = time.monotonic() - _start
+            done = int(prog.get("completed") or 0)
+            total = int(prog.get("total") or 0)
+            eta = None
+            if done > 0 and total > done:
+                eta = round((elapsed / done) * (total - done), 1)
+            existing = _read()
+            existing["progress"] = {{
+                "total": total,
+                "done": done,
+                "failed": 0,
+                "current_key": prog.get("citekey") or "",
+                "elapsed_s": round(elapsed, 1),
+                "eta_s": eta,
+            }}
+            _write(existing)
+        except Exception:
+            pass
+
+    results = fetch_pdfs_oa(
+        cfg,
+        force={force!r},
+        citekey_filter=ck_filter,
+        progress_cb=_progress_cb,
+    )
+
+    elapsed = round(time.monotonic() - _start, 1)
+    counts = {{s: sum(1 for r in results if r.status == s) for s in ALL_STATUSES}}
+    errors = [
+        {{"citekey": r.citekey, "error": r.error}}
+        for r in results if r.error
+    ]
+
+    existing = _read()
+    existing["status"] = "completed"
+    existing["finished"] = _utc_now_iso()
+    existing["result"] = {{
+        "total": len(results),
+        **counts,
+        "elapsed_s": elapsed,
+        "errors": errors[:20],
+    }}
+    existing["progress"] = {{
+        "total": len(results),
+        "done": len(results),
+        "failed": counts.get("error", 0),
+    }}
+    _write(existing)
+
+except Exception:
+    tb = traceback.format_exc()
+    try:
+        existing = _read()
+    except Exception:
+        existing = {{"job_id": {job_id!r}, "type": "pdf_fetch_oa", "started": _utc_now_iso()}}
+    existing["status"] = "failed"
+    existing["finished"] = _utc_now_iso()
+    existing["error"] = tb
+    _write(existing)
+"""
+
+
 def _build_batch_worker_script(
     root: str,
     concurrency: int,

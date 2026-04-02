@@ -107,7 +107,7 @@ def test_bibtex_merge_drops_file_field(tmp_path: Path) -> None:
         file_field_template="bib/articles/{citekey}/{citekey}.pdf",
         duplicates_log=tmp_path / "bib" / "logs" / "duplicate_bib_ids.txt",
     )
-    n_sources, n_entries = merge_srcbib(cfg, dry_run=False)
+    n_sources, n_entries, _quality = merge_srcbib(cfg, dry_run=False)
     assert n_sources == 2
     assert n_entries == 2
 
@@ -144,7 +144,7 @@ def test_bibtex_merge_tolerates_duplicate_citekeys(tmp_path: Path) -> None:
         duplicates_log=tmp_path / "bib" / "logs" / "duplicate_bib_ids.txt",
     )
 
-    n_sources, n_entries = merge_srcbib(cfg, dry_run=False)
+    n_sources, n_entries, _quality = merge_srcbib(cfg, dry_run=False)
     assert n_sources == 1
     assert n_entries == 1
 

@@ -34,15 +34,29 @@ def download_via_proxy(
     dest: Path,
     *,
     mode: str = "prefix",
+    cookie: str | None = None,
     timeout: int = _DEFAULT_TIMEOUT,
 ) -> bool:
     """Attempt to download a URL through the EZProxy.
 
     Returns True on success, False on failure.
-    This requires the user to be on VPN or have an active institutional session.
+
+    Args:
+        url: Original publisher URL (will be rewritten through proxy).
+        proxy_base: Institutional proxy base URL.
+        dest: Local destination path for the PDF.
+        mode: URL rewriting mode — "prefix" (most common) or "suffix".
+        cookie: EZProxy session cookie string (e.g. "ezproxy=abc123").
+            Obtain by logging in via browser and copying the cookie.
+            Store in ``~/.config/biblio/config.yml`` under
+            ``pdf_fetch.ezproxy_cookie``.
+        timeout: HTTP request timeout in seconds.
     """
     proxied = rewrite_url(url, proxy_base, mode=mode)
-    req = urllib.request.Request(proxied, headers={"User-Agent": _USER_AGENT})
+    headers = {"User-Agent": _USER_AGENT}
+    if cookie:
+        headers["Cookie"] = cookie
+    req = urllib.request.Request(proxied, headers=headers)
     dest.parent.mkdir(parents=True, exist_ok=True)
     tmp_fd, tmp_path = tempfile.mkstemp(dir=dest.parent, suffix=".tmp")
     try:

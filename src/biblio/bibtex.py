@@ -69,6 +69,29 @@ def merge_srcbib(cfg: BibtexMergeConfig, *, dry_run: bool = False) -> tuple[int,
     # that have already been collapsed in `merged`.
     out_db.entries = dict(sorted(merged.items(), key=lambda kv: kv[0]))
 
+    # Quality check: warn about noise/stub entries
+    quality_warnings: list[str] = []
+    try:
+        from .quality import score_bib_database
+        for q in score_bib_database(out_db):
+            if q.tier in ("noise", "stub"):
+                quality_warnings.append(
+                    f"{q.citekey} [{q.tier}, score={q.score}]: {', '.join(q.issues)}"
+                )
+    except Exception:
+        pass  # quality check is optional, don't block merge
+
+    if quality_warnings and not dry_run:
+        warnings_path = cfg.duplicates_log.parent / "low_quality_entries.txt"
+        warnings_path.parent.mkdir(parents=True, exist_ok=True)
+        lines = [
+            "Low-quality BibTeX entries detected during merge:",
+            f"({len(quality_warnings)} entries with tier 'noise' or 'stub')",
+            "",
+        ]
+        lines.extend(quality_warnings)
+        warnings_path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+
     if duplicates and not dry_run:
         cfg.duplicates_log.parent.mkdir(parents=True, exist_ok=True)
         lines = ["Duplicate BibTeX IDs encountered (resolved by last-wins):", ""]
@@ -87,7 +110,7 @@ def merge_srcbib(cfg: BibtexMergeConfig, *, dry_run: bool = False) -> tuple[int,
         cfg.out_bib.write_text(writer.to_string(out_db), encoding="utf-8")
 
     append_jsonl(
-        cfg.repo_root / "bib" / "logs" / "runs" / "bibtex_merge.jsonl",
+        cfg.repo_root / ".projio" / "biblio" / "logs" / "runs" / "bibtex_merge.jsonl",
         {
             "run_id": run_id,
             "timestamp": utc_now_iso(),
@@ -103,18 +126,18 @@ def merge_srcbib(cfg: BibtexMergeConfig, *, dry_run: bool = False) -> tuple[int,
         },
     )
 
-    return (len(bib_files), len(out_db.entries))
+    return (len(bib_files), len(out_db.entries), quality_warnings)
 
 
 def default_bibtex_merge_config(repo_root: str | Path) -> BibtexMergeConfig:
     repo_root = Path(repo_root).expanduser().resolve()
-    bib_root = repo_root / "bib"
+    projio_biblio = repo_root / ".projio" / "biblio"
     return BibtexMergeConfig(
         repo_root=repo_root,
-        src_dir=bib_root / "srcbib",
+        src_dir=repo_root / "bib" / "srcbib",
         src_glob="*.bib",
-        out_bib=bib_root / "main.bib",
+        out_bib=projio_biblio / "merged.bib",
         file_field_mode="drop",
         file_field_template="bib/articles/{citekey}/{citekey}.pdf",
-        duplicates_log=bib_root / "logs" / "duplicate_bib_ids.txt",
+        duplicates_log=projio_biblio / "logs" / "duplicate_bib_ids.txt",
     )

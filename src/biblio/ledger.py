@@ -48,7 +48,7 @@ class LedgerPaths:
 
 def default_ledger_paths(repo_root: str | Path) -> LedgerPaths:
     repo_root = Path(repo_root).expanduser().resolve()
-    root = repo_root / "bib" / "logs" / "runs"
+    root = repo_root / ".projio" / "biblio" / "logs" / "runs"
     return LedgerPaths(
         root=root,
         docling_runs=root / "docling.jsonl",

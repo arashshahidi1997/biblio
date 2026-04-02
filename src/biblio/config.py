@@ -18,7 +18,8 @@ from .openalex.openalex_client import OpenAlexClientConfig, openalex_config_from
 from .openalex.openalex_cache import OpenAlexCache
 
 
-DEFAULT_CONFIG_REL = Path("bib/config/biblio.yml")
+DEFAULT_CONFIG_REL = Path(".projio/biblio/biblio.yml")
+LEGACY_CONFIG_REL = Path("bib/config/biblio.yml")
 
 
 def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
@@ -40,6 +41,7 @@ class PdfFetchCascadeConfig:
     unpaywall_email: str | None
     ezproxy_base: str | None
     ezproxy_mode: str          # "prefix" or "suffix"
+    ezproxy_cookie: str | None  # session cookie for authenticated access
     sources: tuple[str, ...]   # cascade order
     delay: float               # seconds between API calls
 
@@ -116,7 +118,7 @@ def load_biblio_config(path: str | Path, *, root: str | Path | None = None) -> B
             raise TypeError(f"Expected mapping in {abs_path}, got {type(project_raw).__name__}")
         payload = _deep_merge(payload, project_raw)
 
-    citekeys = Path(_get(payload, "citekeys", default="bib/config/citekeys.md"))
+    citekeys = Path(_get(payload, "citekeys", default=".projio/biblio/citekeys.md"))
     pdf_root = Path(_get(payload, "pdf_root", default="bib/articles"))
     pdf_pattern = str(_get(payload, "pdf_pattern", default="{citekey}/{citekey}.pdf"))
     out_root = Path(_get(payload, "out_root", default="bib/derivatives/docling"))
@@ -178,7 +180,7 @@ def load_biblio_config(path: str | Path, *, root: str | Path | None = None) -> B
     else:
         pool_search = (common_pool_path,) if common_pool_path else ()
 
-    fetch_queue_path = _abs(Path(_get(payload, "fetch_queue", default="bib/config/fetch_queue.yml")))
+    fetch_queue_path = _abs(Path(_get(payload, "fetch_queue", default=".projio/biblio/fetch_queue.yml")))
 
     pf_mapping = payload.get("pdf_fetch") if isinstance(payload, dict) else None
     if not isinstance(pf_mapping, dict):
@@ -192,6 +194,7 @@ def load_biblio_config(path: str | Path, *, root: str | Path | None = None) -> B
         unpaywall_email=str(pf_mapping["unpaywall_email"]) if pf_mapping.get("unpaywall_email") else None,
         ezproxy_base=str(pf_mapping["ezproxy_base"]).rstrip("/") if pf_mapping.get("ezproxy_base") else None,
         ezproxy_mode=str(pf_mapping.get("ezproxy_mode") or "prefix"),
+        ezproxy_cookie=str(pf_mapping["ezproxy_cookie"]) if pf_mapping.get("ezproxy_cookie") else None,
         sources=cascade_sources,
         delay=float(pf_mapping.get("delay") or 1.0),
     )
@@ -223,4 +226,12 @@ def load_biblio_config(path: str | Path, *, root: str | Path | None = None) -> B
 
 def default_config_path(*, root: str | Path | None = None) -> Path:
     repo_root = Path(root) if root is not None else Path.cwd()
-    return (repo_root / DEFAULT_CONFIG_REL).resolve()
+    new_path = (repo_root / DEFAULT_CONFIG_REL).resolve()
+    if new_path.exists():
+        return new_path
+    # Fall back to legacy location for backward compat
+    legacy_path = (repo_root / LEGACY_CONFIG_REL).resolve()
+    if legacy_path.exists():
+        return legacy_path
+    # Return new path as the write target even if neither exists
+    return new_path
