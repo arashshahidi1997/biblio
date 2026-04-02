@@ -141,3 +141,42 @@ def default_bibtex_merge_config(repo_root: str | Path) -> BibtexMergeConfig:
         file_field_template="bib/articles/{citekey}/{citekey}.pdf",
         duplicates_log=projio_biblio / "logs" / "duplicate_bib_ids.txt",
     )
+
+
+def compile_bib(
+    sources: list[Path],
+    output: Path,
+    *,
+    dry_run: bool = False,
+) -> tuple[int, int]:
+    """Merge multiple .bib intermediates into a single compiled output.
+
+    Reads each source .bib file, merges entries with last-wins semantics
+    for duplicate keys across sources, and writes the combined output.
+    Missing source files are skipped gracefully.
+
+    Returns (n_sources_read, n_entries).
+    """
+    require_pybtex("BibTeX features")
+    from pybtex.database import BibliographyData, Entry
+    from pybtex.database.output.bibtex import Writer
+
+    merged: dict[str, Entry] = {}
+    sources_read = 0
+
+    for src in sources:
+        if not src.exists():
+            continue
+        db = parse_bibtex_file(src)
+        for key, entry in sorted(db.entries.items(), key=lambda kv: kv[0]):
+            merged[key] = copy.deepcopy(entry)
+        sources_read += 1
+
+    if not dry_run:
+        out_db = BibliographyData()
+        out_db.entries = dict(sorted(merged.items(), key=lambda kv: kv[0]))
+        output.parent.mkdir(parents=True, exist_ok=True)
+        writer = Writer()
+        output.write_text(writer.to_string(out_db), encoding="utf-8")
+
+    return (sources_read, len(merged))

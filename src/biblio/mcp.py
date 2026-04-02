@@ -695,6 +695,56 @@ def library_dedup(*, root: Path) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# Compile
+# ---------------------------------------------------------------------------
+
+
+def biblio_compile(
+    *,
+    root: Path,
+    sources: list[str] | None = None,
+    output: str | None = None,
+) -> dict[str, Any]:
+    """Compile multiple .bib intermediates into a single compiled.bib.
+
+    If sources/output not given, reads from .projio/render.yml
+    (bib_sources and bibliography fields).
+
+    Returns ``{"sources_read": N, "entries": N, "output": str, "skipped": [str]}``.
+    """
+    import yaml
+
+    render_yml = root / ".projio" / "render.yml"
+    render_data: dict[str, Any] = {}
+    if render_yml.is_file():
+        render_data = yaml.safe_load(render_yml.read_text(encoding="utf-8")) or {}
+
+    source_paths: list[Path]
+    if sources:
+        source_paths = [(root / s).resolve() for s in sources]
+    else:
+        bib_sources = render_data.get("bib_sources", [".projio/biblio/merged.bib"])
+        source_paths = [(root / s).resolve() for s in bib_sources]
+
+    if output:
+        out_path = (root / output).resolve()
+    else:
+        out_path = (root / render_data.get("bibliography", ".projio/render/compiled.bib")).resolve()
+
+    from .bibtex import compile_bib
+
+    skipped = [str(s.relative_to(root)) for s in source_paths if not s.exists()]
+    n_sources, n_entries = compile_bib(source_paths, out_path)
+
+    return {
+        "sources_read": n_sources,
+        "entries": n_entries,
+        "output": str(out_path.relative_to(root)),
+        "skipped": skipped,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Citation drafting
 # ---------------------------------------------------------------------------
 
