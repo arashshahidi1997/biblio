@@ -45,18 +45,33 @@ except Exception:  # pragma: no cover
     argcomplete = None
 
 
+def _fmt_duration(seconds: float | None) -> str:
+    """Format seconds as e.g. '1h23m' or '4m12s'."""
+    if seconds is None or seconds < 0:
+        return "?"
+    s = int(seconds)
+    if s < 60:
+        return f"{s}s"
+    m, s = divmod(s, 60)
+    if m < 60:
+        return f"{m}m{s:02d}s"
+    h, m = divmod(m, 60)
+    return f"{h}h{m:02d}m"
+
+
 def _build_screen_bash_command(
     *,
     repo_root: Path,
     python_exe: str,
     docling_args: list[str],
+    subcmd: str = "run",
 ) -> str:
     cmd = [
         python_exe,
         "-m",
         "biblio.cli",
         "docling",
-        "run",
+        subcmd,
         "--root",
         str(repo_root),
         *docling_args,
@@ -150,6 +165,23 @@ def _build_parser() -> argparse.ArgumentParser:
         "--screen-name",
         default="docling",
         help="Screen session name when using --screen (default: docling).",
+    )
+
+    p_batch = doc_sub.add_parser("batch", help="Batch-process all pending citekeys (PDFs without docling output).")
+    p_batch.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    p_batch.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    p_batch.add_argument("--concurrency", type=int, default=1, help="Max parallel docling jobs (default: 1). Use with care on shared HPC nodes.")
+    p_batch.add_argument("--filter", dest="filter_glob", default=None, help="fnmatch glob to filter citekeys (e.g. 'smith*').")
+    p_batch.add_argument("--force", action="store_true", help="Re-run Docling even if outputs exist.")
+    p_batch.add_argument(
+        "--screen",
+        action="store_true",
+        help="Run in a detached GNU screen session (background).",
+    )
+    p_batch.add_argument(
+        "--screen-name",
+        default="docling-batch",
+        help="Screen session name when using --screen (default: docling-batch).",
     )
 
     p_bt = sub.add_parser("bibtex", help="Work with BibTeX sources (srcbib merge).")
@@ -733,6 +765,77 @@ def main(argv: Iterable[str] | None = None) -> None:
             print(bibtex_text, end="")
         return
     if args.command == "docling":
+        if args.doc_cmd == "batch":
+            repo_root = (args.root.expanduser().resolve() if args.root else find_repo_root())
+            cfg_path = (repo_root / args.config).resolve() if args.config else (repo_root / "bib" / "config" / "biblio.yml")
+            cfg = load_biblio_config(cfg_path, root=repo_root)
+
+            if args.screen:
+                batch_args: list[str] = []
+                if args.config:
+                    batch_args += ["--config", str(args.config)]
+                if args.force:
+                    batch_args += ["--force"]
+                if args.concurrency != 1:
+                    batch_args += ["--concurrency", str(args.concurrency)]
+                if args.filter_glob:
+                    batch_args += ["--filter", args.filter_glob]
+                bash_cmd = _build_screen_bash_command(
+                    repo_root=repo_root,
+                    python_exe=sys.executable,
+                    docling_args=batch_args,
+                    subcmd="batch",
+                )
+                _launch_screen_session(name=str(args.screen_name), bash_cmd=bash_cmd)
+                print(f"[OK] started screen session: {args.screen_name}", flush=True)
+                print(f"Attach:  screen -r {args.screen_name}", flush=True)
+                print("Detach:  Ctrl-A then D", flush=True)
+                print("List:    screen -ls", flush=True)
+                return
+
+            from .batch import find_pending_docling, run_docling_batch
+
+            pending, already_done = find_pending_docling(
+                cfg, filter_glob=args.filter_glob, force=args.force,
+            )
+            cmd_preview = " ".join(cfg.docling_cmd)
+            print(
+                f"[INFO] repo_root={repo_root} config={cfg_path} docling_cmd={cmd_preview}",
+                file=sys.stderr, flush=True,
+            )
+            print(
+                f"[INFO] pending={len(pending)} already_done={len(already_done)} concurrency={args.concurrency}",
+                file=sys.stderr, flush=True,
+            )
+            if not pending:
+                print("[OK] Nothing to process — all citekeys already have docling output.", flush=True)
+                return
+
+            def _cli_progress(prog):
+                elapsed = _fmt_duration(prog.elapsed_s)
+                eta = _fmt_duration(prog.eta_s) if prog.eta_s is not None else "?"
+                print(
+                    f"[{prog.done}/{prog.total}] {prog.current_key}  elapsed={elapsed}  eta={eta}  failed={prog.failed}",
+                    file=sys.stderr, flush=True,
+                )
+
+            result = run_docling_batch(
+                cfg, pending,
+                concurrency=args.concurrency,
+                force=args.force,
+                progress_cb=_cli_progress,
+            )
+            elapsed = _fmt_duration(result.elapsed_s)
+            print(
+                f"[DONE] processed={result.processed} failed={result.failed} "
+                f"skipped={len(already_done)} elapsed={elapsed}",
+                flush=True,
+            )
+            if result.failures:
+                for f in result.failures:
+                    print(f"  [FAIL] {f['citekey']}: {f['error']}", file=sys.stderr)
+            raise SystemExit(0 if result.failed == 0 else 1)
+
         if args.doc_cmd != "run":
             raise SystemExit(2)
         repo_root = (args.root.expanduser().resolve() if args.root else find_repo_root())

@@ -24,6 +24,7 @@ class JobInfo:
     finished: str | None
     result: dict[str, Any] | None
     error: str | None
+    progress: dict[str, Any] | None = None
 
 
 def _jobs_dir(root: Path) -> Path:
@@ -130,6 +131,7 @@ def get_job_status(root: Path, job_id: str) -> JobInfo | None:
         finished=data.get("finished"),
         result=data.get("result"),
         error=data.get("error"),
+        progress=data.get("progress"),
     )
 
 
@@ -215,6 +217,157 @@ except Exception:
         existing = json.loads(Path({job_file!r}).read_text(encoding="utf-8"))
     except Exception:
         existing = {{"job_id": {job_id!r}, "citekey": {citekey!r}.lstrip("@"), "started": _utc_now_iso()}}
+    existing["status"] = "failed"
+    existing["finished"] = _utc_now_iso()
+    existing["error"] = tb
+    _write(existing)
+"""
+
+
+def launch_docling_batch_background(
+    root: Path,
+    *,
+    concurrency: int = 1,
+    force: bool = False,
+    filter_glob: str | None = None,
+) -> tuple[str, int]:
+    """Spawn a background subprocess that runs batch docling.
+
+    Returns ``(job_id, total_pending)`` immediately.
+    The ``total_pending`` is determined before the subprocess starts so the
+    caller can report it; the actual execution happens in the background.
+    """
+    # Pre-scan to get the count (fast — only stat calls).
+    from .batch import find_pending_docling
+    from .config import default_config_path, load_biblio_config
+
+    cfg_path = default_config_path(root=root)
+    cfg = load_biblio_config(cfg_path, root=root)
+    pending, _done = find_pending_docling(cfg, filter_glob=filter_glob, force=force)
+    total = len(pending)
+
+    job_id = new_run_id("docling_batch")
+    job_file = _job_path(root, job_id)
+    job_file.parent.mkdir(parents=True, exist_ok=True)
+
+    worker_code = _build_batch_worker_script(
+        root=str(root),
+        concurrency=concurrency,
+        force=force,
+        filter_glob=filter_glob,
+        job_id=job_id,
+        job_file=str(job_file),
+    )
+
+    proc = subprocess.Popen(
+        [sys.executable, "-c", worker_code],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+    )
+
+    _write_job(root, job_id, {
+        "job_id": job_id,
+        "type": "batch",
+        "status": "running",
+        "citekey": "(batch)",
+        "pid": proc.pid,
+        "started": utc_now_iso(),
+        "finished": None,
+        "result": None,
+        "error": None,
+        "progress": {"total": total, "done": 0, "failed": 0},
+    })
+
+    return job_id, total
+
+
+def _build_batch_worker_script(
+    root: str,
+    concurrency: int,
+    force: bool,
+    filter_glob: str | None,
+    job_id: str,
+    job_file: str,
+) -> str:
+    """Build the Python code for the background batch subprocess."""
+    return f"""\
+import json, sys, traceback
+from pathlib import Path
+
+def _utc_now_iso():
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).isoformat()
+
+def _write(data):
+    p = Path({job_file!r})
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(data, indent=2, sort_keys=True) + "\\n", encoding="utf-8")
+
+def _read():
+    p = Path({job_file!r})
+    return json.loads(p.read_text(encoding="utf-8"))
+
+try:
+    from biblio.config import default_config_path, load_biblio_config
+    from biblio.batch import find_pending_docling, run_docling_batch
+
+    root = Path({root!r})
+    cfg = load_biblio_config(default_config_path(root=root), root=root)
+    pending, already_done = find_pending_docling(
+        cfg,
+        filter_glob={filter_glob!r},
+        force={force!r},
+    )
+
+    def _progress_cb(prog):
+        try:
+            existing = _read()
+            existing["progress"] = {{
+                "total": prog.total,
+                "done": prog.done,
+                "failed": prog.failed,
+                "current_key": prog.current_key,
+                "elapsed_s": round(prog.elapsed_s, 1),
+                "eta_s": round(prog.eta_s, 1) if prog.eta_s is not None else None,
+            }}
+            _write(existing)
+        except Exception:
+            pass
+
+    result = run_docling_batch(
+        cfg,
+        pending,
+        concurrency={concurrency!r},
+        force={force!r},
+        progress_cb=_progress_cb,
+    )
+
+    existing = _read()
+    existing["status"] = "completed"
+    existing["finished"] = _utc_now_iso()
+    existing["result"] = {{
+        "total": result.total,
+        "processed": result.processed,
+        "failed": result.failed,
+        "skipped": len(already_done),
+        "elapsed_s": round(result.elapsed_s, 1),
+        "successes": result.successes,
+        "failures": result.failures,
+    }}
+    existing["progress"] = {{
+        "total": result.total,
+        "done": result.processed + result.failed,
+        "failed": result.failed,
+    }}
+    _write(existing)
+
+except Exception:
+    tb = traceback.format_exc()
+    try:
+        existing = _read()
+    except Exception:
+        existing = {{"job_id": {job_id!r}, "type": "batch", "started": _utc_now_iso()}}
     existing["status"] = "failed"
     existing["finished"] = _utc_now_iso()
     existing["error"] = tb
