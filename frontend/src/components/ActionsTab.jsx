@@ -790,6 +790,7 @@ function AuthorImportPanel() {
   );
 }
 
+
 export default function ActionsTab({ activePaper, actionState, triggerAction, addDoi, setAddDoi, updateLibraryEntry, paperCount }) {
   const [expandConfirm, setExpandConfirm] = useState(false);
   return (
@@ -999,6 +1000,7 @@ export default function ActionsTab({ activePaper, actionState, triggerAction, ad
 
       {/* Author ORCID import panel */}
       <AuthorImportPanel />
+
     </div>
   );
 }

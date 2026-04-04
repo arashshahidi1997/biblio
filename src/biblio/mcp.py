@@ -113,21 +113,24 @@ def paper_context(citekey: str, *, root: Path) -> dict[str, Any]:
 
     lib_entry = get_entry(cfg, key)
 
-    # Docling excerpt (first ~2000 chars of markdown)
-    from .docling import outputs_for_key
+    # Extract DOI for pool matching (handles citekey mismatches)
+    doi = bib_data.get("doi") or (lib_entry or {}).get("doi") or None
 
-    docling_out = outputs_for_key(cfg, key)
+    # Docling excerpt (first ~2000 chars of markdown) — checks pool first
+    from .docling import resolve_docling_outputs
+
+    docling_out, docling_source = resolve_docling_outputs(cfg, key, doi=doi)
     docling_excerpt = None
-    if docling_out.md_path.exists():
+    if docling_source != "missing" and docling_out.md_path.exists():
         text = docling_out.md_path.read_text(encoding="utf-8", errors="replace")
         docling_excerpt = text[:2000]
 
-    # GROBID header (if processed)
-    from .grobid import grobid_outputs_for_key
+    # GROBID header (if processed) — checks pool first
+    from .grobid import resolve_grobid_outputs
 
-    grobid_out = grobid_outputs_for_key(cfg, key)
+    grobid_out, grobid_source = resolve_grobid_outputs(cfg, key, doi=doi)
     grobid_header = None
-    if grobid_out.header_path.exists():
+    if grobid_source != "missing" and grobid_out.header_path.exists():
         try:
             grobid_header = json.loads(
                 grobid_out.header_path.read_text(encoding="utf-8")
@@ -135,12 +138,24 @@ def paper_context(citekey: str, *, root: Path) -> dict[str, Any]:
         except Exception:
             pass
 
+    # OpenAlex enrichment (topics, keywords, type, retraction status)
+    openalex_enrichment = None
+    try:
+        from .openalex.openalex_enrich import load_enrichment
+
+        openalex_enrichment = load_enrichment(root, key)
+    except Exception:
+        pass
+
     return {
         "citekey": key,
         "bib": bib_data,
         "library": lib_entry,
         "docling_excerpt": docling_excerpt,
+        "docling_source": docling_source,
         "grobid_header": grobid_header,
+        "grobid_source": grobid_source,
+        "openalex": openalex_enrichment,
     }
 
 
@@ -377,6 +392,7 @@ def author_works(
             "orcid": author.orcid,
             "display_name": author.display_name,
             "affiliation": author.affiliation,
+            "affiliations": author.affiliations,
             "works_count": author.works_count,
             "cited_by_count": author.cited_by_count,
             "h_index": author.h_index,
@@ -390,12 +406,288 @@ def author_works(
                 "journal": w.journal,
                 "cited_by_count": w.cited_by_count,
                 "is_oa": w.is_oa,
+                "type": w.type,
+                "is_retracted": w.is_retracted,
+                "topics": w.topics,
                 "in_library": bool(w.doi and w.doi.lower() in existing_dois),
             }
             for w in works
         ],
         "total": len(works),
     }
+
+
+def discover_authors(
+    *,
+    root: Path,
+    query: str | None = None,
+    author_id: str | None = None,
+    orcid: str | None = None,
+) -> dict[str, Any]:
+    """Search for authors by name, OpenAlex ID, or ORCID.
+
+    Exactly one of ``query``, ``author_id``, or ``orcid`` must be provided.
+    Returns ranked candidates with affiliation, h-index, and works count.
+    """
+    cfg = _load_cfg(root)
+    if query:
+        from .author_search import search_by_name
+        authors = search_by_name(cfg.openalex_client, query)
+        return {
+            "query": query,
+            "authors": [
+                {
+                    "openalex_id": a.openalex_id,
+                    "orcid": a.orcid,
+                    "display_name": a.display_name,
+                    "affiliation": a.affiliation,
+                    "affiliations": a.affiliations,
+                    "works_count": a.works_count,
+                    "cited_by_count": a.cited_by_count,
+                    "h_index": a.h_index,
+                }
+                for a in authors
+            ],
+            "total": len(authors),
+        }
+    elif author_id:
+        from .discovery import get_author_by_id
+        a = get_author_by_id(cfg.openalex_client, author_id, cache=cfg.openalex_cache)
+        return {
+            "author": {
+                "openalex_id": a.openalex_id,
+                "orcid": a.orcid,
+                "display_name": a.display_name,
+                "affiliation": a.affiliation,
+                "affiliations": a.affiliations,
+                "works_count": a.works_count,
+                "cited_by_count": a.cited_by_count,
+                "h_index": a.h_index,
+            },
+        }
+    elif orcid:
+        from .author_search import search_by_orcid
+        a = search_by_orcid(cfg.openalex_client, orcid)
+        return {
+            "author": {
+                "openalex_id": a.openalex_id,
+                "orcid": a.orcid,
+                "display_name": a.display_name,
+                "affiliation": a.affiliation,
+                "affiliations": a.affiliations,
+                "works_count": a.works_count,
+                "cited_by_count": a.cited_by_count,
+                "h_index": a.h_index,
+            },
+        }
+    else:
+        return {"error": "Provide one of: query, author_id, or orcid"}
+
+
+def discover_institutions(
+    *,
+    root: Path,
+    query: str | None = None,
+    institution_id: str | None = None,
+) -> dict[str, Any]:
+    """Search for institutions by name or fetch by OpenAlex ID.
+
+    Returns ranked candidates with country, type, and works count.
+    """
+    cfg = _load_cfg(root)
+    if query:
+        from .discovery import search_institutions_by_name
+        institutions = search_institutions_by_name(cfg.openalex_client, query)
+        return {
+            "query": query,
+            "institutions": [
+                {
+                    "openalex_id": i.openalex_id,
+                    "ror": i.ror,
+                    "display_name": i.display_name,
+                    "country_code": i.country_code,
+                    "type": i.type,
+                    "works_count": i.works_count,
+                    "cited_by_count": i.cited_by_count,
+                }
+                for i in institutions
+            ],
+            "total": len(institutions),
+        }
+    elif institution_id:
+        from .discovery import get_institution_by_id
+        i = get_institution_by_id(cfg.openalex_client, institution_id, cache=cfg.openalex_cache)
+        return {
+            "institution": {
+                "openalex_id": i.openalex_id,
+                "ror": i.ror,
+                "display_name": i.display_name,
+                "country_code": i.country_code,
+                "type": i.type,
+                "works_count": i.works_count,
+                "cited_by_count": i.cited_by_count,
+            },
+        }
+    else:
+        return {"error": "Provide one of: query or institution_id"}
+
+
+def institution_works(
+    *,
+    root: Path,
+    institution_id: str,
+    since_year: int | None = None,
+    min_citations: int | None = None,
+) -> dict[str, Any]:
+    """Fetch all works affiliated with an institution.
+
+    Returns publications with DOI, title, year, journal, citation count.
+    Cross-references against the local library to flag papers already ingested.
+    """
+    cfg = _load_cfg(root)
+    from .discovery import get_institution_works as _get_works
+    from .ingest import find_existing_dois
+
+    works = _get_works(
+        cfg.openalex_client,
+        institution_id,
+        since_year=since_year,
+        min_citations=min_citations,
+    )
+    existing_dois = find_existing_dois(root)
+    return {
+        "institution_id": institution_id,
+        "works": [
+            {
+                "openalex_id": w.openalex_id,
+                "doi": w.doi,
+                "title": w.title,
+                "year": w.year,
+                "journal": w.journal,
+                "cited_by_count": w.cited_by_count,
+                "is_oa": w.is_oa,
+                "type": w.type,
+                "is_retracted": w.is_retracted,
+                "topics": w.topics,
+                "in_library": bool(w.doi and w.doi.lower() in existing_dois),
+            }
+            for w in works
+        ],
+        "total": len(works),
+    }
+
+
+def institution_authors(
+    *,
+    root: Path,
+    institution_id: str,
+    min_works: int | None = None,
+) -> dict[str, Any]:
+    """Fetch authors affiliated with an institution (last known affiliation).
+
+    Returns authors ranked by publication count, with h-index and affiliation.
+    """
+    cfg = _load_cfg(root)
+    from .discovery import get_institution_authors as _get_authors
+
+    authors = _get_authors(
+        cfg.openalex_client,
+        institution_id,
+        min_works=min_works,
+    )
+    return {
+        "institution_id": institution_id,
+        "authors": [
+            {
+                "openalex_id": a.openalex_id,
+                "orcid": a.orcid,
+                "display_name": a.display_name,
+                "affiliation": a.affiliation,
+                "affiliations": a.affiliations,
+                "works_count": a.works_count,
+                "cited_by_count": a.cited_by_count,
+                "h_index": a.h_index,
+            }
+            for a in authors
+        ],
+        "total": len(authors),
+    }
+
+
+def author_works_by_position(
+    *,
+    root: Path,
+    author_id: str | None = None,
+    orcid: str | None = None,
+    position: str | None = None,
+    since_year: int | None = None,
+    min_citations: int | None = None,
+) -> dict[str, Any]:
+    """Fetch works by an author with optional position filtering.
+
+    Accepts ``author_id`` (OpenAlex ID) or ``orcid``. If ``position`` is
+    provided (first/middle/last), only returns papers where the author
+    holds that position.
+
+    Use ``position="last"`` to find "lab papers" where the author is PI.
+    """
+    cfg = _load_cfg(root)
+    from .ingest import find_existing_dois
+
+    # Resolve author ID from ORCID if needed
+    resolved_id = author_id
+    author_info = None
+    if not resolved_id and orcid:
+        from .author_search import search_by_orcid
+        author = search_by_orcid(cfg.openalex_client, orcid)
+        resolved_id = author.openalex_id
+        author_info = {
+            "openalex_id": author.openalex_id,
+            "orcid": author.orcid,
+            "display_name": author.display_name,
+            "affiliation": author.affiliation,
+            "affiliations": author.affiliations,
+            "works_count": author.works_count,
+            "cited_by_count": author.cited_by_count,
+            "h_index": author.h_index,
+        }
+    elif not resolved_id:
+        return {"error": "Provide one of: author_id or orcid"}
+
+    from .discovery import get_author_works_by_position as _get_works
+
+    works = _get_works(
+        cfg.openalex_client,
+        resolved_id,
+        position=position,
+        since_year=since_year,
+        min_citations=min_citations,
+    )
+    existing_dois = find_existing_dois(root)
+    result: dict[str, Any] = {
+        "author_id": resolved_id,
+        "position_filter": position,
+        "works": [
+            {
+                "openalex_id": w.openalex_id,
+                "doi": w.doi,
+                "title": w.title,
+                "year": w.year,
+                "journal": w.journal,
+                "cited_by_count": w.cited_by_count,
+                "is_oa": w.is_oa,
+                "type": w.type,
+                "is_retracted": w.is_retracted,
+                "topics": w.topics,
+                "in_library": bool(w.doi and w.doi.lower() in existing_dois),
+            }
+            for w in works
+        ],
+        "total": len(works),
+    }
+    if author_info:
+        result["author"] = author_info
+    return result
 
 
 def tag_vocab(*, root: Path) -> dict[str, Any]:
@@ -646,6 +938,56 @@ def library_lint(*, root: Path) -> dict[str, Any]:
     return lint_library_tags(library, vocab)
 
 
+def pdf_validate(*, root: Path, fix: bool = False) -> dict[str, Any]:
+    """Scan bib/articles/ for files that aren't valid PDFs (e.g. HTML paywall pages).
+
+    Returns ``{"total": N, "valid": N, "invalid": [...]}`` where each invalid
+    entry has ``citekey``, ``path``, ``header`` (first bytes), and ``size``.
+
+    Args:
+        fix: If True, delete invalid files so they can be re-fetched.
+    """
+    cfg = _load_cfg(root)
+    pdf_root = cfg.pdf_root
+    if not pdf_root.exists():
+        return {"total": 0, "valid": 0, "invalid": []}
+
+    valid = 0
+    invalid = []
+    total = 0
+    for pdf_path in sorted(pdf_root.rglob("*.pdf")):
+        total += 1
+        try:
+            with open(pdf_path, "rb") as f:
+                header = f.read(5)
+            if header == b"%PDF-":
+                valid += 1
+            else:
+                entry = {
+                    "citekey": pdf_path.parent.name,
+                    "path": str(pdf_path.relative_to(root)),
+                    "header": repr(header),
+                    "size": pdf_path.stat().st_size,
+                }
+                if fix:
+                    pdf_path.unlink()
+                    entry["action"] = "deleted"
+                invalid.append(entry)
+        except Exception as e:
+            invalid.append({
+                "citekey": pdf_path.parent.name,
+                "path": str(pdf_path.relative_to(root)),
+                "error": str(e),
+            })
+
+    return {
+        "total": total,
+        "valid": valid,
+        "invalid": invalid,
+        "fix_applied": fix,
+    }
+
+
 def library_quality(*, root: Path) -> dict[str, Any]:
     """Scan the merged bibliography for entry quality issues.
 
@@ -854,6 +1196,48 @@ def biblio_present(
     )
 
 
+def pool_promote(
+    citekeys: list[str],
+    *,
+    root: Path,
+    target: str = "",
+    dry_run: bool = False,
+) -> dict[str, Any]:
+    """Promote project-local papers into a pool.
+
+    Returns ``{"promoted": [...], "already_in_pool": [...], "errors": [...]}``.
+    """
+    cfg = _load_cfg(root)
+    from .pool import promote_to_pool
+
+    # Resolve pool root: explicit target > config
+    if target:
+        pool_root = Path(target).expanduser().resolve()
+    elif cfg.common_pool_path:
+        pool_root = cfg.common_pool_path
+    else:
+        return {"error": "No pool configured. Set pool.path in biblio.yml or pass target."}
+
+    results = promote_to_pool(cfg, pool_root, citekeys, dry_run=dry_run)
+
+    promoted = [r.citekey for r in results if r.status == "promoted"]
+    already = [r.citekey for r in results if r.status == "already_in_pool"]
+    no_pdf = [r.citekey for r in results if r.status == "no_local_pdf"]
+    errors = [{"citekey": r.citekey, "error": r.error} for r in results if r.status == "error"]
+    dry = [r.citekey for r in results if r.status == "dry_run"]
+
+    out: dict[str, Any] = {
+        "promoted": promoted,
+        "already_in_pool": already,
+        "no_local_pdf": no_pdf,
+        "errors": errors,
+        "pool_root": str(pool_root),
+    }
+    if dry_run:
+        out["dry_run"] = dry
+    return out
+
+
 def export_bibtex_entries(
     citekeys: list[str],
     *,
@@ -875,3 +1259,164 @@ def export_bibtex_entries(
         return {"ok": True, "bibtex": bib_text, "count": count}
     except (FileNotFoundError, KeyError) as exc:
         return {"error": str(exc)}
+
+
+def zotero_pull(
+    *,
+    root: Path,
+    collection: str | None = None,
+    tags: list[str] | None = None,
+    dry_run: bool = False,
+) -> dict[str, Any]:
+    """Pull items and PDFs from Zotero into the biblio workspace.
+
+    Returns ``{"pulled": N, "skipped": N, "deleted": N, "pdfs_downloaded": N,
+    "citekeys": [...], "errors": [...]}``.
+    """
+    import yaml
+    from .zotero import load_zotero_config, pull as _pull
+
+    cfg_path = _load_cfg(root).repo_root  # just need repo_root for config path
+    # Re-read raw payload for zotero section
+    from .config import default_config_path
+    config_file = default_config_path(root=root)
+    raw: dict[str, Any] = {}
+    if config_file.exists():
+        raw = yaml.safe_load(config_file.read_text(encoding="utf-8")) or {}
+
+    zcfg = load_zotero_config(raw, root)
+    if zcfg is None:
+        return {"error": "No zotero section in biblio.yml. Add zotero.library_id to enable."}
+
+    result = _pull(
+        repo_root=root,
+        zotero_cfg=zcfg,
+        collection=collection,
+        tags=tags,
+        dry_run=dry_run,
+    )
+    return {
+        "pulled": result.pulled,
+        "skipped": result.skipped,
+        "deleted": result.deleted,
+        "pdfs_downloaded": result.pdfs_downloaded,
+        "citekeys": result.citekeys,
+        "errors": result.errors,
+        "dry_run": result.dry_run,
+    }
+
+
+def zotero_status(*, root: Path) -> dict[str, Any]:
+    """Return Zotero sync state for the project.
+
+    Returns library info, last sync time, item counts.
+    """
+    import yaml
+    from .zotero import load_zotero_config, status as _status
+
+    from .config import default_config_path
+    config_file = default_config_path(root=root)
+    raw: dict[str, Any] = {}
+    if config_file.exists():
+        raw = yaml.safe_load(config_file.read_text(encoding="utf-8")) or {}
+
+    zcfg = load_zotero_config(raw, root)
+    if zcfg is None:
+        return {"error": "No zotero section in biblio.yml. Add zotero.library_id to enable."}
+
+    return _status(zotero_cfg=zcfg)
+
+
+def zotero_push(
+    *,
+    root: Path,
+    citekeys: list[str] | None = None,
+    push_tags: bool = True,
+    push_notes: bool = False,
+    push_ids: bool = True,
+    force: bool = False,
+    dry_run: bool = False,
+) -> dict[str, Any]:
+    """Push biblio enrichments back to Zotero items.
+
+    Returns ``{"updated": N, "created": N, "skipped": N,
+    "conflicts": [...], "errors": [...]}``.
+    """
+    import yaml
+    from .zotero import load_zotero_config, push as _push
+
+    from .config import default_config_path
+    config_file = default_config_path(root=root)
+    raw: dict[str, Any] = {}
+    if config_file.exists():
+        raw = yaml.safe_load(config_file.read_text(encoding="utf-8")) or {}
+
+    zcfg = load_zotero_config(raw, root)
+    if zcfg is None:
+        return {"error": "No zotero section in biblio.yml. Add zotero.library_id to enable."}
+
+    result = _push(
+        repo_root=root,
+        zotero_cfg=zcfg,
+        citekeys=citekeys,
+        push_tags=push_tags,
+        push_notes=push_notes,
+        push_ids=push_ids,
+        force=force,
+        dry_run=dry_run,
+    )
+    return {
+        "updated": result.updated,
+        "created": result.created,
+        "skipped": result.skipped,
+        "conflicts": result.conflicts,
+        "errors": result.errors,
+        "dry_run": result.dry_run,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Enrichment tools
+# ---------------------------------------------------------------------------
+
+
+def enrich(
+    *,
+    root: Path,
+    citekeys: list[str] | None = None,
+    force: bool = False,
+) -> dict[str, Any]:
+    """Run OpenAlex enrichment: persist topics/keywords/type per citekey.
+
+    Reads resolved.jsonl and writes per-citekey YAML to
+    ``bib/derivatives/openalex/{citekey}.yml``.
+
+    Returns ``{"enriched": N, "skipped": N, "errors": [...], "output_dir": str}``.
+    """
+    try:
+        from .openalex.openalex_enrich import enrich_resolved
+
+        return enrich_resolved(root, citekeys=citekeys, force=force)
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def enrich_topic_tags(
+    *,
+    root: Path,
+    citekeys: list[str] | None = None,
+    dry_run: bool = False,
+) -> dict[str, Any]:
+    """Populate library.yml tags from OpenAlex enrichment data.
+
+    Maps OpenAlex topics/keywords to ``oa:``-prefixed tags and adds them
+    to library.yml entries (union merge — never removes existing tags).
+
+    Returns ``{"updated": N, "unchanged": N, "missing_enrichment": N, ...}``.
+    """
+    try:
+        from .openalex.topic_tags import populate_library_tags
+
+        return populate_library_tags(root, citekeys=citekeys, dry_run=dry_run)
+    except Exception as e:
+        return {"error": str(e)}

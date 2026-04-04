@@ -39,6 +39,23 @@ class BatchResult:
     successes: list[str] = field(default_factory=list)
 
 
+def _load_doi_map(cfg: BiblioConfig) -> dict[str, str]:
+    """Load {citekey: doi} map from the merged bib file."""
+    try:
+        from ._pybtex_utils import parse_bibtex_file
+        bib_path = cfg.bibtex_merge.out_bib
+        if not bib_path.exists():
+            return {}
+        db = parse_bibtex_file(bib_path)
+        return {
+            key: entry.fields.get("doi", "").strip()
+            for key, entry in db.entries.items()
+            if entry.fields.get("doi", "").strip()
+        }
+    except Exception:
+        return {}
+
+
 def find_pending_docling(
     cfg: BiblioConfig,
     *,
@@ -49,11 +66,18 @@ def find_pending_docling(
 
     Returns ``(pending, already_done)`` — both lists contain bare citekeys.
     Keys without a PDF on disk are silently excluded from both lists.
+    Papers with valid outputs in the shared pool are treated as already done.
+    Uses DOI for pool matching when citekeys differ between project and pool.
     """
+    from .docling import resolve_docling_outputs
+
     all_keys = load_citekeys_md(cfg.citekeys_path)
 
     if filter_glob:
         all_keys = [k for k in all_keys if fnmatch.fnmatch(k, filter_glob)]
+
+    # Load DOI map for pool matching
+    doi_map = _load_doi_map(cfg) if cfg.pool_search else {}
 
     pending: list[str] = []
     already_done: list[str] = []
@@ -67,19 +91,12 @@ def find_pending_docling(
             pending.append(key)
             continue
 
-        out = outputs_for_key(cfg, key)
-        try:
-            if (
-                out.md_path.exists()
-                and out.json_path.exists()
-                and out.md_path.stat().st_size > 0
-                and out.json_path.stat().st_size > 0
-            ):
-                already_done.append(key)
-                continue
-        except OSError:
-            pass
-        pending.append(key)
+        doi = doi_map.get(key)
+        _, source = resolve_docling_outputs(cfg, key, doi=doi)
+        if source in ("pool", "local"):
+            already_done.append(key)
+        else:
+            pending.append(key)
 
     return pending, already_done
 

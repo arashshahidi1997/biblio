@@ -85,13 +85,49 @@ ezproxy=YeyEabc123; ezproxyl=YeyEdef456; ezproxyn=YeyEghi789
 Paste this when prompted. The command writes the cookie to
 `~/.config/biblio/config.yml` and sets file permissions to `600` (owner-only).
 
+### Pushing cookies from your laptop to a remote server
+
+If you browse on your laptop but run biblio on a remote server (SSH),
+you need to transfer the cookie. Three options:
+
+**Option A: biblio installed on laptop** (easiest)
+
+```bash
+# On your laptop — extracts cookies from Firefox and pushes via SSH:
+biblio auth ezproxy --push gamma2
+```
+
+**Option B: No biblio on laptop** (just sqlite3 + ssh)
+
+```bash
+# macOS:
+sqlite3 ~/Library/Application\ Support/Firefox/Profiles/*.default-release/cookies.sqlite \
+  "SELECT group_concat(name||'='||value, '; ') FROM moz_cookies WHERE host LIKE '%emedien%';" \
+| ssh gamma2 "biblio auth ezproxy --import"
+
+# Linux:
+sqlite3 ~/.mozilla/firefox/*.default-esr/cookies.sqlite \
+  "SELECT group_concat(name||'='||value, '; ') FROM moz_cookies WHERE host LIKE '%emedien%';" \
+| ssh gamma2 "biblio auth ezproxy --import"
+```
+
+**Option C: Manual copy-paste**
+
+Copy cookies from DevTools on your laptop, then on the server:
+
+```bash
+biblio auth ezproxy
+# paste when prompted (input is hidden)
+```
+
 ### Cookie expiration
 
 Session cookies expire after your institution's timeout (typically a few hours).
 When fetches start failing with `"ezproxy"` status returning 0 results, re-run:
 
 ```bash
-biblio auth ezproxy
+biblio auth ezproxy          # if browsing on the same machine
+biblio auth ezproxy --push gamma2  # if browsing on laptop
 ```
 
 ## Step 3: Fetch PDFs

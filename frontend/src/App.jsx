@@ -9,6 +9,7 @@ import CollectionTree from './components/CollectionTree';
 import ResearchTab from './components/ResearchTab';
 import StatsPanel from './components/StatsPanel';
 import StatsBar from './components/StatsBar';
+import DiscoveryPanel from './components/DiscoveryPanel';
 import { renderMarkdown } from './utils/markdown.js';
 
 export default function App() {
@@ -54,6 +55,7 @@ export default function App() {
   const [compareResult, setCompareResult] = useState(null); // {markdown, loading, error}
   const [showCompareModal, setShowCompareModal] = useState(false);
   // Reading list
+  const [showDiscovery, setShowDiscovery] = useState(false);
   const [showReadingList, setShowReadingList] = useState(false);
   const [readingListQuestion, setReadingListQuestion] = useState("");
   const [readingListResult, setReadingListResult] = useState(null); // {recommendations, loading, error}
@@ -156,6 +158,19 @@ export default function App() {
       return matches;
     }
 
+    function extractOpenAlexWorkIds(text) {
+      // Match OpenAlex work URLs: openalex.org/works/W123 or openalex.org/W123
+      const re = /https?:\/\/(?:api\.)?openalex\.org\/(?:works\/)?(W\d+)/gi;
+      const ids = [];
+      const seen = new Set();
+      let m;
+      while ((m = re.exec(text)) !== null) {
+        const wid = m[1].toUpperCase();
+        if (!seen.has(wid)) { seen.add(wid); ids.push(wid); }
+      }
+      return ids;
+    }
+
     function handlePaste(ev) {
       // Don't trigger when pasting into DOI input fields
       const target = ev.target;
@@ -165,8 +180,10 @@ export default function App() {
       }
       const text = ev.clipboardData?.getData("text") || "";
       if (!text) return;
+
+      // Try OpenAlex work IDs first
+      const oaIds = extractOpenAlexWorkIds(text);
       const dois = extractDois(text);
-      if (!dois.length) return;
 
       // Filter out DOIs already in the library
       const knownDois = new Set(
@@ -176,12 +193,18 @@ export default function App() {
           .map((d) => d.toLowerCase())
       );
       const newDois = dois.filter((d) => !knownDois.has(d.toLowerCase()));
-      if (!newDois.length) return;
+
+      if (!oaIds.length && !newDois.length) return;
 
       // Clear any existing timer
       if (doiToastTimerRef.current) clearTimeout(doiToastTimerRef.current);
 
-      setDoiToast({ dois: newDois });
+      // Prefer OpenAlex IDs when pasted (they carry more info), fall back to DOIs
+      if (oaIds.length) {
+        setDoiToast({ dois: [], openalex_ids: oaIds });
+      } else {
+        setDoiToast({ dois: newDois });
+      }
       doiToastTimerRef.current = setTimeout(() => setDoiToast(null), 8000);
     }
 
@@ -189,8 +212,9 @@ export default function App() {
     return () => document.removeEventListener("paste", handlePaste);
   }, [payload]);
 
-  function doiToastAddAll(dois) {
-    dois.forEach((doi) => triggerAction("add-paper", { doi }));
+  function doiToastAddAll(dois, oaIds) {
+    (dois || []).forEach((doi) => triggerAction("add-paper", { doi }));
+    (oaIds || []).forEach((id) => triggerAction("add-paper", { openalex_id: id }));
     if (doiToastTimerRef.current) clearTimeout(doiToastTimerRef.current);
     setDoiToast(null);
   }
@@ -747,10 +771,25 @@ export default function App() {
 
   return (
     <div className="app">
-      {/* DOI paste toast */}
+      {/* DOI / OpenAlex paste toast */}
       {doiToast && (
         <div className="doi-toast">
-          {doiToast.dois.length === 1 ? (
+          {(doiToast.openalex_ids || []).length > 0 ? (
+            /* OpenAlex work ID(s) pasted */
+            (doiToast.openalex_ids.length === 1 ? (
+              <>
+                <span className="doi-toast-text">OpenAlex work detected: <code>{doiToast.openalex_ids[0]}</code></span>
+                <button className="doi-toast-btn primary" onClick={() => doiToastAddAll([], doiToast.openalex_ids)}>Add to library</button>
+                <button className="doi-toast-btn" onClick={doiToastDismiss}>Dismiss</button>
+              </>
+            ) : (
+              <>
+                <span className="doi-toast-text">{doiToast.openalex_ids.length} OpenAlex works detected</span>
+                <button className="doi-toast-btn primary" onClick={() => doiToastAddAll([], doiToast.openalex_ids)}>Add all</button>
+                <button className="doi-toast-btn" onClick={doiToastDismiss}>Dismiss</button>
+              </>
+            ))
+          ) : doiToast.dois.length === 1 ? (
             <>
               <span className="doi-toast-text">DOI detected: <code>{doiToast.dois[0]}</code></span>
               <button className="doi-toast-btn primary" onClick={() => doiToastAddAll(doiToast.dois)}>Add to library</button>
@@ -839,6 +878,13 @@ export default function App() {
               title="Reading List"
             >
               ☰
+            </button>
+            <button
+              className={`sidebar-icon${showDiscovery ? " active" : ""}`}
+              onClick={() => setShowDiscovery((s) => !s)}
+              title="Discover Authors & Institutions"
+            >
+              &#x1F50D;
             </button>
           </div>
 
@@ -1409,6 +1455,13 @@ export default function App() {
                   )}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Discovery panel */}
+          {showDiscovery && (
+            <div className="discovery-panel-container">
+              <DiscoveryPanel onClose={() => setShowDiscovery(false)} />
             </div>
           )}
 

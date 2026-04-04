@@ -2587,3 +2587,18 @@ a.cite-link:hover {
   padding: 0.1em 0.4em;
   border-radius: 3px;
 }
+
+/* ── Discovery panel ──────────────────────────────────────────── */
+.discovery-panel-container {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.8rem 1rem;
+  margin: 0.4rem 0;
+}
+.discovery-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.6rem;
+}

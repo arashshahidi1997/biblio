@@ -312,6 +312,32 @@ export default function CorpusTab({
                         ◎
                       </button>
                     )}
+                    {!compact && paper.doi && (
+                      <a
+                        href={`https://doi.org/${paper.doi}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="open-btn"
+                        title="View on publisher site"
+                        onClick={(ev) => ev.stopPropagation()}
+                        style={{ textDecoration: "none", fontSize: "0.65rem", opacity: 0.7 }}
+                      >
+                        DOI
+                      </a>
+                    )}
+                    {!compact && (paper.graph || {}).seed_openalex_id && (
+                      <a
+                        href={`https://openalex.org/works/${paper.graph.seed_openalex_id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="open-btn"
+                        title="View on OpenAlex"
+                        onClick={(ev) => ev.stopPropagation()}
+                        style={{ textDecoration: "none", fontSize: "0.65rem", opacity: 0.7 }}
+                      >
+                        OA
+                      </a>
+                    )}
                     {compact && (
                       <span
                         className="small"

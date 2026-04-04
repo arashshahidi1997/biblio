@@ -23,7 +23,7 @@ from .bibtex import merge_srcbib
 from .bibtex_export import export_bibtex
 from .ingest import IngestRecord, canonical_citekey, enrich_record, enrich_and_cache, EnrichCacheResult
 from .config import BiblioConfig, load_biblio_config
-from .docling import outputs_for_key as docling_outputs_for_key, run_docling_for_key
+from .docling import outputs_for_key as docling_outputs_for_key, resolve_docling_outputs, run_docling_for_key
 from .graph import add_openalex_work_to_bib, expand_openalex_reference_graph, load_openalex_seed_records
 from .openalex.openalex_resolve import ResolveOptions, resolve_srcbib_to_openalex
 from .rag import default_biblio_rag_template, default_rag_config_path, sync_biblio_rag_config
@@ -257,6 +257,11 @@ def build_setup_report(cfg: BiblioConfig) -> dict[str, Any]:
             "ezproxy_cookie": cfg.pdf_fetch_cascade.ezproxy_cookie or "",
             "sources": list(cfg.pdf_fetch_cascade.sources),
             "delay": cfg.pdf_fetch_cascade.delay,
+        },
+        "pool": {
+            "enabled": bool(cfg.pool_search),
+            "search_paths": [str(p) for p in cfg.pool_search],
+            "common_pool": str(cfg.common_pool_path) if cfg.common_pool_path else None,
         },
     }
 
@@ -731,11 +736,11 @@ def create_ui_app(cfg: BiblioConfig):
                     paper_keys = _paper_citekeys_from_bib(active_cfg)
                     if paper_keys:
                         keys = [k for k in keys if k in paper_keys]
-                # Only papers with PDF but no docling output
+                # Only papers with PDF but no docling output (checks pool too)
                 keys = [
                     k for k in keys
                     if (active_cfg.pdf_root / active_cfg.pdf_pattern.format(citekey=k)).exists()
-                    and not docling_outputs_for_key(active_cfg, k).md_path.exists()
+                    and resolve_docling_outputs(active_cfg, k)[1] == "missing"
                 ]
                 total = len(keys)
                 msg = f"Running Docling for all {total} papers with PDFs but no text extraction..."
@@ -766,6 +771,21 @@ def create_ui_app(cfg: BiblioConfig):
 
                 def _docling_progress(payload: dict) -> None:
                     with docling_lock:
+                        # Capture subprocess PID for cancel support
+                        if "pid" in payload:
+                            docling_job["_subprocess_pid"] = payload["pid"]
+                        # Check cancel flag during subprocess execution
+                        if docling_job.get("cancelled"):
+                            pid = docling_job.get("_subprocess_pid")
+                            if pid:
+                                import signal
+                                try:
+                                    os.killpg(os.getpgid(pid), signal.SIGTERM)
+                                except (OSError, ProcessLookupError):
+                                    try:
+                                        os.kill(pid, signal.SIGTERM)
+                                    except (OSError, ProcessLookupError):
+                                        pass
                         msg = payload.get("message", "")
                         docling_job["message"] = f"Docling {idx}/{total}: {ck} — {msg}"
                         docling_job["logs"] = payload.get("logs", "")
@@ -776,13 +796,21 @@ def create_ui_app(cfg: BiblioConfig):
                 try:
                     out = run_docling_for_key(active_cfg, ck, force=force, progress_cb=_docling_progress)
                     with docling_lock:
+                        if docling_job.get("cancelled"):
+                            cancelled = True
+                            break
                         docling_job["completed"] = idx
                         docling_job["citekey"] = ck
                         docling_job["md_path"] = str(out.md_path)
                         docling_job["message"] = f"Docling {idx}/{total}: {ck}"
                         docling_job["logs"] = ""
                         docling_job.pop("sub_progress", None)
+                        docling_job.pop("_subprocess_pid", None)
                 except subprocess.CalledProcessError as e:
+                    with docling_lock:
+                        if docling_job.get("cancelled"):
+                            cancelled = True
+                            break
                     failures += 1
                     logs = "\n".join(filter(None, [e.stdout, e.stderr])).strip()
                     with docling_lock:
@@ -791,7 +819,12 @@ def create_ui_app(cfg: BiblioConfig):
                         docling_job["message"] = f"Docling {idx}/{total}: {ck} failed"
                         docling_job["logs"] = logs
                         docling_job.pop("sub_progress", None)
+                        docling_job.pop("_subprocess_pid", None)
                 except Exception as e:
+                    with docling_lock:
+                        if docling_job.get("cancelled"):
+                            cancelled = True
+                            break
                     failures += 1
                     with docling_lock:
                         docling_job["completed"] = idx
@@ -799,6 +832,7 @@ def create_ui_app(cfg: BiblioConfig):
                         docling_job["message"] = f"Docling {idx}/{total}: {ck} failed: {e}"
                         docling_job["logs"] = ""
                         docling_job.pop("sub_progress", None)
+                        docling_job.pop("_subprocess_pid", None)
             with docling_lock:
                 docling_job["running"] = False
                 docling_job["cancelled"] = False
@@ -1021,9 +1055,14 @@ def create_ui_app(cfg: BiblioConfig):
                     paper_keys = _paper_citekeys_from_bib(active_cfg)
                     if paper_keys:
                         keys = [k for k in keys if k in paper_keys]
-                keys = [k for k in keys if (active_cfg.pdf_root / active_cfg.pdf_pattern.format(citekey=k)).exists()]
+                from .grobid import resolve_grobid_outputs
+                keys = [
+                    k for k in keys
+                    if (active_cfg.pdf_root / active_cfg.pdf_pattern.format(citekey=k)).exists()
+                    and resolve_grobid_outputs(active_cfg, k)[1] == "missing"
+                ]
                 total = len(keys)
-                msg = f"Running GROBID for all {total} papers with PDFs..."
+                msg = f"Running GROBID for {total} papers with PDFs needing extraction..."
             else:
                 keys = [citekey]
                 total = 1
@@ -1258,6 +1297,151 @@ def create_ui_app(cfg: BiblioConfig):
             added=added,
             failed=failed,
         )
+
+    # ── Discovery: author/institution search ───────────────────────────────
+
+    @app.post("/api/discover/authors", response_class=responses.JSONResponse)
+    def discover_authors(payload: dict[str, Any]):
+        """Search authors by name, OpenAlex ID, or ORCID."""
+        query = str(payload.get("query") or "").strip()
+        author_id = str(payload.get("author_id") or "").strip()
+        orcid = str(payload.get("orcid") or "").strip()
+        if not any([query, author_id, orcid]):
+            raise fastapi.HTTPException(status_code=400, detail="Provide query, author_id, or orcid")
+        active_cfg = current_cfg()
+        if query:
+            from .author_search import search_by_name
+            authors = search_by_name(active_cfg.openalex_client, query)
+            return {"ok": True, "authors": [
+                {"openalex_id": a.openalex_id, "orcid": a.orcid, "display_name": a.display_name,
+                 "affiliation": a.affiliation, "works_count": a.works_count,
+                 "cited_by_count": a.cited_by_count, "h_index": a.h_index}
+                for a in authors
+            ]}
+        elif author_id:
+            from .author_search import get_author_by_id
+            a = get_author_by_id(active_cfg.openalex_client, author_id)
+            return {"ok": True, "author": {
+                "openalex_id": a.openalex_id, "orcid": a.orcid, "display_name": a.display_name,
+                "affiliation": a.affiliation, "works_count": a.works_count,
+                "cited_by_count": a.cited_by_count, "h_index": a.h_index,
+            }}
+        else:
+            from .author_search import search_by_orcid
+            a = search_by_orcid(active_cfg.openalex_client, orcid)
+            return {"ok": True, "author": {
+                "openalex_id": a.openalex_id, "orcid": a.orcid, "display_name": a.display_name,
+                "affiliation": a.affiliation, "works_count": a.works_count,
+                "cited_by_count": a.cited_by_count, "h_index": a.h_index,
+            }}
+
+    @app.post("/api/discover/institutions", response_class=responses.JSONResponse)
+    def discover_institutions(payload: dict[str, Any]):
+        """Search institutions by name or fetch by OpenAlex ID."""
+        query = str(payload.get("query") or "").strip()
+        institution_id = str(payload.get("institution_id") or "").strip()
+        if not any([query, institution_id]):
+            raise fastapi.HTTPException(status_code=400, detail="Provide query or institution_id")
+        active_cfg = current_cfg()
+        from .discovery import search_institutions_by_name, get_institution_by_id
+        if query:
+            institutions = search_institutions_by_name(active_cfg.openalex_client, query)
+            return {"ok": True, "institutions": [
+                {"openalex_id": i.openalex_id, "ror": i.ror, "display_name": i.display_name,
+                 "country_code": i.country_code, "type": i.type,
+                 "works_count": i.works_count, "cited_by_count": i.cited_by_count}
+                for i in institutions
+            ]}
+        else:
+            i = get_institution_by_id(active_cfg.openalex_client, institution_id)
+            return {"ok": True, "institution": {
+                "openalex_id": i.openalex_id, "ror": i.ror, "display_name": i.display_name,
+                "country_code": i.country_code, "type": i.type,
+                "works_count": i.works_count, "cited_by_count": i.cited_by_count,
+            }}
+
+    @app.post("/api/discover/author-papers", response_class=responses.JSONResponse)
+    def discover_author_papers(payload: dict[str, Any]):
+        """Fetch papers by an author, with optional position filtering."""
+        author_id = str(payload.get("author_id") or "").strip()
+        orcid = str(payload.get("orcid") or "").strip()
+        if not any([author_id, orcid]):
+            raise fastapi.HTTPException(status_code=400, detail="Provide author_id or orcid")
+        position = str(payload.get("position") or "").strip() or None
+        since_year = payload.get("since_year")
+        if since_year is not None:
+            since_year = int(since_year)
+        min_citations = payload.get("min_citations")
+        if min_citations is not None:
+            min_citations = int(min_citations)
+        active_cfg = current_cfg()
+        from .ingest import find_existing_dois
+        # Resolve author_id from ORCID if needed
+        resolved_id = author_id
+        if not resolved_id and orcid:
+            from .author_search import search_by_orcid
+            a = search_by_orcid(active_cfg.openalex_client, orcid)
+            resolved_id = a.openalex_id
+        from .discovery import get_author_works_by_position
+        works = get_author_works_by_position(
+            active_cfg.openalex_client, resolved_id,
+            position=position, since_year=since_year, min_citations=min_citations,
+        )
+        existing_dois = find_existing_dois(active_cfg.repo_root)
+        return {"ok": True, "works": [
+            {"openalex_id": w.openalex_id, "doi": w.doi, "title": w.title,
+             "year": w.year, "journal": w.journal, "cited_by_count": w.cited_by_count,
+             "is_oa": w.is_oa, "in_library": bool(w.doi and w.doi.lower() in existing_dois)}
+            for w in works
+        ]}
+
+    @app.post("/api/discover/institution-works", response_class=responses.JSONResponse)
+    def discover_institution_works(payload: dict[str, Any]):
+        """Fetch all works affiliated with an institution."""
+        institution_id = str(payload.get("institution_id") or "").strip()
+        if not institution_id:
+            raise fastapi.HTTPException(status_code=400, detail="Missing institution_id")
+        since_year = payload.get("since_year")
+        if since_year is not None:
+            since_year = int(since_year)
+        min_citations = payload.get("min_citations")
+        if min_citations is not None:
+            min_citations = int(min_citations)
+        active_cfg = current_cfg()
+        from .discovery import get_institution_works
+        from .ingest import find_existing_dois
+        works = get_institution_works(
+            active_cfg.openalex_client, institution_id,
+            since_year=since_year, min_citations=min_citations,
+        )
+        existing_dois = find_existing_dois(active_cfg.repo_root)
+        return {"ok": True, "works": [
+            {"openalex_id": w.openalex_id, "doi": w.doi, "title": w.title,
+             "year": w.year, "journal": w.journal, "cited_by_count": w.cited_by_count,
+             "is_oa": w.is_oa, "in_library": bool(w.doi and w.doi.lower() in existing_dois)}
+            for w in works
+        ]}
+
+    @app.post("/api/discover/institution-authors", response_class=responses.JSONResponse)
+    def discover_institution_authors(payload: dict[str, Any]):
+        """Fetch authors affiliated with an institution."""
+        institution_id = str(payload.get("institution_id") or "").strip()
+        if not institution_id:
+            raise fastapi.HTTPException(status_code=400, detail="Missing institution_id")
+        min_works = payload.get("min_works")
+        if min_works is not None:
+            min_works = int(min_works)
+        active_cfg = current_cfg()
+        from .discovery import get_institution_authors
+        authors = get_institution_authors(
+            active_cfg.openalex_client, institution_id, min_works=min_works,
+        )
+        return {"ok": True, "authors": [
+            {"openalex_id": a.openalex_id, "orcid": a.orcid, "display_name": a.display_name,
+             "affiliation": a.affiliation, "works_count": a.works_count,
+             "cited_by_count": a.cited_by_count, "h_index": a.h_index}
+            for a in authors
+        ]}
 
     # ── BibTeX file/string import ────────────────────────────────────────────
 
@@ -1808,10 +1992,9 @@ def create_ui_app(cfg: BiblioConfig):
         md_path = current_cfg().out_root / key / f"{key}_ref_resolved.md"
         if md_path.exists():
             return responses.PlainTextResponse(md_path.read_text(encoding="utf-8", errors="replace"))
-        # Fallback: serve raw docling markdown with a status header so the UI
-        # can show a subtle indicator that citation resolution hasn't run yet.
-        docling_out = docling_outputs_for_key(current_cfg(), key)
-        if docling_out.md_path.exists():
+        # Fallback: serve raw docling markdown (checks pool too)
+        docling_out, _src = resolve_docling_outputs(current_cfg(), key)
+        if _src != "missing" and docling_out.md_path.exists():
             return responses.PlainTextResponse(
                 docling_out.md_path.read_text(encoding="utf-8", errors="replace"),
                 headers={"X-Biblio-Ref-Md-Status": "raw-docling"},
@@ -2009,6 +2192,7 @@ def create_ui_app(cfg: BiblioConfig):
         _fetch_start = _time.monotonic()
 
         def _progress(p: dict[str, Any]) -> None:
+            from .pdf_fetch_oa import FetchCancelledError
             with fetch_oa_lock:
                 done = int(p.get("completed") or 0)
                 total = int(p.get("total") or 0)
@@ -2021,6 +2205,9 @@ def create_ui_app(cfg: BiblioConfig):
                 else:
                     fetch_oa_job["eta_s"] = 0
                 ck = p.get("citekey")
+                if fetch_oa_job.get("cancelled"):
+                    fetch_oa_job["message"] = f"Cancelling after {done}/{total}..."
+                    raise FetchCancelledError("Cancelled by user")
                 fetch_oa_job["message"] = (
                     f"Fetching OA PDFs {done}/{total}"
                     + (f" ({ck})" if ck else "")
@@ -2063,11 +2250,18 @@ def create_ui_app(cfg: BiblioConfig):
                         ),
                     })
             except Exception as e:
+                from .pdf_fetch_oa import FetchCancelledError as _FCE
                 with fetch_oa_lock:
-                    fetch_oa_job.update({
-                        "running": False, "error": str(e),
-                        "message": f"OA PDF fetch failed: {e}", "logs": str(e),
-                    })
+                    if isinstance(e, _FCE) or fetch_oa_job.get("cancelled"):
+                        fetch_oa_job.update({
+                            "running": False, "error": None, "cancelled": False,
+                            "message": f"PDF fetch cancelled after {fetch_oa_job.get('completed', 0)} papers.",
+                        })
+                    else:
+                        fetch_oa_job.update({
+                            "running": False, "error": str(e),
+                            "message": f"OA PDF fetch failed: {e}", "logs": str(e),
+                        })
 
         threading.Thread(target=_run, daemon=True).start()
         return {"ok": True, "async": True, **_fetch_oa_snapshot()}
@@ -2075,6 +2269,14 @@ def create_ui_app(cfg: BiblioConfig):
     @app.get("/api/actions/fetch-pdfs-oa/status", response_class=responses.JSONResponse)
     def action_fetch_pdfs_oa_status():
         return _fetch_oa_snapshot()
+
+    @app.post("/api/actions/fetch-pdfs-oa/cancel", response_class=responses.JSONResponse)
+    def action_fetch_pdfs_oa_cancel():
+        with fetch_oa_lock:
+            if fetch_oa_job["running"]:
+                fetch_oa_job["cancelled"] = True
+                fetch_oa_job["message"] = "Cancelling PDF fetch..."
+        return {"ok": True}
 
     # ── RAG build endpoint ────────────────────────────────────────────────────
 

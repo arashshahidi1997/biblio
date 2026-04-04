@@ -38,6 +38,20 @@ class OpenAlexCache:
         h = _sha1(wid)
         return self.root / "work" / h[:2] / f"{h}.json"
 
+    def path_for_author(self, author_id: str) -> Path:
+        aid = (author_id or "").strip()
+        if aid.startswith("http"):
+            aid = aid.rstrip("/").split("/")[-1]
+        h = _sha1(aid)
+        return self.root / "author" / h[:2] / f"{h}.json"
+
+    def path_for_institution(self, institution_id: str) -> Path:
+        iid = (institution_id or "").strip()
+        if iid.startswith("http"):
+            iid = iid.rstrip("/").split("/")[-1]
+        h = _sha1(iid)
+        return self.root / "institution" / h[:2] / f"{h}.json"
+
     def path_for_search(self, query: str) -> Path:
         h = _sha1(query.strip().lower())
         return self.root / "search" / h[:2] / f"{h}.json"

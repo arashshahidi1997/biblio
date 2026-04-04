@@ -26,6 +26,146 @@ class PoolIngestResult:
     error: str | None
 
 
+_DERIVATIVE_TYPES = ("docling", "grobid", "openalex", "html")
+
+# Module-level cache: {pool_bib_path: {normalized_doi: pool_citekey}}
+_pool_doi_index_cache: dict[str, dict[str, str]] = {}
+
+
+def _normalize_doi(doi: str) -> str:
+    """Normalize a DOI for comparison: lowercase, strip URL prefix."""
+    doi = doi.strip().lower()
+    for prefix in ("https://doi.org/", "http://doi.org/", "doi:"):
+        if doi.startswith(prefix):
+            doi = doi[len(prefix):]
+    return doi
+
+
+def _build_pool_doi_index(pool_bib_path: Path) -> dict[str, str]:
+    """Build a {normalized_doi: citekey} map from a pool's merged bib file.
+
+    Cached per session (module-level) to avoid re-parsing on every lookup.
+    """
+    cache_key = str(pool_bib_path)
+    if cache_key in _pool_doi_index_cache:
+        return _pool_doi_index_cache[cache_key]
+
+    index: dict[str, str] = {}
+    if not pool_bib_path.exists():
+        _pool_doi_index_cache[cache_key] = index
+        return index
+
+    try:
+        from ._pybtex_utils import parse_bibtex_file
+        db = parse_bibtex_file(pool_bib_path)
+        for key, entry in db.entries.items():
+            doi = entry.fields.get("doi", "").strip()
+            if doi:
+                index[_normalize_doi(doi)] = key
+    except Exception:
+        pass
+
+    _pool_doi_index_cache[cache_key] = index
+    return index
+
+
+def _find_pool_bib(pool_root: Path) -> Path | None:
+    """Find the merged bib file in a pool directory."""
+    for base in (pool_root, pool_root.parent):
+        for name in ("main.bib", "merged.bib"):
+            candidate = base / name
+            if candidate.exists():
+                return candidate
+        # Also check .projio/biblio/merged.bib
+        candidate = base.parent / ".projio" / "biblio" / "merged.bib"
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def _resolve_pool_citekey(
+    cfg: BiblioConfig,
+    citekey: str,
+    doi: str | None = None,
+) -> list[tuple[Path, str]]:
+    """Resolve a paper's citekey(s) in each pool.
+
+    Returns list of ``(pool_derivatives_base, pool_citekey)`` for pools
+    where either the citekey or DOI matches.
+
+    Tries in order:
+    1. Direct citekey match (fast — just stat the directory)
+    2. DOI lookup in pool's bib index (handles citekey mismatches)
+    """
+    key = citekey.lstrip("@")
+    norm_doi = _normalize_doi(doi) if doi else ""
+    matches: list[tuple[Path, str]] = []
+
+    for pool_root in cfg.pool_search:
+        for base in (pool_root, pool_root.parent):
+            deriv_base = base / "derivatives"
+            if not deriv_base.is_dir():
+                continue
+
+            # 1. Direct citekey match
+            if (deriv_base / "docling" / key).is_dir() or (deriv_base / "grobid" / key).is_dir():
+                matches.append((deriv_base, key))
+                break
+
+            # 2. DOI-based lookup
+            if norm_doi:
+                pool_bib = _find_pool_bib(pool_root)
+                if pool_bib:
+                    doi_index = _build_pool_doi_index(pool_bib)
+                    pool_key = doi_index.get(norm_doi)
+                    if pool_key and pool_key != key:
+                        if (deriv_base / "docling" / pool_key).is_dir() or (deriv_base / "grobid" / pool_key).is_dir():
+                            matches.append((deriv_base, pool_key))
+                            break
+            break  # only check one base per pool_root
+
+    return matches
+
+
+def resolve_pool_derivative(
+    cfg: BiblioConfig,
+    citekey: str,
+    derivative_type: str,
+    doi: str | None = None,
+) -> Path | None:
+    """Check pool search paths for an existing derivative.
+
+    Uses both citekey and DOI for matching — handles citekey mismatches
+    between project and pool bibliographies.
+
+    Args:
+        cfg: Project biblio config (uses ``pool_search`` paths).
+        citekey: BibTeX citekey (tried first).
+        derivative_type: One of "docling", "grobid", "openalex", "html".
+        doi: Paper DOI (optional, used as fallback when citekey doesn't match).
+    """
+    for deriv_base, pool_key in _resolve_pool_citekey(cfg, citekey, doi=doi):
+        candidate = deriv_base / derivative_type / pool_key
+        if candidate.is_dir() and any(candidate.iterdir()):
+            return candidate
+    return None
+
+
+def resolve_pool_derivatives(
+    cfg: BiblioConfig,
+    citekey: str,
+    doi: str | None = None,
+) -> dict[str, Path | None]:
+    """Check all derivative types for pool availability.
+
+    Returns ``{"docling": Path|None, "grobid": Path|None, ...}``.
+    """
+    return {
+        dt: resolve_pool_derivative(cfg, citekey, dt, doi=doi)
+        for dt in _DERIVATIVE_TYPES
+    }
+
+
 def load_pool_config(pool_root: Path) -> BiblioConfig:
     """Load biblio config from a pool workspace root."""
     cfg_path = (pool_root / _DEFAULT_CONFIG_REL).resolve()
@@ -254,6 +394,111 @@ def ingest_inbox(
             **counts,
         },
     )
+
+    return results
+
+
+@dataclass
+class PoolPromoteResult:
+    citekey: str
+    status: str  # "promoted" | "already_in_pool" | "no_local_pdf" | "error" | "dry_run"
+    error: str | None = None
+
+
+def promote_to_pool(
+    project_cfg: BiblioConfig,
+    pool_root: Path,
+    citekeys: list[str],
+    *,
+    dry_run: bool = False,
+) -> list[PoolPromoteResult]:
+    """Move project-local papers into a pool so other projects can access them.
+
+    For each citekey:
+    1. Copy PDF from project ``bib/articles/{ck}/`` to pool ``bib/articles/{ck}/``
+    2. Copy derivatives (docling, grobid, openalex) to pool ``bib/derivatives/``
+    3. Copy/merge the BibTeX entry into pool ``bib/srcbib/promoted.bib``
+    4. Replace local PDF with symlink to pool copy
+    """
+    pool_root = pool_root.expanduser().resolve()
+    pool_cfg = load_pool_config(pool_root)
+
+    # Load project bib database for extracting BibTeX entries
+    from ._pybtex_utils import parse_bibtex_file
+
+    bib_db = None
+    bib_path = project_cfg.bibtex_merge.out_bib
+    if bib_path.exists():
+        try:
+            bib_db = parse_bibtex_file(bib_path)
+        except Exception:
+            pass
+
+    results: list[PoolPromoteResult] = []
+    bib_entries: list[tuple[str, str]] = []  # (citekey, raw bibtex block)
+
+    for ck in citekeys:
+        key = ck.lstrip("@")
+        try:
+            # Check if already in pool
+            pool_pdf = (pool_cfg.pdf_root / pool_cfg.pdf_pattern.format(citekey=key)).resolve()
+            if pool_pdf.exists():
+                results.append(PoolPromoteResult(key, "already_in_pool"))
+                continue
+
+            # Check local PDF exists
+            local_pdf = (project_cfg.pdf_root / project_cfg.pdf_pattern.format(citekey=key)).resolve()
+            if not local_pdf.exists() or not local_pdf.is_file():
+                # Check if it's a symlink that already points to pool
+                if local_pdf.is_symlink():
+                    results.append(PoolPromoteResult(key, "already_in_pool"))
+                else:
+                    results.append(PoolPromoteResult(key, "no_local_pdf"))
+                continue
+
+            if dry_run:
+                results.append(PoolPromoteResult(key, "dry_run"))
+                continue
+
+            # 1. Copy PDF to pool
+            pool_pdf.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(local_pdf, pool_pdf)
+
+            # 2. Copy derivatives to pool
+            project_deriv = project_cfg.repo_root / "bib" / "derivatives"
+            pool_deriv = pool_root / "bib" / "derivatives"
+            for dtype in _DERIVATIVE_TYPES:
+                src_dir = project_deriv / dtype / key
+                if src_dir.is_dir() and any(src_dir.iterdir()):
+                    dst_dir = pool_deriv / dtype / key
+                    if not dst_dir.exists():
+                        shutil.copytree(src_dir, dst_dir)
+
+            # 3. Collect BibTeX entry for promoted.bib
+            if bib_db and key in bib_db.entries:
+                from pybtex.database import BibliographyData
+                single = BibliographyData(entries={key: bib_db.entries[key]})
+                bib_entries.append((key, single.to_string("bibtex")))
+
+            # 4. Replace local PDF with symlink to pool copy
+            local_pdf.unlink()
+            local_pdf.symlink_to(pool_pdf)
+
+            results.append(PoolPromoteResult(key, "promoted"))
+        except Exception as exc:
+            results.append(PoolPromoteResult(key, "error", error=str(exc)))
+
+    # Write collected BibTeX entries to pool's promoted.bib
+    if bib_entries:
+        promoted_bib = pool_root / "bib" / "srcbib" / "promoted.bib"
+        promoted_bib.parent.mkdir(parents=True, exist_ok=True)
+        new_text = "\n\n".join(text for _, text in bib_entries)
+        if promoted_bib.exists() and promoted_bib.read_text(encoding="utf-8").strip():
+            existing = promoted_bib.read_text(encoding="utf-8")
+            suffix = "" if existing.endswith("\n") else "\n"
+            promoted_bib.write_text(existing + suffix + "\n" + new_text + "\n", encoding="utf-8")
+        else:
+            promoted_bib.write_text(new_text + "\n", encoding="utf-8")
 
     return results
 

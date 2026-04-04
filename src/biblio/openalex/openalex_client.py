@@ -42,11 +42,16 @@ DEFAULT_SELECT: tuple[str, ...] = (
     "cited_by_count",
     "authorships",
     "topics",
+    "primary_topic",
+    "keywords",
     "referenced_works",
     "ids",
     "open_access",
     "best_oa_location",
     "primary_location",
+    "type",
+    "is_retracted",
+    "counts_by_year",
 )
 
 
@@ -73,9 +78,11 @@ class OpenAlexClient:
             params["select"] = ",".join(self.cfg.select)
         return params
 
-    def _get_json(self, path: str, *, params: dict[str, Any] | None = None) -> dict[str, Any]:
+    def _get_json(self, path: str, *, params: dict[str, Any] | None = None, skip_select: bool = False) -> dict[str, Any]:
         url = self.cfg.base_url.rstrip("/") + "/" + path.lstrip("/")
         merged = self._params()
+        if skip_select:
+            merged.pop("select", None)
         if params:
             for k, v in params.items():
                 if v is None:
@@ -111,6 +118,29 @@ class OpenAlexClient:
             retry=tenacity.retry_if_exception_type(Exception),
         )
         return retry(_do)()
+
+    def get_works_by_dois(self, dois: list[str], *, batch_size: int = 50) -> list[dict[str, Any]]:
+        """Batch-resolve DOIs using OR filter: ``filter=doi:doi1|doi2|...|doi50``.
+
+        OpenAlex allows up to 50 DOIs per OR-filter query.  This method
+        batches the input list accordingly and returns all matched works.
+        """
+        normalised: list[str] = []
+        for d in dois:
+            n = (d or "").strip()
+            n = n.removeprefix("https://doi.org/").removeprefix("doi:").removeprefix("DOI:").strip()
+            if n:
+                normalised.append(n)
+        if not normalised:
+            return []
+
+        results: list[dict[str, Any]] = []
+        for i in range(0, len(normalised), batch_size):
+            batch = normalised[i : i + batch_size]
+            filter_val = "doi:" + "|".join(batch)
+            batch_results = self.filter_works(filter_expr=filter_val, per_page=batch_size)
+            results.extend(batch_results)
+        return results
 
     def get_work_by_doi(self, doi: str) -> dict[str, Any]:
         doi_norm = (doi or "").strip()
@@ -173,6 +203,68 @@ class OpenAlexClient:
                 out.append(item)
         return out
 
+    # ------------------------------------------------------------------
+    # Author endpoints
+    # ------------------------------------------------------------------
+
+    def search_authors(self, query: str, *, per_page: int | None = None) -> list[dict[str, Any]]:
+        """Search authors by name via ``/authors?search=<query>``."""
+        q = (query or "").strip()
+        if not q:
+            return []
+        payload = self._get_json(
+            "authors", skip_select=True,
+            params={"search": q, "per-page": per_page or self.cfg.per_page},
+        )
+        results = payload.get("results")
+        return [r for r in (results or []) if isinstance(r, dict)]
+
+    def get_author(self, author_id: str) -> dict[str, Any]:
+        """Fetch a single author by OpenAlex ID (e.g. ``A5023888391``)."""
+        aid = (author_id or "").strip()
+        if not aid:
+            raise ValueError("Empty author_id")
+        if aid.startswith("http"):
+            aid = aid.rstrip("/").split("/")[-1]
+        return self._get_json(f"authors/{quote(aid, safe='')}", skip_select=True)
+
+    def filter_authors(self, *, filter_expr: str, per_page: int | None = None) -> list[dict[str, Any]]:
+        """Query ``/authors`` with an arbitrary filter expression."""
+        expr = (filter_expr or "").strip()
+        if not expr:
+            return []
+        payload = self._get_json(
+            "authors", skip_select=True,
+            params={"filter": expr, "per-page": per_page or self.cfg.per_page},
+        )
+        results = payload.get("results")
+        return [r for r in (results or []) if isinstance(r, dict)]
+
+    # ------------------------------------------------------------------
+    # Institution endpoints
+    # ------------------------------------------------------------------
+
+    def search_institutions(self, query: str, *, per_page: int | None = None) -> list[dict[str, Any]]:
+        """Search institutions by name via ``/institutions?search=<query>``."""
+        q = (query or "").strip()
+        if not q:
+            return []
+        payload = self._get_json(
+            "institutions", skip_select=True,
+            params={"search": q, "per-page": per_page or self.cfg.per_page},
+        )
+        results = payload.get("results")
+        return [r for r in (results or []) if isinstance(r, dict)]
+
+    def get_institution(self, institution_id: str) -> dict[str, Any]:
+        """Fetch a single institution by OpenAlex ID (e.g. ``I57206974``)."""
+        iid = (institution_id or "").strip()
+        if not iid:
+            raise ValueError("Empty institution_id")
+        if iid.startswith("http"):
+            iid = iid.rstrip("/").split("/")[-1]
+        return self._get_json(f"institutions/{quote(iid, safe='')}", skip_select=True)
+
 
 def openalex_config_from_mapping(mapping: dict[str, Any] | None) -> OpenAlexClientConfig:
     m = mapping or {}
@@ -183,7 +275,7 @@ def openalex_config_from_mapping(mapping: dict[str, Any] | None) -> OpenAlexClie
     api_key = str(api_key).strip() if isinstance(api_key, str) and api_key.strip() else None
     timeout_s = float(m.get("timeout_s") or 30)
     max_retries = int(m.get("max_retries") or 3)
-    per_page = int(m.get("per_page") or 25)
+    per_page = int(m.get("per_page") or 200)
 
     select_raw = m.get("select")
     if select_raw is None:

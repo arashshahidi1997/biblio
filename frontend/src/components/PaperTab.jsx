@@ -1155,6 +1155,18 @@ export default function PaperTab({
         </div>
         <div className="small">{activePaper.title}</div>
         <p>{(activePaper.authors || []).join(", ") || "Unknown authors"}</p>
+        <div style={{ display: "flex", gap: "0.4rem", alignItems: "center", marginBottom: "0.3rem", fontSize: "0.78rem" }}>
+          {activePaper.doi && (
+            <a href={`https://doi.org/${activePaper.doi}`} target="_blank" rel="noreferrer" title="View on publisher site" style={{ opacity: 0.7 }}>
+              DOI ↗
+            </a>
+          )}
+          {activePaper.openalex_id && (
+            <a href={`https://openalex.org/works/${activePaper.openalex_id}`} target="_blank" rel="noreferrer" title="View on OpenAlex" style={{ opacity: 0.7 }}>
+              OpenAlex ↗
+            </a>
+          )}
+        </div>
         <div style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap" }}>
           <ArtifactBadge
             exists={hasPdf}

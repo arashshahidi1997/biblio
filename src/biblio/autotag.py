@@ -93,16 +93,47 @@ def _get_abstract(citekey: str, root: Path) -> tuple[str, str]:
     return str(title), str(abstract)
 
 
+def _format_openalex_context(enrichment: dict[str, Any] | None) -> str:
+    """Format OpenAlex enrichment data as additional context for the LLM prompt."""
+    if not enrichment:
+        return ""
+    parts: list[str] = []
+    pt = enrichment.get("primary_topic")
+    if pt and isinstance(pt, dict):
+        parts.append(
+            f"- Primary topic: {pt.get('name', '')} "
+            f"(field: {pt.get('field', '')}, domain: {pt.get('domain', '')})"
+        )
+    keywords = enrichment.get("keywords")
+    if keywords:
+        kw_list = ", ".join(
+            k.get("keyword", "") for k in keywords if isinstance(k, dict)
+        )
+        if kw_list:
+            parts.append(f"- Keywords: {kw_list}")
+    if not parts:
+        return ""
+    return "\n\n## OpenAlex Classification (use as context, not as direct tags)\n" + "\n".join(parts)
+
+
 def build_llm_prompt(
-    title: str, abstract: str, vocab: dict[str, Any]
+    title: str, abstract: str, vocab: dict[str, Any],
+    openalex_enrichment: dict[str, Any] | None = None,
 ) -> tuple[str, str]:
     """Build system and user prompts for the LLM classification call.
+
+    If *openalex_enrichment* is provided, the paper's OpenAlex topic and keyword
+    data is appended to the user prompt as additional context for more accurate
+    classification.
 
     Returns (system_prompt, user_prompt).
     """
     vocab_block = _format_vocab_block(vocab)
     system = SYSTEM_PROMPT_TEMPLATE.format(vocab_block=vocab_block)
     user = f"**Title:** {title}\n\n**Abstract:** {abstract}"
+    oa_ctx = _format_openalex_context(openalex_enrichment)
+    if oa_ctx:
+        user += oa_ctx
     return system, user
 
 
@@ -143,7 +174,15 @@ def autotag_llm(
 
     vocab = load_tag_vocab(default_tag_vocab_path(root))
 
-    system_prompt, user_prompt = build_llm_prompt(title, abstract, vocab)
+    # Load OpenAlex enrichment (if available) as context for the LLM
+    oa_enrichment = None
+    try:
+        from .openalex.openalex_enrich import load_enrichment
+        oa_enrichment = load_enrichment(root, key)
+    except Exception:
+        pass
+
+    system_prompt, user_prompt = build_llm_prompt(title, abstract, vocab, openalex_enrichment=oa_enrichment)
 
     # Call LLM
     from .llm import call_llm

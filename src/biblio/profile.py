@@ -74,46 +74,50 @@ def apply_profile(
     username = getpass.getuser()
     storage_glob = str(raw.get("storage_glob") or "")
 
-    # --- resolve personal storage root ---
-    if personal_storage is None and storage_glob:
-        candidates = _find_storage_candidates(storage_glob, username)
-        if len(candidates) == 1:
+    # --- resolve personal storage root (only if profile uses pool/storage) ---
+    needs_storage = bool(storage_glob or raw.get("pool"))
+    if needs_storage:
+        if personal_storage is None and storage_glob:
+            candidates = _find_storage_candidates(storage_glob, username)
+            if len(candidates) == 1:
+                if yes:
+                    personal_storage = candidates[0]
+                else:
+                    resp = input(
+                        f"Personal storage detected: {candidates[0]}\nUse this? [Y/n] "
+                    ).strip().lower()
+                    personal_storage = candidates[0] if resp in ("", "y", "yes") else None
+            elif len(candidates) > 1:
+                print("Multiple storage volumes found:")
+                for i, c in enumerate(candidates, 1):
+                    print(f"  [{i}] {c}")
+                choice = input("Choose [1]: ").strip() or "1"
+                personal_storage = candidates[int(choice) - 1]
+
+        if personal_storage is None:
             if yes:
-                personal_storage = candidates[0]
-            else:
-                resp = input(
-                    f"Personal storage detected: {candidates[0]}\nUse this? [Y/n] "
-                ).strip().lower()
-                personal_storage = candidates[0] if resp in ("", "y", "yes") else None
-        elif len(candidates) > 1:
-            print("Multiple storage volumes found:")
-            for i, c in enumerate(candidates, 1):
-                print(f"  [{i}] {c}")
-            choice = input("Choose [1]: ").strip() or "1"
-            personal_storage = candidates[int(choice) - 1]
+                raise ValueError(
+                    "Could not detect personal storage automatically. "
+                    "Pass --storage <path> to specify it."
+                )
+            path_input = input(
+                f"Enter your personal storage path (e.g. /storage2/{username}): "
+            ).strip()
+            personal_storage = Path(path_input).expanduser().resolve()
 
-    if personal_storage is None:
-        if yes:
-            raise ValueError(
-                "Could not detect personal storage automatically. "
-                "Pass --storage <path> to specify it."
-            )
-        path_input = input(
-            f"Enter your personal storage path (e.g. /storage2/{username}): "
-        ).strip()
-        personal_storage = Path(path_input).expanduser().resolve()
+    config: dict[str, Any] = {}
+    if needs_storage and personal_storage is not None:
+        personal_storage = personal_storage.expanduser().resolve()
+        personal_pool = personal_storage / "bib"
 
-    personal_storage = personal_storage.expanduser().resolve()
-    personal_pool = personal_storage / "bib"
+        raw_pool = raw.get("pool") or {}
+        lab_root = raw_pool.get("lab_root")
 
-    raw_pool = raw.get("pool") or {}
-    lab_root = raw_pool.get("lab_root")
+        pool_section: dict[str, Any] = {"path": str(personal_pool)}
+        if lab_root:
+            pool_section["search"] = [str(lab_root), str(personal_pool)]
+        config["pool"] = pool_section
 
-    pool_section: dict[str, Any] = {"path": str(personal_pool)}
-    if lab_root:
-        pool_section["search"] = [str(lab_root), str(personal_pool)]
-
-    config: dict[str, Any] = {"pool": pool_section}
     for key, value in raw.items():
         if key not in ("name", "description", "pool", "storage_glob"):
             config[key] = value

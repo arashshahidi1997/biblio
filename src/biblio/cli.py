@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import shlex
 import json
 import shutil
@@ -510,10 +511,59 @@ def _build_parser() -> argparse.ArgumentParser:
     pool_serve.add_argument("--host", default="127.0.0.1", help="Host to bind (default: 127.0.0.1).")
     pool_serve.add_argument("--port", type=int, default=7171, help="Port to bind (default: 7171).")
 
+    pool_promote = pool_sub.add_parser("promote", help="Move project-local papers into a pool.")
+    pool_promote.add_argument("--citekeys", nargs="+", help="Citekeys to promote.")
+    pool_promote.add_argument("--all-local", action="store_true",
+                              help="Promote all local papers not already in pool.")
+    for flag, kwargs in _pool_args:
+        pool_promote.add_argument(flag, **kwargs)
+    pool_promote.add_argument("--dry-run", action="store_true",
+                              help="Report what would happen without writing.")
+
     pool_bm = pool_sub.add_parser("bookmarklet",
                                   help="Print a browser bookmarklet JS snippet for one-click PDF drop.")
     pool_bm.add_argument("--port", type=int, default=7171,
                          help="Pool server port (default: 7171).")
+
+    # --- zotero ---
+    p_zotero = sub.add_parser("zotero", help="Zotero integration (pull/push/status).")
+    zotero_sub = p_zotero.add_subparsers(dest="zotero_cmd", required=True)
+
+    _zotero_common = [
+        ("--root", dict(type=Path, help="Repository root (default: auto-detect from cwd).")),
+        ("--config", dict(type=Path, help="Path to biblio.yml.")),
+    ]
+
+    zotero_pull = zotero_sub.add_parser("pull", help="Pull items and PDFs from Zotero.")
+    for flag, kwargs in _zotero_common:
+        zotero_pull.add_argument(flag, **kwargs)
+    zotero_pull.add_argument("--collection", help="Zotero collection key to pull (overrides config).")
+    zotero_pull.add_argument("--tags", help="Comma-separated tags to filter by.")
+    zotero_pull.add_argument("--dry-run", action="store_true",
+                             help="Report what would happen without writing.")
+
+    zotero_push = zotero_sub.add_parser("push", help="Push enrichments back to Zotero.")
+    for flag, kwargs in _zotero_common:
+        zotero_push.add_argument(flag, **kwargs)
+    zotero_push.add_argument("--citekeys", help="Comma-separated citekeys to push (default: all synced).")
+    zotero_push.add_argument("--tags", action="store_true", default=True,
+                             help="Push tags (default: yes).")
+    zotero_push.add_argument("--no-tags", action="store_false", dest="tags",
+                             help="Skip tag push.")
+    zotero_push.add_argument("--notes", action="store_true", default=False,
+                             help="Push LLM summaries as Zotero notes.")
+    zotero_push.add_argument("--ids", action="store_true", default=True,
+                             help="Push DOI/OpenAlex IDs (default: yes).")
+    zotero_push.add_argument("--no-ids", action="store_false", dest="ids",
+                             help="Skip ID push.")
+    zotero_push.add_argument("--force", action="store_true",
+                             help="Push even if Zotero item was modified since last sync.")
+    zotero_push.add_argument("--dry-run", action="store_true",
+                             help="Report what would happen without writing.")
+
+    zotero_status = zotero_sub.add_parser("status", help="Show Zotero sync state.")
+    for flag, kwargs in _zotero_common:
+        zotero_status.add_argument(flag, **kwargs)
 
     p_profile = sub.add_parser("profile", help="Manage user-level biblio profiles.")
     profile_sub = p_profile.add_subparsers(dest="profile_cmd", required=True)
@@ -541,6 +591,16 @@ def _build_parser() -> argparse.ArgumentParser:
                          help="Open EZProxy login page in browser (default: yes).")
     auth_ez.add_argument("--no-open", action="store_true",
                          help="Skip opening browser.")
+    auth_ez.add_argument("--login", action="store_true",
+                         help="Log in with institutional credentials (Shibboleth SAML). "
+                              "No browser needed — works over plain SSH.")
+    auth_ez.add_argument("--push", metavar="HOST",
+                         help="Push cookies from local browser to a remote host via SSH "
+                              "(e.g. --push gamma2). Like ssh-copy-id for EZProxy.")
+    auth_ez.add_argument("--export", action="store_true",
+                         help="Print cookie string to stdout (for piping).")
+    auth_ez.add_argument("--import", dest="import_stdin", action="store_true",
+                         help="Read cookie string from stdin (for piping).")
 
     p_ui = sub.add_parser("ui", help="Serve a local interactive bibliography UI.")
     ui_sub = p_ui.add_subparsers(dest="ui_cmd", required=True)
@@ -654,6 +714,77 @@ def _bookmarklet_js(port: int) -> str:
     )
     import urllib.parse
     return "javascript:" + urllib.parse.quote(js, safe="")
+
+
+def _extract_browser_cookies(proxy_base: str) -> str | None:
+    """Try to extract EZProxy cookies from Firefox or Chromium cookie stores.
+
+    Returns cookie string (name1=value1; name2=value2) or None if not found.
+    """
+    import sqlite3
+    import tempfile
+    from pathlib import Path
+    from urllib.parse import urlparse
+
+    host = urlparse(proxy_base).hostname or proxy_base
+    # Match the domain and subdomains (e.g. .emedien.ub.uni-muenchen.de)
+    host_patterns = [host, f".{host}"]
+
+    # Known browser cookie store locations
+    home = Path.home()
+    candidates: list[Path] = []
+    # Firefox
+    for profile_dir in sorted(home.glob(".mozilla/firefox/*/"), reverse=True):
+        db = profile_dir / "cookies.sqlite"
+        if db.exists():
+            candidates.append(db)
+    # Chromium / Chrome (cookies are encrypted on Linux, so this only works
+    # on systems where the keyring is accessible or cookies are unencrypted)
+    for chrome_dir in [
+        home / ".config" / "google-chrome" / "Default" / "Cookies",
+        home / ".config" / "chromium" / "Default" / "Cookies",
+    ]:
+        if chrome_dir.exists():
+            candidates.append(chrome_dir)
+
+    for db_path in candidates:
+        try:
+            # Copy DB to temp file to avoid locking the browser's DB
+            tmp = tempfile.NamedTemporaryFile(suffix=".sqlite", delete=False)
+            tmp.close()
+            import shutil
+            shutil.copy2(db_path, tmp.name)
+
+            conn = sqlite3.connect(tmp.name)
+            conn.row_factory = sqlite3.Row
+
+            # Firefox uses moz_cookies
+            try:
+                rows = conn.execute(
+                    "SELECT name, value FROM moz_cookies WHERE host IN (?, ?) AND value != ''",
+                    tuple(host_patterns),
+                ).fetchall()
+            except sqlite3.OperationalError:
+                # Chromium uses 'cookies' table — but values are encrypted on Linux
+                # Only works if unencrypted (e.g. some older versions)
+                try:
+                    rows = conn.execute(
+                        "SELECT name, value FROM cookies WHERE host_key IN (?, ?) AND value != ''",
+                        tuple(host_patterns),
+                    ).fetchall()
+                except sqlite3.OperationalError:
+                    rows = []
+
+            conn.close()
+            Path(tmp.name).unlink(missing_ok=True)
+
+            if rows:
+                cookie_str = "; ".join(f"{r['name']}={r['value']}" for r in rows)
+                return cookie_str
+        except Exception:
+            continue
+
+    return None
 
 
 def main(argv: Iterable[str] | None = None) -> None:
@@ -1721,7 +1852,7 @@ def main(argv: Iterable[str] | None = None) -> None:
         cfg = load_biblio_config(cfg_path, root=repo_root)
 
         # Resolve pool root: --pool flag > project config
-        if args.pool_cmd in ("ingest", "watch", "link"):
+        if args.pool_cmd in ("ingest", "watch", "link", "promote"):
             pool_root_arg = getattr(args, "pool", None)
             if pool_root_arg is not None:
                 pool_root = pool_root_arg.expanduser().resolve()
@@ -1802,6 +1933,132 @@ def main(argv: Iterable[str] | None = None) -> None:
                     print(f"Symlinked {linked} PDF(s) from pool.")
                 if not_in_pool:
                     print(f"{not_in_pool} citekey(s) not yet in pool — run 'biblio queue list' to see them.")
+            return
+
+        if args.pool_cmd == "promote":
+            from .pool import promote_to_pool
+
+            citekey_list: list[str] = []
+            if getattr(args, "all_local", False):
+                # Gather all citekeys that have a real local PDF (not a symlink)
+                articles_dir = cfg.pdf_root
+                if articles_dir.is_dir():
+                    for child in articles_dir.iterdir():
+                        if child.is_dir():
+                            pdf = child / f"{child.name}.pdf"
+                            if pdf.is_file() and not pdf.is_symlink():
+                                citekey_list.append(child.name)
+                if not citekey_list:
+                    print("No local (non-symlinked) PDFs found to promote.")
+                    return
+            elif args.citekeys:
+                citekey_list = args.citekeys
+            else:
+                print("Specify --citekeys or --all-local.", file=sys.stderr)
+                raise SystemExit(1)
+
+            results = promote_to_pool(cfg, pool_root, citekey_list, dry_run=args.dry_run)
+            counts: dict[str, int] = {}
+            for r in results:
+                counts[r.status] = counts.get(r.status, 0) + 1
+                icon = {
+                    "promoted": "+", "already_in_pool": "=",
+                    "no_local_pdf": "-", "error": "!", "dry_run": "?",
+                }.get(r.status, " ")
+                line = f"[{icon}] {r.citekey} → {r.status}"
+                if r.error:
+                    line += f"  ERROR: {r.error}"
+                print(line)
+            summary = " | ".join(f"{v} {k}" for k, v in sorted(counts.items()))
+            print(f"\n{summary}")
+            return
+
+    if args.command == "zotero":
+        repo_root = (args.root.expanduser().resolve() if args.root else find_repo_root())
+        cfg_path = (
+            (repo_root / args.config).resolve() if args.config
+            else default_config_path(root=repo_root)
+        )
+
+        # Load config and extract zotero section
+        import yaml as _yaml
+        from .zotero import load_zotero_config, pull as zotero_pull_fn, status as zotero_status_fn
+
+        raw_payload: dict = {}
+        if cfg_path.exists():
+            raw_payload = _yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
+        zcfg = load_zotero_config(raw_payload, repo_root)
+        if zcfg is None:
+            print(
+                "No zotero section configured in biblio.yml. Add a 'zotero:' section "
+                "with at least 'library_id' to enable Zotero integration.",
+                file=sys.stderr,
+            )
+            raise SystemExit(1)
+
+        if args.zotero_cmd == "pull":
+            tags_list = [t.strip() for t in args.tags.split(",")] if args.tags else None
+            result = zotero_pull_fn(
+                repo_root=repo_root,
+                zotero_cfg=zcfg,
+                collection=args.collection or None,
+                tags=tags_list,
+                dry_run=args.dry_run,
+            )
+            prefix = "[DRY RUN] " if result.dry_run else ""
+            print(f"{prefix}Pulled {result.pulled} item(s) from Zotero")
+            if result.pdfs_downloaded:
+                print(f"  PDFs downloaded: {result.pdfs_downloaded}")
+            if result.deleted:
+                print(f"  Deleted entries: {result.deleted}")
+            if result.skipped:
+                print(f"  Skipped: {result.skipped}")
+            if result.errors:
+                for err in result.errors:
+                    print(f"  [!] {err}")
+            if result.citekeys:
+                print(f"  Citekeys: {', '.join(result.citekeys[:20])}"
+                      + (f" ... (+{len(result.citekeys) - 20})" if len(result.citekeys) > 20 else ""))
+            return
+
+        if args.zotero_cmd == "push":
+            from .zotero import push as zotero_push_fn
+            ck_list = [c.strip() for c in args.citekeys.split(",")] if args.citekeys else None
+            push_result = zotero_push_fn(
+                repo_root=repo_root,
+                zotero_cfg=zcfg,
+                citekeys=ck_list,
+                push_tags=args.tags,
+                push_notes=args.notes,
+                push_ids=args.ids,
+                force=args.force,
+                dry_run=args.dry_run,
+            )
+            prefix = "[DRY RUN] " if push_result.dry_run else ""
+            print(f"{prefix}Updated {push_result.updated} item(s) in Zotero")
+            if push_result.created:
+                print(f"  Notes created: {push_result.created}")
+            if push_result.skipped:
+                print(f"  Skipped: {push_result.skipped}")
+            if push_result.conflicts:
+                print(f"  Conflicts ({len(push_result.conflicts)}):")
+                for c in push_result.conflicts:
+                    print(f"    {c}")
+            if push_result.errors:
+                for err in push_result.errors:
+                    print(f"  [!] {err}")
+            return
+
+        if args.zotero_cmd == "status":
+            info = zotero_status_fn(zotero_cfg=zcfg)
+            print(f"Library:      {info['library_type']}:{info['library_id']}")
+            if info["collection"]:
+                print(f"Collection:   {info['collection']}")
+            print(f"Last sync:    {info['last_sync']}")
+            print(f"Last version: {info['last_version']}")
+            print(f"Total items:  {info['total_items']}")
+            print(f"With PDF:     {info['items_with_pdf']}")
+            print(f"State file:   {info['sync_state_path']}")
             return
 
     if args.command == "concepts":
@@ -2053,7 +2310,7 @@ def main(argv: Iterable[str] | None = None) -> None:
             pf = user_cfg.get("pdf_fetch") or {}
             ezproxy_base = pf.get("ezproxy_base") or ""
 
-            if not ezproxy_base:
+            if not ezproxy_base and not args.import_stdin:
                 print("No ezproxy_base configured in your user config.")
                 print("Run 'biblio profile use lmu-munich' first, or enter the URL now.")
                 ezproxy_base = input("EZProxy base URL: ").strip()
@@ -2061,22 +2318,110 @@ def main(argv: Iterable[str] | None = None) -> None:
                     print("Aborted.", file=sys.stderr)
                     raise SystemExit(1)
 
-            login_url = f"{ezproxy_base.rstrip('/')}/login"
-            print(f"\nEZProxy base: {ezproxy_base}")
-            print(f"Login URL:    {login_url}")
+            # --login: Shibboleth SAML login (no browser needed)
+            if args.login:
+                from .ezproxy import shibboleth_login, ShibbolethLoginError
+                import getpass
 
-            # Open browser if requested
-            if not args.no_open:
-                import webbrowser
-                print(f"\nOpening {login_url} in your browser...")
-                webbrowser.open(login_url)
+                print(f"\nShibboleth login to {ezproxy_base}")
+                username = input("Username (LMU Kennung): ").strip()
+                if not username:
+                    print("Aborted.", file=sys.stderr)
+                    raise SystemExit(1)
+                password = getpass.getpass("Password: ")
+                if not password:
+                    print("Aborted.", file=sys.stderr)
+                    raise SystemExit(1)
 
-            print("\nAfter logging in:")
-            print("  1. Open DevTools (F12)")
-            print("  2. Go to Application > Cookies > " + ezproxy_base)
-            print("  3. Copy all cookie Name=Value pairs\n")
-            print("Paste cookies (format: name1=value1; name2=value2):")
-            cookie_input = input("> ").strip()
+                print("Authenticating...", end="", flush=True)
+                try:
+                    cookie_input = shibboleth_login(ezproxy_base, username, password)
+                    print(" OK")
+                    print(f"Got {len(cookie_input.split(';'))} cookies")
+                except ShibbolethLoginError as exc:
+                    print(f" FAILED\n{exc}", file=sys.stderr)
+                    raise SystemExit(1)
+                except ImportError as exc:
+                    print(f" FAILED\n{exc}", file=sys.stderr)
+                    raise SystemExit(1)
+
+            # --import: read cookie from stdin (for piping)
+            elif args.import_stdin:
+                raw = sys.stdin.read().strip()
+                if not raw:
+                    print("No cookie on stdin. Aborted.", file=sys.stderr)
+                    raise SystemExit(1)
+                # Accept either "base=URL\tcookie=VALUE" or plain cookie string
+                if "\t" in raw:
+                    parts = dict(p.split("=", 1) for p in raw.split("\t") if "=" in p)
+                    ezproxy_base = parts.get("base", ezproxy_base)
+                    cookie_input = parts.get("cookie", raw)
+                else:
+                    cookie_input = raw
+
+            # --push HOST: extract local cookies and push to remote via SSH
+            elif args.push:
+                cookie_input = _extract_browser_cookies(ezproxy_base)
+                if not cookie_input:
+                    print("No cookies found in local browser. Log in first.", file=sys.stderr)
+                    raise SystemExit(1)
+                host = args.push
+                export_payload = f"base={ezproxy_base}\tcookie={cookie_input}"
+                print(f"Pushing EZProxy cookies to {host}...")
+                result = subprocess.run(
+                    ["ssh", host, "biblio", "auth", "ezproxy", "--import"],
+                    input=export_payload, text=True,
+                    capture_output=True,
+                )
+                if result.returncode == 0:
+                    print(f"Cookies pushed to {host} successfully.")
+                    if result.stdout.strip():
+                        print(result.stdout.strip())
+                else:
+                    print(f"Failed to push cookies to {host}:", file=sys.stderr)
+                    print(result.stderr.strip(), file=sys.stderr)
+                    raise SystemExit(1)
+                return
+
+            # --export: print cookie to stdout (for piping)
+            elif args.export:
+                cookie_input = _extract_browser_cookies(ezproxy_base)
+                if not cookie_input:
+                    print("No cookies found in local browser. Log in first.", file=sys.stderr)
+                    raise SystemExit(1)
+                print(f"base={ezproxy_base}\tcookie={cookie_input}")
+                return
+
+            else:
+                login_url = f"{ezproxy_base.rstrip('/')}/login"
+                print(f"\nEZProxy base: {ezproxy_base}")
+                print(f"Login URL:    {login_url}")
+
+                # Try to auto-extract cookies from browser stores
+                cookie_input = _extract_browser_cookies(ezproxy_base)
+                if cookie_input:
+                    print(f"\nAuto-detected cookies from browser ({len(cookie_input.split(';'))} cookies)")
+                else:
+                    # Open browser if requested and a display is available
+                    if not args.no_open:
+                        has_display = bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY") or sys.platform == "darwin")
+                        if has_display:
+                            import webbrowser
+                            print(f"\nOpening {login_url} in your browser...")
+                            webbrowser.open(login_url)
+                        else:
+                            print(f"\nOpen this URL in your browser:\n  {login_url}")
+
+                    print("\nAfter logging in:")
+                    print("  1. Open DevTools (F12)")
+                    print("  2. Go to Application > Cookies > " + ezproxy_base)
+                    print("  3. Copy all cookie Name=Value pairs\n")
+                    print("Paste cookies (format: name1=value1; name2=value2):")
+                    try:
+                        import getpass
+                        cookie_input = getpass.getpass("> ").strip()
+                    except (EOFError, OSError):
+                        cookie_input = input("> ").strip()
 
             if not cookie_input:
                 print("No cookie provided. Aborted.", file=sys.stderr)
@@ -2085,12 +2430,14 @@ def main(argv: Iterable[str] | None = None) -> None:
             # Update user config
             if not isinstance(user_cfg.get("pdf_fetch"), dict):
                 user_cfg["pdf_fetch"] = {}
-            user_cfg["pdf_fetch"]["ezproxy_base"] = ezproxy_base
+            if ezproxy_base:
+                user_cfg["pdf_fetch"]["ezproxy_base"] = ezproxy_base
             user_cfg["pdf_fetch"]["ezproxy_cookie"] = cookie_input
 
+            import yaml as _yaml
             cfg_path.parent.mkdir(parents=True, exist_ok=True)
             cfg_path.write_text(
-                yaml.safe_dump(user_cfg, sort_keys=False, allow_unicode=True, default_flow_style=False),
+                _yaml.safe_dump(user_cfg, sort_keys=False, allow_unicode=True, default_flow_style=False),
                 encoding="utf-8",
             )
             os.chmod(cfg_path, 0o600)

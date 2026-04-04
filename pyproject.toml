@@ -40,9 +40,10 @@ Issues = "https://github.com/arashshahidi1997/biblio/issues"
 bibtex = []
 docs = ["mkdocs>=1.6", "mkdocs-material>=9.5"]
 openalex = ["httpx", "tenacity", "tqdm"]
+zotero = ["pyzotero>=1.6"]
 ui = ["fastapi>=0.115", "uvicorn>=0.30"]
 rag = ["indexio"]
-dev = ["pytest", "build", "twine", "mkdocs>=1.6", "mkdocs-material>=9.5", "pybtex", "httpx", "tenacity", "tqdm", "fastapi>=0.115", "uvicorn>=0.30", "indexio"]
+dev = ["pytest", "build", "twine", "mkdocs>=1.6", "mkdocs-material>=9.5", "pybtex", "httpx", "tenacity", "tqdm", "pyzotero>=1.6", "fastapi>=0.115", "uvicorn>=0.30", "indexio"]
 
 [project.scripts]
 biblio = "biblio.cli:main"

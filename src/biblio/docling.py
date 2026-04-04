@@ -37,6 +37,44 @@ def outputs_for_key(cfg: BiblioConfig, citekey: str) -> DoclingOutputs:
     )
 
 
+def resolve_docling_outputs(
+    cfg: BiblioConfig, citekey: str, doi: str | None = None,
+) -> tuple[DoclingOutputs, str]:
+    """Resolve docling outputs, checking pool first then local.
+
+    Returns ``(outputs, source)`` where source is "pool", "local", or "missing".
+    Pool outputs are read-only — the returned paths point into the pool directory.
+    Uses DOI for matching when citekeys differ between project and pool.
+    """
+    key = citekey.lstrip("@")
+
+    # Check pool first (by citekey, then by DOI)
+    try:
+        from .pool import resolve_pool_derivative
+        pool_dir = resolve_pool_derivative(cfg, key, "docling", doi=doi)
+        if pool_dir is not None:
+            # The pool citekey may differ — find the .md file by listing
+            md_files = list(pool_dir.glob("*.md"))
+            md = md_files[0] if md_files else pool_dir / f"{key}.md"
+            json_files = list(pool_dir.glob("*.json"))
+            json_ = next((f for f in json_files if f.name != "_biblio.json"), pool_dir / f"{key}.json")
+            if md.exists() and md.stat().st_size > 0:
+                return DoclingOutputs(
+                    outdir=pool_dir,
+                    md_path=md,
+                    json_path=json_,
+                    meta_path=pool_dir / "_biblio.json",
+                ), "pool"
+    except Exception:
+        pass
+
+    # Fall back to local
+    local = outputs_for_key(cfg, key)
+    if local.md_path.exists() and local.md_path.stat().st_size > 0:
+        return local, "local"
+    return local, "missing"
+
+
 def _require_nonempty(path: Path, label: str) -> None:
     if not path.exists():
         raise FileNotFoundError(f"Missing {label}: {path}")
@@ -146,7 +184,10 @@ def run_docling_for_key(
                 cmd, cwd=str(out.outdir),
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                 text=True,
+                start_new_session=True,
             )
+            # Notify caller of PID so it can be killed on cancel
+            progress_cb({"pid": proc.pid, "message": f"Docling started (PID {proc.pid})"})
             accumulated_stderr: list[str] = []
             accumulated_stdout: list[str] = []
             assert proc.stderr is not None  # for type checker

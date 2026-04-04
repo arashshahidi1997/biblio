@@ -16,6 +16,7 @@ class AuthorRecord:
     works_count: int
     cited_by_count: int
     h_index: int | None
+    affiliations: list[dict] | None = None
 
 
 @dataclass(frozen=True)
@@ -27,6 +28,9 @@ class WorkRecord:
     journal: str | None
     cited_by_count: int
     is_oa: bool
+    type: str | None = None
+    is_retracted: bool = False
+    topics: list[dict] | None = None
 
 
 def _extract_author(data: dict[str, Any]) -> AuthorRecord:
@@ -55,6 +59,23 @@ def _extract_author(data: dict[str, Any]) -> AuthorRecord:
         h = summary.get("h_index")
         if h is not None:
             h_index = int(h)
+
+    # Full affiliations history: list of {institution, years}
+    affiliations_out: list[dict] | None = None
+    raw_affiliations = data.get("affiliations")
+    if isinstance(raw_affiliations, list) and raw_affiliations:
+        affiliations_out = []
+        for a in raw_affiliations:
+            if not isinstance(a, dict):
+                continue
+            inst = a.get("institution") or {}
+            entry = {
+                "institution_id": inst.get("id") if isinstance(inst, dict) else None,
+                "institution_name": inst.get("display_name") if isinstance(inst, dict) else None,
+                "years": a.get("years") if isinstance(a.get("years"), list) else [],
+            }
+            affiliations_out.append(entry)
+
     return AuthorRecord(
         openalex_id=oa_id,
         orcid=orcid,
@@ -63,6 +84,7 @@ def _extract_author(data: dict[str, Any]) -> AuthorRecord:
         works_count=works_count,
         cited_by_count=cited_by_count,
         h_index=h_index,
+        affiliations=affiliations_out,
     )
 
 
@@ -105,6 +127,39 @@ def _extract_work(data: dict[str, Any]) -> WorkRecord:
     if isinstance(oa, dict):
         is_oa = bool(oa.get("is_oa"))
 
+    work_type = data.get("type")
+    work_type = str(work_type).strip() if isinstance(work_type, str) and work_type.strip() else None
+
+    is_retracted = bool(data.get("is_retracted", False))
+
+    # Topics: primary_topic + topics list with hierarchy and scores
+    topics_out: list[dict] | None = None
+    raw_topics = data.get("topics")
+    primary_topic = data.get("primary_topic")
+    if isinstance(raw_topics, list) and raw_topics:
+        topics_out = []
+        for t in raw_topics:
+            if not isinstance(t, dict):
+                continue
+            entry: dict = {
+                "id": t.get("id"),
+                "display_name": t.get("display_name"),
+                "score": t.get("score"),
+                "subfield": (t.get("subfield") or {}).get("display_name") if isinstance(t.get("subfield"), dict) else None,
+                "field": (t.get("field") or {}).get("display_name") if isinstance(t.get("field"), dict) else None,
+                "domain": (t.get("domain") or {}).get("display_name") if isinstance(t.get("domain"), dict) else None,
+            }
+            topics_out.append(entry)
+    elif isinstance(primary_topic, dict):
+        topics_out = [{
+            "id": primary_topic.get("id"),
+            "display_name": primary_topic.get("display_name"),
+            "score": primary_topic.get("score"),
+            "subfield": (primary_topic.get("subfield") or {}).get("display_name") if isinstance(primary_topic.get("subfield"), dict) else None,
+            "field": (primary_topic.get("field") or {}).get("display_name") if isinstance(primary_topic.get("field"), dict) else None,
+            "domain": (primary_topic.get("domain") or {}).get("display_name") if isinstance(primary_topic.get("domain"), dict) else None,
+        }]
+
     return WorkRecord(
         openalex_id=oa_id,
         doi=doi,
@@ -113,6 +168,9 @@ def _extract_work(data: dict[str, Any]) -> WorkRecord:
         journal=journal,
         cited_by_count=cited_by_count,
         is_oa=is_oa,
+        type=work_type,
+        is_retracted=is_retracted,
+        topics=topics_out,
     )
 
 
@@ -127,11 +185,45 @@ def search_by_orcid(
     client = OpenAlexClient(cfg)
     try:
         # OpenAlex accepts filter queries for authors by ORCID
-        data = client._get_json("authors", params={"filter": f"orcid:{orcid}"})
+        data = client._get_json("authors", skip_select=True, params={"filter": f"orcid:{orcid}"})
         results = data.get("results")
         if not isinstance(results, list) or not results:
             raise ValueError(f"No author found for ORCID {orcid}")
         return _extract_author(results[0])
+    finally:
+        client.close()
+
+
+def search_by_name(
+    cfg: OpenAlexClientConfig,
+    query: str,
+    *,
+    per_page: int = 10,
+) -> list[AuthorRecord]:
+    """Search OpenAlex authors by display name."""
+    query = (query or "").strip()
+    if not query:
+        raise ValueError("Empty query")
+    client = OpenAlexClient(cfg)
+    try:
+        results = client.search_authors(query, per_page=per_page)
+        return [_extract_author(r) for r in results]
+    finally:
+        client.close()
+
+
+def get_author_by_id(
+    cfg: OpenAlexClientConfig,
+    author_id: str,
+) -> AuthorRecord:
+    """Fetch a single author by OpenAlex author ID."""
+    author_id = (author_id or "").strip()
+    if not author_id:
+        raise ValueError("Empty author_id")
+    client = OpenAlexClient(cfg)
+    try:
+        data = client.get_author(author_id)
+        return _extract_author(data)
     finally:
         client.close()
 

@@ -97,6 +97,11 @@ def _work_to_minimal(work: dict[str, Any]) -> dict[str, Any]:
         "cited_by_count": work.get("cited_by_count"),
         "authorships": work.get("authorships") if isinstance(work.get("authorships"), list) else None,
         "topics": work.get("topics") if isinstance(work.get("topics"), list) else None,
+        "primary_topic": work.get("primary_topic") if isinstance(work.get("primary_topic"), dict) else None,
+        "keywords": work.get("keywords") if isinstance(work.get("keywords"), list) else None,
+        "type": work.get("type"),
+        "is_retracted": work.get("is_retracted"),
+        "counts_by_year": work.get("counts_by_year") if isinstance(work.get("counts_by_year"), list) else None,
         "referenced_works_count": len(work.get("referenced_works") or []) if isinstance(work.get("referenced_works"), list) else None,
     }
 
@@ -143,6 +148,25 @@ def resolve_srcbib_to_openalex(
             }
         )
     try:
+        # -- Batch DOI pre-resolution: fetch uncached DOIs in batches of 50 --
+        if opts.prefer_doi:
+            uncached_dois: list[str] = []
+            for _ck, _bp, _entry in entries:
+                d = _doi_from_entry(_entry)
+                if d and (opts.force or cache.load_json(cache.path_for_doi(d)) is None):
+                    uncached_dois.append(d)
+            if uncached_dois:
+                try:
+                    batch_results = client.get_works_by_dois(uncached_dois)
+                    for work_data in batch_results:
+                        w_doi = work_data.get("doi") or ""
+                        if isinstance(w_doi, str) and w_doi.strip():
+                            norm = normalize_doi(w_doi)
+                            if norm:
+                                cache.save_json(cache.path_for_doi(norm), work_data)
+                except Exception:
+                    pass  # Fall back to per-entry resolution
+
         for index, (citekey, bib_path, entry) in enumerate(entries, start=1):
             doi = _doi_from_entry(entry)
             title = _title_from_entry(entry)
@@ -165,6 +189,7 @@ def resolve_srcbib_to_openalex(
                     cache_path = cache.path_for_doi(doi)
                     cached = None if opts.force else cache.load_json(cache_path)
                     if cached is None:
+                        # Single-DOI fallback for entries missed by batch
                         cached = client.get_work_by_doi(doi)
                         cache.save_json(cache_path, cached)
                     work = cached

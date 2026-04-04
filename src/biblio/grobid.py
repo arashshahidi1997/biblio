@@ -45,6 +45,62 @@ def grobid_outputs_for_key(cfg: BiblioConfig, citekey: str) -> GrobidOutputs:
     )
 
 
+def resolve_grobid_outputs(
+    cfg: BiblioConfig, citekey: str, doi: str | None = None,
+) -> tuple[GrobidOutputs, str]:
+    """Resolve grobid outputs, checking pool first then local.
+
+    Returns ``(outputs, source)`` where source is "pool", "local", or "missing".
+    Uses DOI for matching when citekeys differ between project and pool.
+    """
+    key = citekey.lstrip("@")
+
+    # Check pool first (by citekey, then by DOI)
+    try:
+        from .pool import resolve_pool_derivative
+        pool_dir = resolve_pool_derivative(cfg, key, "grobid", doi=doi)
+        if pool_dir is not None:
+            # The pool citekey may differ — find files by extension
+            tei_files = list(pool_dir.glob("*.tei.xml"))
+            tei = tei_files[0] if tei_files else pool_dir / f"{key}.tei.xml"
+            if tei.exists():
+                return GrobidOutputs(
+                    outdir=pool_dir,
+                    tei_path=tei,
+                    header_path=pool_dir / "header.json",
+                    references_path=pool_dir / "references.json",
+                    meta_path=pool_dir / "_biblio.json",
+                ), "pool"
+    except Exception:
+        pass
+
+    # Fall back to local
+    local = grobid_outputs_for_key(cfg, key)
+    if local.tei_path.exists():
+        return local, "local"
+    return local, "missing"
+
+
+def find_pending_grobid(cfg: BiblioConfig) -> list[str]:
+    """Find citekeys that have PDFs but no GROBID output yet.
+
+    Papers with valid outputs in the shared pool are treated as already done.
+    """
+    from .citekeys import load_citekeys_md
+    from .docling import pdf_path_for_key
+
+    all_keys = load_citekeys_md(cfg.citekeys_path)
+    pending = []
+    for key in all_keys:
+        pdf = pdf_path_for_key(cfg, key)
+        if not pdf.exists():
+            continue
+        _, source = resolve_grobid_outputs(cfg, key)
+        if source == "missing":
+            pending.append(key)
+    return pending
+
+
 # ── server check ─────────────────────────────────────────────────────────────
 
 @dataclass

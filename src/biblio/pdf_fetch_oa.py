@@ -18,7 +18,7 @@ USER_AGENT = "biblio-tools (https://github.com/arashshahidi1997/biblio)"
 _CHUNK = 1024 * 256  # 256 KB
 _DEFAULT_TIMEOUT = 30
 
-ALL_STATUSES = ("openalex", "unpaywall", "ezproxy", "pool_linked", "skipped", "no_url", "error")
+ALL_STATUSES = ("openalex", "unpaywall", "ezproxy", "pool_linked", "html_fallback", "skipped", "no_url", "error")
 
 
 @dataclass
@@ -47,25 +47,102 @@ def _oa_pdf_url(record: dict[str, Any]) -> str | None:
     return None
 
 
+class _NotAPdfError(Exception):
+    """Raised when a downloaded file is not a valid PDF."""
+
+
+class FetchCancelledError(Exception):
+    """Raised when a fetch operation is cancelled by the caller."""
+
+
 def _download(url: str, dest: Path, timeout: int = _DEFAULT_TIMEOUT) -> None:
-    """Download url to dest atomically."""
+    """Download url to dest atomically. Validates the result is a real PDF.
+
+    Raises _NotAPdfError if the response is HTML or doesn't start with %PDF-.
+    """
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     dest.parent.mkdir(parents=True, exist_ok=True)
     tmp_fd, tmp_path = tempfile.mkstemp(dir=dest.parent, suffix=".tmp")
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp, open(tmp_fd, "wb") as f:
-            while True:
-                chunk = resp.read(_CHUNK)
-                if not chunk:
-                    break
-                f.write(chunk)
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            # Reject HTML responses (paywall pages, login redirects)
+            content_type = resp.headers.get("Content-Type", "")
+            if "text/html" in content_type:
+                Path(tmp_path).unlink(missing_ok=True)
+                raise _NotAPdfError(f"Response is HTML, not PDF (Content-Type: {content_type})")
+            with open(tmp_fd, "wb") as f:
+                while True:
+                    chunk = resp.read(_CHUNK)
+                    if not chunk:
+                        break
+                    f.write(chunk)
+        # Validate PDF magic bytes
+        with open(tmp_path, "rb") as f:
+            header = f.read(5)
+        if header != b"%PDF-":
+            Path(tmp_path).unlink(missing_ok=True)
+            raise _NotAPdfError(f"Downloaded file is not a PDF (header: {header!r})")
         Path(tmp_path).replace(dest)
+    except _NotAPdfError:
+        raise
     except Exception:
         try:
             Path(tmp_path).unlink(missing_ok=True)
         except Exception:
             pass
         raise
+
+
+def _download_html(url: str, dest: Path, timeout: int = _DEFAULT_TIMEOUT) -> bool:
+    """Download a URL and save as HTML if the response is text/html.
+
+    Returns True if HTML was saved, False otherwise.
+    """
+    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    tmp_fd, tmp_path = tempfile.mkstemp(dir=dest.parent, suffix=".tmp")
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            content_type = resp.headers.get("Content-Type", "")
+            if "text/html" not in content_type:
+                Path(tmp_path).unlink(missing_ok=True)
+                return False
+            with open(tmp_fd, "wb") as f:
+                while True:
+                    chunk = resp.read(_CHUNK)
+                    if not chunk:
+                        break
+                    f.write(chunk)
+        # Basic sanity: file should have some content
+        if Path(tmp_path).stat().st_size < 100:
+            Path(tmp_path).unlink(missing_ok=True)
+            return False
+        Path(tmp_path).replace(dest)
+        return True
+    except Exception:
+        try:
+            Path(tmp_path).unlink(missing_ok=True)
+        except Exception:
+            pass
+        return False
+
+
+def _try_html_fallback(citekey: str, doi: str, cfg: BiblioConfig) -> Path | None:
+    """Try to save the publisher landing page as HTML fallback.
+
+    Saved to ``bib/derivatives/html/{citekey}/{citekey}.html`` for later
+    docling extraction. Returns the path if saved, None otherwise.
+    """
+    if not doi:
+        return None
+    html_dir = cfg.repo_root / "bib" / "derivatives" / "html" / citekey
+    html_path = html_dir / f"{citekey}.html"
+    if html_path.exists():
+        return html_path
+    doi_url = f"https://doi.org/{doi}"
+    if _download_html(doi_url, html_path):
+        return html_path
+    return None
 
 
 def _try_unpaywall(doi: str, cfg: BiblioConfig, dest: Path) -> str | None:
@@ -162,7 +239,10 @@ def fetch_pdfs_oa(
             continue
 
         if progress_cb:
-            progress_cb({"completed": idx - 1, "total": total, "citekey": citekey})
+            try:
+                progress_cb({"completed": idx - 1, "total": total, "citekey": citekey})
+            except FetchCancelledError:
+                break
 
         dest = (cfg.pdf_root / cfg.pdf_pattern.format(citekey=citekey)).resolve()
         doi = str(record.get("doi") or "").strip() or None
@@ -220,10 +300,19 @@ def fetch_pdfs_oa(
                     break
 
         if not fetched:
-            if queue:
-                paper_url = str((record.get("primary_location") or {}).get("landing_page_url") or "").strip() or None
-                add_to_queue(cfg, citekey, doi=doi, url=paper_url, oa_status="no_url")
-            results.append(OaFetchResult(citekey=citekey, status="no_url", url=None, dest=None, error=None))
+            # HTML fallback: save the publisher landing page for docling extraction
+            html_path = _try_html_fallback(citekey, doi, cfg)
+            if html_path is not None:
+                results.append(OaFetchResult(
+                    citekey=citekey, status="html_fallback",
+                    url=f"https://doi.org/{doi}" if doi else None,
+                    dest=str(html_path), error=None,
+                ))
+            else:
+                if queue:
+                    paper_url = str((record.get("primary_location") or {}).get("landing_page_url") or "").strip() or None
+                    add_to_queue(cfg, citekey, doi=doi, url=paper_url, oa_status="no_url")
+                results.append(OaFetchResult(citekey=citekey, status="no_url", url=None, dest=None, error=None))
 
     if progress_cb:
         progress_cb({"completed": total, "total": total, "citekey": None})
