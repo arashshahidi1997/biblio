@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import tempfile
 import time
@@ -32,19 +33,48 @@ class OaFetchResult:
 
 def _oa_pdf_url(record: dict[str, Any]) -> str | None:
     """Return the best available OA PDF URL from an OpenAlex record."""
+    candidates = _oa_pdf_url_candidates(record)
+    return candidates[0] if candidates else None
+
+
+def _oa_pdf_url_candidates(record: dict[str, Any]) -> list[str]:
+    """Return all candidate PDF URLs from an OpenAlex record, best first.
+
+    Iterates best_oa_location, open_access.oa_url, primary_location, then all
+    oa_locations[].  Deduplicates while preserving priority order.
+    """
+    urls: list[str] = []
+
+    # Best OA location
     boa = record.get("best_oa_location") or {}
-    url = boa.get("pdf_url") or boa.get("url_for_pdf")
-    if url:
-        return str(url)
-    oa = record.get("open_access") or {}
-    url = oa.get("oa_url")
-    if url:
-        return str(url)
-    pl = record.get("primary_location") or {}
-    url = pl.get("pdf_url")
-    if url:
-        return str(url)
-    return None
+    for key in ("pdf_url", "url_for_pdf"):
+        if url := boa.get(key):
+            urls.append(str(url))
+
+    # open_access.oa_url
+    if url := (record.get("open_access") or {}).get("oa_url"):
+        urls.append(str(url))
+
+    # primary_location
+    if url := (record.get("primary_location") or {}).get("pdf_url"):
+        urls.append(str(url))
+
+    # All other oa_locations
+    for loc in record.get("oa_locations") or []:
+        if not isinstance(loc, dict):
+            continue
+        for key in ("pdf_url", "url_for_pdf"):
+            if url := loc.get(key):
+                urls.append(str(url))
+
+    # Deduplicate preserving order
+    seen: set[str] = set()
+    result: list[str] = []
+    for u in urls:
+        if u not in seen:
+            seen.add(u)
+            result.append(u)
+    return result
 
 
 class _NotAPdfError(Exception):
@@ -76,12 +106,24 @@ def _download(url: str, dest: Path, timeout: int = _DEFAULT_TIMEOUT) -> None:
                     if not chunk:
                         break
                     f.write(chunk)
+        # Validate: minimum file size (error pages / stubs are tiny)
+        file_size = Path(tmp_path).stat().st_size
+        if file_size < 1024:
+            Path(tmp_path).unlink(missing_ok=True)
+            raise _NotAPdfError(f"Downloaded file too small to be a real PDF ({file_size} bytes)")
+
         # Validate PDF magic bytes
         with open(tmp_path, "rb") as f:
-            header = f.read(5)
-        if header != b"%PDF-":
+            header = f.read(4096)
+        if not header[:5] == b"%PDF-":
             Path(tmp_path).unlink(missing_ok=True)
-            raise _NotAPdfError(f"Downloaded file is not a PDF (header: {header!r})")
+            raise _NotAPdfError(f"Downloaded file is not a PDF (header: {header[:5]!r})")
+
+        # Detect encrypted PDFs that can't be processed
+        if re.search(rb"/Encrypt\s+\d+\s+\d+\s+[A-Za-z]", header):
+            Path(tmp_path).unlink(missing_ok=True)
+            raise _NotAPdfError("Downloaded PDF is encrypted")
+
         Path(tmp_path).replace(dest)
     except _NotAPdfError:
         raise
@@ -271,8 +313,7 @@ def fetch_pdfs_oa(
                     break
 
             elif source == "openalex":
-                url = _oa_pdf_url(record)
-                if url:
+                for url in _oa_pdf_url_candidates(record):
                     try:
                         _download(url, dest)
                         results.append(OaFetchResult(citekey=citekey, status="openalex", url=url, dest=str(dest), error=None))
@@ -281,7 +322,9 @@ def fetch_pdfs_oa(
                             time.sleep(delay)
                         break
                     except Exception:
-                        pass  # fall through to next source
+                        continue  # try next candidate URL
+                if fetched:
+                    break
 
             elif source == "unpaywall":
                 url = _try_unpaywall(doi, cfg, dest)

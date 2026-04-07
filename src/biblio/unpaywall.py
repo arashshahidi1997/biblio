@@ -75,10 +75,10 @@ def query_unpaywall(
 def best_pdf_url(response: dict[str, Any] | None) -> str | None:
     """Extract the best PDF URL from an Unpaywall response.
 
-    Priority order:
+    Priority order (prefer direct PDF links over landing pages):
     1. best_oa_location.url_for_pdf
-    2. best_oa_location.url
-    3. first oa_locations[].url_for_pdf that is non-null
+    2. All oa_locations[].url_for_pdf
+    3. best_oa_location.url (landing page fallback)
     """
     if not response or not isinstance(response, dict):
         return None
@@ -88,10 +88,8 @@ def best_pdf_url(response: dict[str, Any] | None) -> str | None:
         url = boa.get("url_for_pdf")
         if url:
             return str(url)
-        url = boa.get("url")
-        if url:
-            return str(url)
 
+    # Try all locations' direct PDF URLs before falling back to landing pages
     locations = response.get("oa_locations") or []
     if isinstance(locations, list):
         for loc in locations:
@@ -99,6 +97,12 @@ def best_pdf_url(response: dict[str, Any] | None) -> str | None:
                 url = loc.get("url_for_pdf")
                 if url:
                     return str(url)
+
+    # Landing page fallback (less likely to be a direct PDF)
+    if isinstance(boa, dict):
+        url = boa.get("url")
+        if url:
+            return str(url)
 
     return None
 
