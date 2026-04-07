@@ -209,7 +209,7 @@ def fetch_pdfs(cfg: PdfFetchConfig, *, dry_run: bool = False, force: bool = Fals
             _append_lines(cfg.missing_log, missing_lines)
 
     append_jsonl(
-        cfg.repo_root / "bib" / "logs" / "runs" / "bibtex_fetch.jsonl",
+        cfg.repo_root / ".projio" / "biblio" / "logs" / "runs" / "bibtex_fetch.jsonl",
         {
             "run_id": run_id,
             "timestamp": utc_now_iso(),

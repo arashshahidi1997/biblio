@@ -229,7 +229,7 @@ def build_setup_report(cfg: BiblioConfig) -> dict[str, Any]:
                 for item in rag_sources
                 if isinstance(item, dict) and isinstance(item.get("id"), str)
             ],
-            "follow_up_build_cmd": "rag build --config bib/config/rag.yaml --sources biblio_docling",
+            "follow_up_build_cmd": "rag build --config .projio/biblio/rag.yaml --sources biblio_docling",
             "backend": "indexio" if _indexio_mod is not None else "vector_store",
         },
         "paths": {

@@ -383,7 +383,7 @@ def ingest_inbox(
     counts = {s: sum(1 for r in results if r.status == s)
               for s in ("ingested", "duplicate", "error", "dry_run")}
     append_jsonl(
-        pool_cfg.repo_root / "bib" / "logs" / "runs" / "pool_ingest.jsonl",
+        pool_cfg.repo_root / ".projio" / "biblio" / "logs" / "runs" / "pool_ingest.jsonl",
         {
             "run_id": run_id,
             "timestamp": utc_now_iso(),

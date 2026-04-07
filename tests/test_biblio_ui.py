@@ -57,7 +57,7 @@ def test_ui_api_exposes_model_and_index(tmp_path: Path) -> None:
     setup_data = setup.json()
     assert "docling" in setup_data
     assert "rag" in setup_data
-    assert setup_data["rag"]["config_path"].endswith("bib/config/rag.yaml")
+    assert setup_data["rag"]["config_path"].endswith(".projio/biblio/rag.yaml")
 
 
 def test_ui_can_serve_pdf_for_paper(tmp_path: Path) -> None:

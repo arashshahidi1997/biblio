@@ -46,17 +46,26 @@ def test_citekeys_add_remove_roundtrip(tmp_path: Path) -> None:
 
 def test_init_bib_scaffold(tmp_path: Path) -> None:
     res = init_bib_scaffold(tmp_path, force=False)
-    assert (tmp_path / "bib" / "Makefile").exists()
-    assert (tmp_path / "bib" / "config" / "biblio.yml").exists()
-    assert (tmp_path / "bib" / "config" / "citekeys.md").exists()
-    assert (tmp_path / "bib" / "config" / "rag.yaml").exists()
+    assert (tmp_path / ".projio" / "biblio" / "biblio.yml").exists()
+    assert (tmp_path / ".projio" / "biblio" / "citekeys.md").exists()
+    assert (tmp_path / "bib" / "README.md").exists()
+    assert (tmp_path / "bib" / "srcbib").is_dir()
+    assert (tmp_path / "bib" / "articles").is_dir()
+    # .gitignore only created when bib/ is its own git repo (subdataset)
+    assert not (tmp_path / "bib" / ".gitignore").exists()
+    assert res.root == tmp_path.resolve()
+
+
+def test_init_bib_scaffold_subdataset_gitignore(tmp_path: Path) -> None:
+    (tmp_path / "bib" / ".git").mkdir(parents=True)
+    res = init_bib_scaffold(tmp_path, force=False)
     assert (tmp_path / "bib" / ".gitignore").exists()
     assert res.root == tmp_path.resolve()
 
 def test_find_repo_root_prefers_biblio_config(tmp_path: Path) -> None:
     (tmp_path / "pyproject.toml").write_text("[project]\nname='x'\n", encoding="utf-8")
-    (tmp_path / "bib" / "config").mkdir(parents=True)
-    (tmp_path / "bib" / "config" / "biblio.yml").write_text("{}", encoding="utf-8")
+    (tmp_path / ".projio" / "biblio").mkdir(parents=True)
+    (tmp_path / ".projio" / "biblio" / "biblio.yml").write_text("{}", encoding="utf-8")
 
     deep = tmp_path / "docs" / "tutorials" / "deeplabcut"
     deep.mkdir(parents=True)
@@ -73,7 +82,7 @@ def test_citekeys_status_lists_candidates_and_configured(tmp_path: Path, capsys)
         ),
         encoding="utf-8",
     )
-    add_citekeys_md(tmp_path / "bib" / "config" / "citekeys.md", ["configured2024"])
+    add_citekeys_md(tmp_path / ".projio" / "biblio" / "citekeys.md", ["configured2024"])
 
     from biblio.cli import main as biblio_main
 
@@ -115,7 +124,7 @@ def test_bibtex_merge_drops_file_field(tmp_path: Path) -> None:
     assert set(db.entries.keys()) == {"a2020", "b2021"}
     assert "file" not in db.entries["a2020"].fields
     assert "file" not in db.entries["b2021"].fields
-    runs = (tmp_path / "bib" / "logs" / "runs" / "bibtex_merge.jsonl").read_text(encoding="utf-8")
+    runs = (tmp_path / ".projio" / "biblio" / "logs" / "runs" / "bibtex_merge.jsonl").read_text(encoding="utf-8")
     assert "bibtex_merge" in runs
     assert "source_bib" in runs
 
@@ -182,7 +191,7 @@ def test_fetch_pdfs_from_file_field(tmp_path: Path) -> None:
     assert counts["linked"] == 1
     dest = tmp_path / "bib" / "articles" / "k2020" / "k2020.pdf"
     assert dest.exists()
-    runs = (tmp_path / "bib" / "logs" / "runs" / "bibtex_fetch.jsonl").read_text(encoding="utf-8")
+    runs = (tmp_path / ".projio" / "biblio" / "logs" / "runs" / "bibtex_fetch.jsonl").read_text(encoding="utf-8")
     assert "k2020" in runs
     assert "zotero.bib" in runs
     assert "source_bib" in runs
@@ -270,7 +279,7 @@ def test_fetch_pdfs_tolerates_duplicate_citekeys(tmp_path: Path) -> None:
 
 def test_docling_outputs_have_provenance_sidecar(tmp_path: Path) -> None:
     init_bib_scaffold(tmp_path, force=False)
-    cfg = load_biblio_config(tmp_path / "bib" / "config" / "biblio.yml", root=tmp_path)
+    cfg = load_biblio_config(tmp_path / ".projio" / "biblio" / "biblio.yml", root=tmp_path)
     out = outputs_for_key(cfg, "smith2020")
     out.outdir.mkdir(parents=True)
     out.md_path.write_text("# x\n", encoding="utf-8")
@@ -289,13 +298,13 @@ def test_docling_outputs_have_provenance_sidecar(tmp_path: Path) -> None:
     assert "pdf_sha256" in meta
     assert "source_pdf" in meta
     assert "smith2020.pdf" in meta
-    runs = (tmp_path / "bib" / "logs" / "runs" / "docling.jsonl").read_text(encoding="utf-8")
+    runs = (tmp_path / ".projio" / "biblio" / "logs" / "runs" / "docling.jsonl").read_text(encoding="utf-8")
     assert "reused" in runs
 
 
 def test_openalex_config_defaults(tmp_path: Path) -> None:
     init_bib_scaffold(tmp_path, force=False)
-    cfg = load_biblio_config(tmp_path / "bib" / "config" / "biblio.yml", root=tmp_path)
+    cfg = load_biblio_config(tmp_path / ".projio" / "biblio" / "biblio.yml", root=tmp_path)
     assert cfg.openalex.cache_root == (tmp_path / "bib" / "derivatives" / "openalex" / "cache").resolve()
     assert cfg.openalex.out_jsonl == (tmp_path / "bib" / "derivatives" / "openalex" / "resolved.jsonl").resolve()
     assert cfg.openalex.out_csv == (tmp_path / "bib" / "derivatives" / "openalex" / "resolved.csv").resolve()
@@ -337,7 +346,7 @@ def test_openalex_resolve_doi_and_title_fallback(tmp_path: Path) -> None:
     assert rows[2]["resolution_method"] == "title"
     assert "source_bib" in rows[2]
     assert cfg.openalex.out_csv is not None and cfg.openalex.out_csv.exists()
-    run_log = (tmp_path / "bib" / "logs" / "runs" / "openalex_resolve.jsonl").read_text(encoding="utf-8")
+    run_log = (tmp_path / ".projio" / "biblio" / "logs" / "runs" / "openalex_resolve.jsonl").read_text(encoding="utf-8")
     assert "resolved" in run_log
 
 

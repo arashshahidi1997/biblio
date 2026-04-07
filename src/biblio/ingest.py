@@ -60,7 +60,7 @@ def default_import_bib_path(repo_root: str | Path) -> Path:
 
 
 def default_import_log_path(repo_root: str | Path) -> Path:
-    return Path(repo_root).expanduser().resolve() / "bib" / "logs" / "imports.jsonl"
+    return Path(repo_root).expanduser().resolve() / ".projio" / "biblio" / "logs" / "imports.jsonl"
 
 
 def find_existing_dois(repo_root: str | Path) -> dict[str, str]:

@@ -248,7 +248,7 @@ def resolve_openalex(
         "out_csv": str(cfg.out_csv) if cfg.out_csv is not None else None,
         "cache_root": str(cfg.cache_root),
     }
-    append_jsonl(cfg.repo_root / "bib" / "logs" / "runs" / "openalex_resolve.jsonl", summary)
+    append_jsonl(cfg.repo_root / ".projio" / "biblio" / "logs" / "runs" / "openalex_resolve.jsonl", summary)
 
     return {
         "sources": len(bib_files),

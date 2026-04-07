@@ -13,7 +13,8 @@ except Exception:  # pragma: no cover
 
 
 TEMPLATE_PACKAGE = "biblio"
-TEMPLATE_ROOT = Path("templates/bib")
+TEMPLATE_ROOT_BIB = Path("templates/bib")
+TEMPLATE_ROOT_PROJIO = Path("templates/projio_biblio")
 
 
 @dataclass(frozen=True)
@@ -22,8 +23,9 @@ class ScaffoldResult:
     files_written: tuple[Path, ...]
 
 
-def _template_dir() -> Traversable:
-    return resources.files(TEMPLATE_PACKAGE).joinpath(str(TEMPLATE_ROOT))
+def _template_dir(name: str = "bib") -> Traversable:
+    root = TEMPLATE_ROOT_BIB if name == "bib" else TEMPLATE_ROOT_PROJIO
+    return resources.files(TEMPLATE_PACKAGE).joinpath(str(root))
 
 
 def _iter_template_files(root: Traversable) -> Iterator[Tuple[Path, Traversable]]:
@@ -40,22 +42,42 @@ def _iter_template_files(root: Traversable) -> Iterator[Tuple[Path, Traversable]
 
 def init_bib_scaffold(repo_root: str | Path, *, force: bool = False) -> ScaffoldResult:
     repo_root = Path(repo_root).expanduser().resolve()
-    tpl_root = _template_dir()
-    if not tpl_root.is_dir():
-        raise FileNotFoundError(f"Missing template dir in package: {TEMPLATE_PACKAGE}/{TEMPLATE_ROOT}")
 
     files_written: list[Path] = []
-    for rel, entry in _iter_template_files(tpl_root):
-        if rel.name.endswith(".tmpl"):
-            rel = rel.with_suffix("")
-        dest = repo_root / "bib" / rel
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        if dest.exists() and not force:
-            continue
-        data = entry.read_bytes()
-        dest.write_bytes(data)
-        files_written.append(dest)
 
-    # Ensure bib/ exists even if everything already present.
+    # 1. bib/ templates — README and source data directories
+    #    .gitignore is only written if bib/ is its own git repo (e.g. datalad subdataset).
+    bib_is_git_repo = (repo_root / "bib" / ".git").exists()
+    tpl_bib = _template_dir("bib")
+    if tpl_bib.is_dir():
+        for rel, entry in _iter_template_files(tpl_bib):
+            if rel.name.endswith(".tmpl"):
+                rel = rel.with_suffix("")
+            if rel.name == ".gitignore" and not bib_is_git_repo:
+                continue
+            dest = repo_root / "bib" / rel
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            if dest.exists() and not force:
+                continue
+            dest.write_bytes(entry.read_bytes())
+            files_written.append(dest)
+
+    # 2. .projio/biblio/ templates — config files (biblio.yml, citekeys, tag_vocab)
+    tpl_projio = _template_dir("projio_biblio")
+    if tpl_projio.is_dir():
+        for rel, entry in _iter_template_files(tpl_projio):
+            if rel.name.endswith(".tmpl"):
+                rel = rel.with_suffix("")
+            dest = repo_root / ".projio" / "biblio" / rel
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            if dest.exists() and not force:
+                continue
+            dest.write_bytes(entry.read_bytes())
+            files_written.append(dest)
+
+    # Ensure directories exist even if everything already present.
     (repo_root / "bib").mkdir(exist_ok=True)
+    (repo_root / "bib" / "srcbib").mkdir(exist_ok=True)
+    (repo_root / "bib" / "articles").mkdir(exist_ok=True)
+    (repo_root / ".projio" / "biblio").mkdir(parents=True, exist_ok=True)
     return ScaffoldResult(root=repo_root, files_written=tuple(files_written))

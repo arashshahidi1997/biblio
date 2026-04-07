@@ -177,11 +177,11 @@ class TestPdfFetchCascadeConfig:
     def test_default_config(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         # Isolate from real ~/.config/biblio/config.yml
         monkeypatch.setenv("BIBLIO_USER_CONFIG", str(tmp_path / "empty_user.yml"))
-        (tmp_path / "bib" / "config").mkdir(parents=True)
-        (tmp_path / "bib" / "config" / "biblio.yml").write_text("{}", encoding="utf-8")
-        (tmp_path / "bib" / "config" / "citekeys.md").write_text("", encoding="utf-8")
+        (tmp_path / ".projio" / "biblio").mkdir(parents=True)
+        (tmp_path / ".projio" / "biblio" / "biblio.yml").write_text("{}", encoding="utf-8")
+        (tmp_path / ".projio" / "biblio" / "citekeys.md").write_text("", encoding="utf-8")
 
-        cfg = load_biblio_config("bib/config/biblio.yml", root=tmp_path)
+        cfg = load_biblio_config(".projio/biblio/biblio.yml", root=tmp_path)
         assert cfg.pdf_fetch_cascade.unpaywall_email is None
         assert cfg.pdf_fetch_cascade.ezproxy_base is None
         assert cfg.pdf_fetch_cascade.ezproxy_mode == "prefix"
@@ -192,8 +192,8 @@ class TestPdfFetchCascadeConfig:
     def test_custom_config(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         # Isolate from real ~/.config/biblio/config.yml
         monkeypatch.setenv("BIBLIO_USER_CONFIG", str(tmp_path / "empty_user.yml"))
-        (tmp_path / "bib" / "config").mkdir(parents=True)
-        (tmp_path / "bib" / "config" / "citekeys.md").write_text("", encoding="utf-8")
+        (tmp_path / ".projio" / "biblio").mkdir(parents=True)
+        (tmp_path / ".projio" / "biblio" / "citekeys.md").write_text("", encoding="utf-8")
         config = {
             "pdf_fetch": {
                 "unpaywall_email": "user@uni.de",
@@ -205,9 +205,9 @@ class TestPdfFetchCascadeConfig:
             }
         }
         import yaml
-        (tmp_path / "bib" / "config" / "biblio.yml").write_text(yaml.safe_dump(config), encoding="utf-8")
+        (tmp_path / ".projio" / "biblio" / "biblio.yml").write_text(yaml.safe_dump(config), encoding="utf-8")
 
-        cfg = load_biblio_config("bib/config/biblio.yml", root=tmp_path)
+        cfg = load_biblio_config(".projio/biblio/biblio.yml", root=tmp_path)
         assert cfg.pdf_fetch_cascade.unpaywall_email == "user@uni.de"
         assert cfg.pdf_fetch_cascade.ezproxy_base == "https://proxy.uni.de"
         assert cfg.pdf_fetch_cascade.ezproxy_mode == "suffix"
@@ -235,8 +235,8 @@ class TestFetchCascade:
             pf["unpaywall_email"] = email
         if pf:
             config["pdf_fetch"] = pf
-        (tmp_path / "bib" / "config" / "biblio.yml").write_text(yaml.safe_dump(config), encoding="utf-8")
-        return load_biblio_config("bib/config/biblio.yml", root=tmp_path)
+        (tmp_path / ".projio" / "biblio" / "biblio.yml").write_text(yaml.safe_dump(config), encoding="utf-8")
+        return load_biblio_config(".projio/biblio/biblio.yml", root=tmp_path)
 
     def _write_openalex_jsonl(self, cfg: Any, records: list[dict[str, Any]]) -> None:
         cfg.openalex.out_jsonl.parent.mkdir(parents=True, exist_ok=True)

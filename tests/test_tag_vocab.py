@@ -252,7 +252,7 @@ def test_cli_library_lint(tmp_path: Path):
 
     init_bib_scaffold(tmp_path, force=True)
     # Write a library.yml with one valid and one non-vocab tag
-    lib_path = tmp_path / "bib" / "config" / "library.yml"
+    lib_path = tmp_path / ".projio" / "biblio" / "library.yml"
     lib_path.write_text(
         yaml.safe_dump(
             {"papers": {"paper1": {"status": "unread", "tags": ["domain:nlp", "domain:unknown"]}}}
@@ -270,7 +270,7 @@ def test_cli_library_lint_json(tmp_path: Path, capsys):
     from biblio.cli import main as biblio_main
 
     init_bib_scaffold(tmp_path, force=True)
-    lib_path = tmp_path / "bib" / "config" / "library.yml"
+    lib_path = tmp_path / ".projio" / "biblio" / "library.yml"
     lib_path.write_text(
         yaml.safe_dump(
             {"papers": {"paper1": {"status": "unread", "tags": ["domain:nlp"]}}}
@@ -294,7 +294,7 @@ def test_cli_library_lint_json(tmp_path: Path, capsys):
 
 def test_scaffold_creates_tag_vocab(tmp_path: Path):
     init_bib_scaffold(tmp_path, force=True)
-    vocab_path = tmp_path / "bib" / "config" / "tag_vocab.yml"
+    vocab_path = tmp_path / ".projio" / "biblio" / "tag_vocab.yml"
     assert vocab_path.exists()
     vocab = yaml.safe_load(vocab_path.read_text(encoding="utf-8"))
     assert "namespaces" in vocab

@@ -251,7 +251,7 @@ def _build_parser() -> argparse.ArgumentParser:
     rag_sync.add_argument(
         "--config",
         type=Path,
-        help="Path to the bibliography-owned RAG config (default: bib/config/rag.yaml).",
+        help="Path to the bibliography-owned RAG config (default: .projio/biblio/rag.yaml).",
     )
     rag_sync.add_argument(
         "--force-init",

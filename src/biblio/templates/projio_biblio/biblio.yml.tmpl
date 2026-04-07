@@ -6,7 +6,7 @@
 #   bib/articles/<citekey>/<citekey>.pdf
 #   bib/derivatives/docling/<citekey>/<citekey>.md|.json
 
-citekeys: "bib/config/citekeys.md"
+citekeys: ".projio/biblio/citekeys.md"
 
 pdf_root: "bib/articles"
 pdf_pattern: "{citekey}/{citekey}.pdf"
@@ -42,8 +42,8 @@ bibtex:
     src_glob: "*.bib"
     mode: "copy"     # copy | symlink
     hash: "md5"      # md5 | none
-    manifest: "bib/logs/pdf_manifest.json"
-    missing_log: "bib/logs/missing_pdfs.txt"
+    manifest: ".projio/biblio/logs/pdf_manifest.json"
+    missing_log: ".projio/biblio/logs/missing_pdfs.txt"
     # Optional destination overrides; defaults to pdf_root/pdf_pattern above:
     # dest_root: "bib/articles"
     # dest_pattern: "{citekey}/{citekey}.pdf"
@@ -54,7 +54,7 @@ bibtex:
     src_glob: "*.bib"
 
     # Output bib file (used for citations elsewhere; Docling does not require this)
-    out_bib: "bib/main.bib"
+    out_bib: ".projio/biblio/merged.bib"
 
     # What to do with BibTeX `file = {...}` fields:
     # - keep: keep as-is (often contains machine-specific absolute paths)
@@ -64,7 +64,7 @@ bibtex:
     file_field_template: "bib/articles/{citekey}/{citekey}.pdf"
 
     # Written when duplicate citekeys are found (last-wins)
-    duplicates_log: "bib/logs/duplicate_bib_ids.txt"
+    duplicates_log: ".projio/biblio/logs/duplicate_bib_ids.txt"
 
 openalex:
   src_dir: "bib/srcbib"
