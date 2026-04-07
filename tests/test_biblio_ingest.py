@@ -35,7 +35,7 @@ def test_ingest_csljson_writes_imported_bib_and_log(tmp_path: Path) -> None:
     text = out_bib.read_text(encoding="utf-8")
     assert "@article{doe_2024_PaperOne" in text
     assert "journal = {Journal of Tests}" in text
-    log_text = (tmp_path / "bib" / "logs" / "imports.jsonl").read_text(encoding="utf-8")
+    log_text = (tmp_path / ".projio" / "biblio" / "logs" / "imports.jsonl").read_text(encoding="utf-8")
     assert '"source_type": "csljson"' in log_text
 
 
@@ -389,7 +389,7 @@ def test_import_bibtex_entries_writes_to_srcbib(tmp_path: Path) -> None:
     assert "doe_2024_Alpha" in ck_text
     assert "roe_2025_Beta" in ck_text
     # Check import log
-    log = (tmp_path / "bib" / "logs" / "imports.jsonl").read_text(encoding="utf-8")
+    log = (tmp_path / ".projio" / "biblio" / "logs" / "imports.jsonl").read_text(encoding="utf-8")
     assert '"source_type": "bibtex_import"' in log
 
 

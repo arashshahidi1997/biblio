@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
-from .citekeys import add_citekeys_md, load_citekeys_md
+from .citekeys import add_citekeys_md, load_active_citekeys
 from .ingest import IngestRecord, assign_citekeys, default_import_bib_path, render_bibtex, write_import_bib
 from .openalex.openalex_cache import OpenAlexCache
 from .openalex.openalex_client import OpenAlexClient, OpenAlexClientConfig
@@ -97,9 +97,13 @@ def _work_to_candidate(*, seed_id: str, work: dict[str, Any], direction: str) ->
 
 def _collect_existing_citekeys(repo_root: Path) -> set[str]:
     keys: set[str] = set()
-    citekeys_path = repo_root / "bib" / "config" / "citekeys.md"
-    if citekeys_path.exists():
-        keys.update(load_citekeys_md(citekeys_path))
+    # Load active citekeys from merged bib (or srcbib fallback)
+    from .config import load_biblio_config
+    try:
+        _cfg = load_biblio_config(".projio/biblio/biblio.yml", root=repo_root)
+        keys.update(load_active_citekeys(_cfg))
+    except Exception:
+        pass  # config missing — srcbib scan below is sufficient
     src_dir = repo_root / "bib" / "srcbib"
     if src_dir.exists():
         for bib_path in sorted(src_dir.glob("*.bib")):

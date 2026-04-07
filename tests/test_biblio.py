@@ -47,7 +47,7 @@ def test_citekeys_add_remove_roundtrip(tmp_path: Path) -> None:
 def test_init_bib_scaffold(tmp_path: Path) -> None:
     res = init_bib_scaffold(tmp_path, force=False)
     assert (tmp_path / ".projio" / "biblio" / "biblio.yml").exists()
-    assert (tmp_path / ".projio" / "biblio" / "citekeys.md").exists()
+    assert (tmp_path / ".projio" / "biblio" / "tag_vocab.yml").exists()
     assert (tmp_path / "bib" / "README.md").exists()
     assert (tmp_path / "bib" / "srcbib").is_dir()
     assert (tmp_path / "bib" / "articles").is_dir()
@@ -72,24 +72,25 @@ def test_find_repo_root_prefers_biblio_config(tmp_path: Path) -> None:
     assert find_repo_root(deep) == tmp_path.resolve()
 
 
-def test_citekeys_status_lists_candidates_and_configured(tmp_path: Path, capsys) -> None:
+def test_citekeys_lists_from_merged_bib(tmp_path: Path, capsys) -> None:
     init_bib_scaffold(tmp_path, force=False)
     (tmp_path / "bib" / "srcbib").mkdir(parents=True, exist_ok=True)
     (tmp_path / "bib" / "srcbib" / "library.bib").write_text(
         (
-            "@article{configured2024, title={Configured Paper}, year={2024}}\n"
-            "@article{candidate2025, title={Candidate Paper}, year={2025}}\n"
+            "@article{alpha2024, title={Alpha Paper}, year={2024}}\n"
+            "@article{beta2025, title={Beta Paper}, year={2025}}\n"
         ),
         encoding="utf-8",
     )
-    add_citekeys_md(tmp_path / ".projio" / "biblio" / "citekeys.md", ["configured2024"])
+    # Run merge so merged.bib exists
+    from biblio.bibtex import merge_srcbib, default_bibtex_merge_config
+    merge_srcbib(default_bibtex_merge_config(tmp_path))
 
     from biblio.cli import main as biblio_main
-
-    biblio_main(["citekeys", "status", "--root", str(tmp_path)])
+    biblio_main(["citekeys", "--root", str(tmp_path)])
     out = capsys.readouterr().out
-    assert "configured2024\tconfigured" in out
-    assert "candidate2025\tcandidate" in out
+    assert "@alpha2024" in out
+    assert "@beta2025" in out
 
 
 def test_bibtex_merge_drops_file_field(tmp_path: Path) -> None:

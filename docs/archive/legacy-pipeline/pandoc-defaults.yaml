@@ -1,0 +1,17 @@
+# bib/pandoc-defaults.yaml
+from: markdown
+to: pdf
+citeproc: true
+
+bibliography: bib/pixecog.bib
+csl: bib/nature.csl
+
+resource-path:
+  - .
+  - docs
+  - docs/assets
+  - bib
+
+pdf-engine: xelatex
+metadata:
+  lang: en-US

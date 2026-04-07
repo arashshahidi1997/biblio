@@ -1,0 +1,7 @@
+# work_id:
+#   - type: force_link
+#     citation_marker: "[12]"
+#     target_text_snippet: "sentence fragment containing the citation"
+#     reason: "why this manual binding is needed"
+#   - type: ignore
+#     reason: "spurious citation"

@@ -1,0 +1,15 @@
+{
+  "record_type": "validation",
+  "timestamp": "2025-12-20T01:35:47.902764+00:00",
+  "stage": "validation",
+  "status": "failed",
+  "failures": [
+    "alignment_coverage_below_threshold"
+  ],
+  "metrics": {
+    "total_silver": 1,
+    "alignment_coverage": 0.0,
+    "unresolved_rate": 0.0,
+    "schema_errors": []
+  }
+}

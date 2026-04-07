@@ -1082,11 +1082,14 @@ def preview_bibtex(
                     existing_citekeys.update(existing_db.entries.keys())
                 except Exception:
                     continue
-    # Also check citekeys.md
-    ck_path = repo_root / "bib" / "citekeys.md"
-    if ck_path.exists():
-        from .citekeys import load_citekeys_md
-        existing_citekeys.update(load_citekeys_md(ck_path))
+    # Also check merged bib for active citekeys
+    from .config import load_biblio_config
+    try:
+        _cfg = load_biblio_config(".projio/biblio/biblio.yml", root=repo_root)
+        from .citekeys import load_active_citekeys
+        existing_citekeys.update(load_active_citekeys(_cfg))
+    except Exception:
+        pass  # config missing or unparseable — srcbib scan above is sufficient
 
     entries: list[BibPreviewEntry] = []
     for key, entry in db.entries.items():

@@ -1,0 +1,1180 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 https://raw.githubusercontent.com/kermitt2/grobid/master/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">Travelling waves observed in MEG data can be explained by two discrete sources</title>
+				<funder ref="#_bqASpXt">
+					<orgName type="full">Wellcome Trust</orgName>
+				</funder>
+				<funder ref="#_zNs7Gmr">
+					<orgName type="full">James S. McDonnell Foundation Understanding Human Cognition Collaborative Award</orgName>
+				</funder>
+				<funder ref="#_aeQHBSp">
+					<orgName type="full">University of Birmingham Dynamic Investment Fund</orgName>
+				</funder>
+			</titleStmt>
+			<publicationStmt>
+				<publisher>Cold Spring Harbor Laboratory</publisher>
+				<availability status="unknown"><p>Copyright Cold Spring Harbor Laboratory</p>
+				</availability>
+				<date type="published" when="2023-09-08">2023 September 08.</date>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct>
+					<analytic>
+						<author role="corresp">
+							<persName coords="1,90.00,181.49,91.90,9.25"><forename type="first">Alexander</forename><surname>Zhigalov</surname></persName>
+							<email>a.zhigalov@bham.ac.uk</email>
+							<idno type="ORCID">0000-0002-3359-5093</idno>
+							<affiliation key="aff0">
+								<orgName type="department">Centre for Systems Modelling and Quantitative Biomedicine</orgName>
+								<orgName type="institution">University of Birmingham</orgName>
+								<address>
+									<country key="GB">United Kingdom</country>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<persName coords="1,197.24,181.49,53.36,9.25"><forename type="first">Ole</forename><surname>Jensen</surname></persName>
+							<idno type="ORCID">0000-0001-8193-8348</idno>
+							<affiliation key="aff1">
+								<orgName type="laboratory">Centre for Human Brain Health</orgName>
+								<orgName type="institution">University of Birmingham</orgName>
+								<address>
+									<country key="GB">United Kingdom</country>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<affiliation key="aff2">
+								<orgName type="department">Centre for Systems Modelling and Quantitative Biomedicine Institute of Metabolism and Systems Research IBR Tower</orgName>
+								<address>
+									<settlement>Level</settlement>
+								</address>
+							</affiliation>
+						</author>
+						<author>
+							<affiliation key="aff3">
+								<orgName type="department">College of Medical and Dental Sciences Birmingham</orgName>
+								<address>
+									<postCode>B15 2TT</postCode>
+								</address>
+							</affiliation>
+						</author>
+						<title level="a" type="main">Travelling waves observed in MEG data can be explained by two discrete sources</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<publisher>Cold Spring Harbor Laboratory</publisher>
+							<date type="published" when="2023-09-08">2023 September 08.</date>
+						</imprint>
+					</monogr>
+					<idno type="MD5">2B34277D1E871A858B029CD0E7CC4B2C</idno>
+					<idno type="DOI">10.1101/2022.09.28.509870</idno>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.8.0" ident="GROBID" when="2025-12-20T01:13+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<abstract>
+<div xmlns="http://www.tei-c.org/ns/1.0"><p>Growing evidence suggests that travelling waves are functionally relevant for cognitive operations in the brain. Several electroencephalography (EEG) studies report on a perceptual alpha-echo, representing the brain response to a random visual flicker, propagating as a travelling wave across the cortical surface. In this study, we ask if the propagating activity of the alpha-echo is best explained by a set of discrete sources mixing at the sensor level rather than a cortical travelling wave. To this end, we presented participants with gratings modulated by random noise and simultaneously acquired the ongoing MEG. The perceptual alpha-echo was estimated using the temporal response function linking the visual input to the brain response. At the group level, we observed a spatial decay of the amplitude of the alpha-echo with respect to the sensor where the alpha-echo was the largest. Importantly, the propagation latencies consistently increased with the distance. Interestingly, the propagation of the alpha-echoes was predominantly centro-lateral, while EEG studies reported mainly posterior-frontal propagation. Moreover, the propagation speed of the alpha-echoes derived from the MEG data was around 10 m/s, which is higher compared to the 2 m/s reported in EEG studies. Using source modelling, we found an early component in the primary visual cortex and a phase-lagged late component in the parietal cortex, which may underlie the travelling alpha-echoes at the sensor level. We then simulated the alpha-echoes using realistic EEG and MEG forward models by placing two sources in the parietal and occipital cortices in accordance with our empirical findings. The two-source model could account for both the direction and speed of the observed alpha-echoes in the EEG and MEG data. Our results demonstrate that the propagation of the perceptual echoes observed in EEG and MEG data can be explained by two sources mixing at the scalp level equally well as by a cortical travelling wave. This conclusion however does not put into question continuous travelling waves reported in intracranial recordings.</p></div>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<facsimile>
+		<surface n="1" ulx="0.0" uly="0.0" lrx="612.0" lry="792.0"/>
+		<surface n="2" ulx="0.0" uly="0.0" lrx="612.0" lry="792.0"/>
+		<surface n="3" ulx="0.0" uly="0.0" lrx="612.0" lry="792.0"/>
+		<surface n="4" ulx="0.0" uly="0.0" lrx="612.0" lry="792.0"/>
+		<surface n="5" ulx="0.0" uly="0.0" lrx="612.0" lry="792.0"/>
+		<surface n="6" ulx="0.0" uly="0.0" lrx="612.0" lry="792.0"/>
+		<surface n="7" ulx="0.0" uly="0.0" lrx="612.0" lry="792.0"/>
+		<surface n="8" ulx="0.0" uly="0.0" lrx="612.0" lry="792.0"/>
+		<surface n="9" ulx="0.0" uly="0.0" lrx="612.0" lry="792.0"/>
+		<surface n="10" ulx="0.0" uly="0.0" lrx="612.0" lry="792.0"/>
+		<surface n="11" ulx="0.0" uly="0.0" lrx="612.0" lry="792.0"/>
+		<surface n="12" ulx="0.0" uly="0.0" lrx="612.0" lry="792.0"/>
+		<surface n="13" ulx="0.0" uly="0.0" lrx="612.0" lry="792.0"/>
+		<surface n="14" ulx="0.0" uly="0.0" lrx="612.0" lry="792.0"/>
+		<surface n="15" ulx="0.0" uly="0.0" lrx="612.0" lry="792.0"/>
+		<surface n="16" ulx="0.0" uly="0.0" lrx="612.0" lry="792.0"/>
+		<surface n="17" ulx="0.0" uly="0.0" lrx="612.0" lry="792.0"/>
+		<surface n="18" ulx="0.0" uly="0.0" lrx="612.0" lry="792.0"/>
+	</facsimile>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Introduction</head><p>Cortical travelling waves has been proposed as a potential mechanism supporting communication and computations in the brain <ref type="bibr" coords="1,336.10,658.22,68.60,9.00" target="#b6">(Das et al., 2022;</ref><ref type="bibr" coords="1,407.20,658.22,74.67,9.00" target="#b26">Visser et al., 2017;</ref><ref type="bibr" coords="1,484.37,658.22,25.55,9.00;2,150.00,63.57,45.97,9.00" target="#b28">Zhang et al., 2018)</ref>. Mathematical models further explain the functional advantages of the travelling waves in the brain <ref type="bibr" coords="2,225.09,77.57,127.21,9.00" target="#b9">(Ermentrout &amp; Kleinfeld, 2001;</ref><ref type="bibr" coords="2,354.80,77.57,75.68,9.00" target="#b14">Muller et al., 2018)</ref>, and importantly, the case has been made that neocortical neurons can generate travelling waves <ref type="bibr" coords="2,449.94,91.57,65.81,9.00;2,150.00,105.57,38.05,9.00" target="#b4">(Bhattacharya et al., 2022)</ref> that can be detected with EEG <ref type="bibr" coords="2,314.41,105.57,55.95,9.00" target="#b16">(Nunez, 1974)</ref>.</p><p>Travelling waves have been identified using both invasive and non-invasive EEG recordings. While invasive recordings provide a high signal-to-noise ratio, the intracortical electrodes cover a relatively small area of the brain. In contrast, non-invasive EEG provides wholehead coverage, but the signals are strongly affected by spatial mixing and noise. These discrepancies between the techniques introduce inconsistency across studies. First, the reported velocity of the travelling waves varies within a wide range, 0.1 -10 m/s <ref type="bibr" coords="2,475.69,199.57,43.05,9.00;2,150.00,213.57,68.75,9.00" target="#b1">(Alamia &amp; VanRullen, 2019)</ref>, suggesting different origins of the waves. Second, there is inconsistency in the direction of the travelling waves. While intracortical recordings demonstrate different directions of propagation within relatively small areas in the prefrontal and temporal cortices <ref type="bibr" coords="2,183.60,255.57,110.26,9.00" target="#b2">(Bahramisharif et al., 2013;</ref><ref type="bibr" coords="2,296.36,255.57,72.85,9.00" target="#b7">Davis et al., 2020;</ref><ref type="bibr" coords="2,371.71,255.57,78.35,9.00" target="#b8">Dickey et al., 2021;</ref><ref type="bibr" coords="2,452.56,255.57,56.65,9.00;2,150.00,269.57,21.53,9.00" target="#b11">Halgren et al., 2019)</ref>, non-invasive EEG studies report large-scale propagation predominantly in occipitalto-frontal direction <ref type="bibr" coords="2,228.32,283.57,115.55,9.00" target="#b1">(Alamia &amp; VanRullen, 2019;</ref><ref type="bibr" coords="2,346.37,283.57,156.41,9.00" target="#b13">Lozano-Soldevilla &amp; VanRullen, 2019;</ref><ref type="bibr" coords="2,150.00,297.57,68.32,9.00" target="#b19">Pang et al., 2020)</ref>. Third, EEG systems require a reference sensor, which might also impact the source modelling of the travelling waves. This problem can be partially alleviated by using MEG which provides whole-head coverage and does not require a reference sensor.</p><p>Many studies have reported travelling waves associated with endogenous brain rhythms that are not dependent on external stimulation <ref type="bibr" coords="2,318.16,363.57,85.82,9.00" target="#b3">(Benucci et al., 2007;</ref><ref type="bibr" coords="2,406.48,363.57,76.94,9.00" target="#b14">Muller et al., 2018;</ref><ref type="bibr" coords="2,485.92,363.57,17.78,9.00;2,150.00,377.57,45.97,9.00" target="#b21">Sato et al., 2012)</ref>. However, broad-band visual flicker may also be used to evoke responses, so-called perceptual echoes, that are organised as travelling waves <ref type="bibr" coords="2,416.67,391.57,90.27,9.00;2,150.00,405.57,22.78,9.00" target="#b1">(Alamia &amp; VanRullen, 2019;</ref><ref type="bibr" coords="2,175.28,405.57,155.16,9.00" target="#b13">Lozano-Soldevilla &amp; VanRullen, 2019)</ref>. The propagation of the perceptual echoes in the 8-13 Hz alpha band has so far been studied using only EEG, and thus, MEG may provide new insight into the origin of the travelling alpha echoes due to its superior spatial resolution. Importantly, previous EEG studies have highlighted the possibility that travelling waves at the scalp level may not only be explained by travelling cortical activity but could also be a result of a linear mixture of neuronal activity generated by two phase-lagged dipoles <ref type="bibr" coords="2,181.39,489.57,160.29,9.00" target="#b13">(Lozano-Soldevilla &amp; VanRullen, 2019)</ref> which can be tested using MEG.</p><p>In this study, we applied broadband visual stimulation to participants while we recorded the ongoing MEG. The perceptual echoes were estimated from the temporal response functions derived from the visual broadband input and the MEG sensors. We further applied source modelling as well as forward simulation to understand the neuronal sources explaining the propagation of the perceptual alpha-echoes.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Methods</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Participants</head><p>Twenty-four participants (mean age: 33; age range: 18-38; 14 females) with no history of neurological disorders partook in the study. Six participants were excluded from the analysis because the perceptual echo was at the noise level. The study was approved by the local ethics committee (University of Birmingham, UK) and written informed consent was acquired before enrolment in the study. All participants conformed to standard inclusion criteria for MEG experiments. Participants had normal or corrected-to-normal vision.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Experimental paradigm</head><p>Two grating stimuli, 5.8 degrees of visual angle, were presented bilaterally on a projector screen, placed at 1.4 meters from the participants' eyes (Fig. <ref type="figure" coords="3,393.96,135.57,9.03,9.00" target="#fig_0">1A</ref>). After 1 s from the stimuli onset, the left and right gratings started contracting for 3 s either coherently (same direction) or incoherently (different directions). The direction of the motion (up / down) of the left and right grating stimuli was random in consequent trials. The grating stimuli moved at a constant speed of 0.5 degree/s. The participants were instructed to focus on the fixation point and press the button when a cue indicating the direction of motion (i.e. coherent or incoherent) occurred at the fixation point. If the direction of motion, either coherent or incoherent, matched the cue, equal or unequal sign, respectively, the participant was instructed to press the button with the middle finger; otherwise with the index finger. The response instructions, i.e. left or right hand, were counterbalanced across the participants.</p><p>The luminance of the stimuli was modulated using a broadband (i.e. noise with uniform distribution) flickering signal (Fig. <ref type="figure" coords="3,291.09,299.57,8.75,9.00" target="#fig_0">1B</ref>). The broadband signals for the left and right stimuli were uncorrelated (the correlation was below 0.01). We used the PROPixx DLP LED projector (VPixx Technologies Inc., Canada) to present the visual stimuli at a high refresh rate of 1440 Hz with a resolution of 960 x 600 pixels [see, <ref type="bibr" coords="3,385.37,341.57,104.51,9.00" target="#b29">(Zhigalov &amp; Jensen, 2020)</ref>]. The experimental paradigm was implemented in MATLAB (Mathworks Inc., Natick, USA) using Psychophysics Toolbox 3.0.11 <ref type="bibr" coords="3,298.60,369.57,48.20,9.00" target="#b20">(Pelli, 1997)</ref>. <ref type="bibr" coords="3,353.60,369.57,48.20,9.00" target="#b20">(Pelli, 1997)</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>MEG and MRI acquisition</head><p>Prior to the measurement, the head position of the participant was digitized using the Polhemus Fastrack electromagnetic digitiser system (Polhemus Inc., USA). The MEG data were acquired using a 306-sensor TRIUX Elekta Neuromag system (Elekta, Finland), while the participant was sitting in an upright position (60°) in a dim light magnetically shielded room. The magnetic signals were bandpass filtered within 0.1 -330 Hz with embedded antialiasing filters and sampled at 1000 Hz. Simultaneously with the MEG, we also acquired the coordinates of the pupil and the pupil diameter using an EyeLink eye-tracker (SR Research, Canada).</p><p>The broadband flickering (or tagging) signals were recorded using a custom-made photodetector (Aalto NeuroImaging Centre, Aalto University, Finland) that was connected to a miscellaneous channel of the MEG system. This allowed us to acquire the tagging signal with the same temporal precision as the MEG data.</p><p>Additionally, a high-resolution T1-weighted anatomical image (TR/TE of 7.4/3.5 ms, a flip angle of 7°, FOV of 256×256×176 mm, 176 sagittal slices, and a voxel size of 1×1×1 mm3) was acquired using 3-Tesla Phillips Achieva scanner.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>MEG data preprocessing</head><p>Since magnetometer signals are strongly affected by the noise, additional pre-processing methods are needed to attenuate external interference and sensor artifacts. To this end, we used MNE-Python tools <ref type="bibr" coords="4,249.17,109.57,89.01,9.00" target="#b10">(Gramfort et al., 2013)</ref>. MNE-Python package allowed performing signal-space separation (SSS; <ref type="bibr" coords="4,270.82,123.57,94.20,9.00" target="#b23">(Taulu &amp; Simola, 2006)</ref>) and Maxwell filtering together. While SSS decomposes MEG signal into components with sources inside and outside the measurement volume and discards the external components related to environmental noise, Maxwell filtering omits the higher-order components of the internal subspace, which are dominated by the sensor noise.</p><p>To further suppress artifacts caused by the cardiac signal and blinks, we applied independent component analysis [ICA; <ref type="bibr" coords="4,257.49,217.57,71.12,9.00" target="#b12">(Hyvarinen, 1999)</ref>]. Prior to the analysis, the MEG time series were bandpass filtered (1 -99 Hz) and down-sampled to 250 Hz. The components with topographies corresponding to blinks and cardiac signals were projected out as follows <ref type="bibr" coords="4,150.00,259.57,96.80,9.00" target="#b17">(Oostenveld et al., 2011)</ref>,</p><formula xml:id="formula_0" coords="4,291.49,279.82,89.02,12.07">Y = (I -A(, r) * W(, r)) * X</formula><p>where X represents the original MEG data; A and W are mixing and unmixing matrices respectively; I is an identity matrix; r denotes indices of the components corresponding to blinks and cardiac signal; Y represents MEG data with projected out artifacts.</p><p>The artifact-free MEG time series were segmented into 6 s epochs; -2 to 4 s relative to the onset of the stimulus motion. Although ICA allowed removing blinks from the MEG signal, we additionally analysed the X-axis and Y-axis channels of the eye-tracker, to exclude trials containing blinks and saccades. The eye blinks were detected in the eye-tracker channels by z-scoring the time series and applying a threshold of 5 SD was applied so that any deflection above the threshold was classified as a blink. The saccades were detected using a scatter diagram of X-axis and Y-axis time series of the eye-tracker for each trial. An event was classified as a saccade if the gaze shifted away from the fixation point by 2° and its duration was more than 500 ms. Trials contaminated by blinks and saccades were removed from further analysis. We also rejected trials containing large-amplitude events (above 5 SD) in MEG which are mainly associated with motion and muscle artefacts. As a result, the number of trials that remained after exclusion was 304 ± 12 (mean ± SD) per participant. For each participant, the number of trials per condition was equalized by randomly selecting the same number of trials.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Temporal response functions (TRF)</head><p>Prior to computing TRF, the magnetometer signals were bandpass filtered within 1 -99 Hz.</p><p>The TRFs were computed between the broadband flickering signal and the MEG gradiometers for each trial. To this end, we applied the cross-correlation approach <ref type="bibr" coords="4,150.00,645.57,129.84,9.00" target="#b25">(VanRullen &amp; Macdonald, 2012)</ref>,</p><formula xml:id="formula_1" coords="4,292.06,665.82,87.88,12.07">TRF i) = r(X(t), Y(t -i))</formula><p>where X and Y denote input tagging signal and MEG, respectively; i is the time lag ranging from -0.25 to 0.75 s with a step of 0.001 s; t is the vector of length 1.5 seconds; r is Person correlation; TRF denotes response function.</p><p>It should be noted that this approach is essentially equivalent to more sophisticated approaches such as ridge regression <ref type="bibr" coords="5,295.64,129.57,80.82,9.00" target="#b5">(Crosse et al., 2016)</ref> in case if the tagging signals are temporally uncorrelated.</p><p>The TRFs computed for each trial were then averaged across the trials.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Source-space analysis</head><p>The alpha-echoes were computed in the source space using the linearly constrained minimum variance (LCMV) beamformer <ref type="bibr" coords="5,316.94,225.57,89.84,9.00" target="#b24">(Van Veen et al., 1997)</ref>, as implemented in Fieldtrip <ref type="bibr" coords="5,186.95,239.57,96.80,9.00" target="#b17">(Oostenveld et al., 2011)</ref>. To this end, we first reconstructed time series in the source space by applying LCMV beamformer to MEG data and then estimated the alphaechoes (see, above) for each source point.</p><p>To build a forward model, we first segmented the MRI images using Fieldtrip, and then manually aligned the MRI images to the head shape digitization points acquired with the Polhemus Fastrak. Finally, a single shell head model was prepared using surface spherical harmonics fitting the brain surface <ref type="bibr" coords="5,289.95,333.57,52.08,9.00" target="#b15">(Nolte, 2003)</ref>.</p><p>The individual anatomy was wrapped to the standard MNI template using non-linear normalisation <ref type="bibr" coords="5,207.50,371.57,96.80,9.00" target="#b17">(Oostenveld et al., 2011)</ref>. The template grid had a 10 mm resolution, resulting in 6804 source points for each participant.</p><p>The covariance matrix was estimated in the time interval [0, 2.5] s relatively to the onset of stimuli motion. Since, the SSS method (see, above) reduces the rank of data, we estimated the rank after SSS and initialise the regularisation parameter kappa using the estimated rank. We computed the unit-noise-gain or weight-normalized beamformer <ref type="bibr" coords="5,425.48,451.57,86.12,9.00" target="#b27">(Westner et al., 2022)</ref> to avoid bias towards deep sources.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Simulations using MEG and EEG models</head><p>As suggested elsewhere <ref type="bibr" coords="5,247.78,509.57,159.74,9.00" target="#b13">(Lozano-Soldevilla &amp; VanRullen, 2019;</ref><ref type="bibr" coords="5,410.02,509.57,77.90,9.00" target="#b18">Orczyk et al., 2021)</ref>, the travelling waves might be explained by the two-source model, meaning that the propagation effect at the scalp level may occur as a result of the summation of two waves generated by distant sources. To test this hypothesis, we used a realistic head model and simulated the time series of two dipoles located in the occipital and parietal cortices, based on the empirical findings. The simulations were performed for both MEG and EEG source models using "ft_dipolesimulation" function from the Fieldtrip toolbox <ref type="bibr" coords="5,437.78,593.57,72.77,9.00;5,150.00,607.57,21.53,9.00" target="#b17">(Oostenveld et al., 2011)</ref>. Importantly, we used the radial orientation of the sources in both MEG and EEG simulations.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Results</head><p>In this study, we presented participants with grating stimuli while modulating the luminance of the stimuli by random noise, and simultaneously acquiring MEG. Temporally uncorrelated flickering stimuli were shown in the left and right hemifield.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Alpha-echo</head><p>The brain response to the randomly flickering stimuli was estimated using temporal response functions (TRFs). The TFR reflects the kernels best explaining the brain response when convolved with the input stimuli. The individual temporal responses were averaged across the participants for both the right (Fig. <ref type="figure" coords="6,306.10,201.57,10.37,9.00" target="#fig_1">2A</ref>) and left stimulation sides (Fig. <ref type="figure" coords="6,448.60,201.57,8.75,9.00" target="#fig_1">2B</ref>). The TRFs are dominated by a 10 Hz response and have been termed "perceptual alpha echoes" <ref type="bibr" coords="6,150.00,229.57,129.85,9.00" target="#b25">(VanRullen &amp; Macdonald, 2012)</ref>. The topographies of the TFRs at 200 ms showed a dipolar response and the strongest responses were observed in sensors over parietal areas.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>The alpha-echo in sensor and source spaces</head><p>Next, we considered the magnitude of the spatial distribution of the TRFs. Since the TRFs in the left and right hemispheres were in anti-phase, we considered the group-level responses contralateral to stimulation in the left and right hemispheres separately (Fig. <ref type="figure" coords="6,456.63,315.57,9.03,9.00" target="#fig_2">3A</ref>). We observed a systematic spatial decay of the TFR peak amplitude observed at around 200 ms, and the decay of the amplitudes with distance was nearly linear (p &lt; 10 -12 ). We then used LCMV beamformers to assess the power of TRFs in source space. To this end, the sensor-space MEG times series were projected into source space, and then the TRFs were computed for each dipole (or grid point). The maximum power of the TRF was localised in the parietal regions near the midline (along X-axis) for both the right and left stimulation sides (Fig. <ref type="figure" coords="6,194.17,413.57,8.75,9.00" target="#fig_2">3B</ref>).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Propagation of the alpha-echo in sensor space</head><p>We next set out to quantify the propagation of the perceptual alpha echo in regard to the reference sensor with the strongest response. We did this by simply assessing the shift of the TRF in a neighbouring sensor with respect to the reference sensors. The latencies of the TRF relatively to the reference sensor showed a linear increase with distance (p &lt; 10 -6 , F-test), predominantly in the centro-lateral direction (Fig. <ref type="figure" coords="6,351.36,513.57,9.03,9.00" target="#fig_3">4A</ref>). The topography revealed two clusters with respect to the left and right hemifield visual stimulation (Fig. <ref type="figure" coords="6,416.46,527.57,9.03,9.00" target="#fig_3">4A</ref>). The propagation velocity derived from the latencies was around 10 m/s which is higher compared to that reported using EEG <ref type="bibr" coords="6,231.93,555.57,114.30,9.00" target="#b1">(Alamia &amp; VanRullen, 2019)</ref>. Similarly to the sensor level, the TRF latencies in the source space showed two discrete clusters, rather than a continuous increase, in the parietal and occipital cortices (Fig. <ref type="figure" coords="6,316.64,583.57,8.75,9.00" target="#fig_3">4B</ref>). Note that we considered the latencies in a restricted area in the source space because signal-to-noise in the frontal regions was much lower compared to that in the parietal cortex where the response was strongest. Both sensorand source-level results showed that the latencies of the TRF formed two clusters with similar values within the clusters, which does not support the idea of continuous propagation of the waves.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Spatiotemporal evolution of the sources</head><p>To obtain further insight into the spatiotemporal dynamics of the TRF, we evaluated the power of TRF in source space at each time lag. To this end, we searched for the voxels that showed the maximum power of TRF in the alpha band at each lag. The maximum power of the TRF peaked at around 100 and 200 ms, respectively (Fig. <ref type="figure" coords="7,435.04,123.57,9.03,9.00" target="#fig_4">5A</ref>). These peaks were associated with two voxels with highly stable coordinates (Fig. <ref type="figure" coords="7,425.91,137.57,8.75,9.00" target="#fig_4">5B</ref>). While the voxel associated with the first peak was located in the primary visual cortex (Fig. <ref type="figure" coords="7,452.28,151.57,8.75,9.00" target="#fig_4">5C</ref>), the voxel associated with the second peak was located in the parietal area (Fig. <ref type="figure" coords="7,427.89,165.57,9.03,9.00" target="#fig_4">5D</ref>). These results showed that the alpha-echo was clearly related to the second source with a peak in power at around 200 ms, and there is another source with a peak in power at around 100 ms located in the primary visual cortex. This observation may support an alternative hypothesis regarding the origin of travelling waves in the brain. Often, the travelling waves at the sensor level are explained by waves travelling over the brain surface and the fields are then projected to the sensors. Alternatively, as in our case, the travelling waves can be generated by two sources at different locations oscillating at different phases, and superposition of the respective fields at the sensors occurs as a travelling wave.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Simulations using MEG and EEG models</head><p>Using a realistic MEG forward model, we simulated the sensor's level activity originating from two sources located in the occipital and parietal areas, in the right hemisphere, which were selected based on our empirical findings (Fig. <ref type="figure" coords="7,384.20,349.57,13.61,9.00" target="#fig_5">6A,</ref><ref type="figure" coords="7,397.81,349.57,4.54,9.00">B</ref>). The spatial patterns of the amplitudes and latencies of the simulated activity closely reproduced our empirical observations in MEG (Fig. <ref type="figure" coords="7,259.47,377.57,13.61,9.00" target="#fig_5">6C,</ref><ref type="figure" coords="7,273.08,377.57,4.54,9.00">D</ref>).</p><p>To further relate our MEG findings to the results of previous EEG studies, we simulated EEG time series using the same dipole configuration as in our MEG simulations (Fig. <ref type="figure" coords="7,495.06,415.57,14.72,9.00" target="#fig_6">7A,</ref><ref type="figure" coords="7,150.00,429.57,4.17,9.00">B</ref>). The topography of the amplitude of perceptual echoes in EEG was similar to that in the MEG simulations (Fig. <ref type="figure" coords="7,245.01,443.57,8.75,9.00" target="#fig_6">7C</ref>). However, in contrast to MEG observations, the latencies of the echoes in simulated EEG showed a pronounced propagation pattern from occipital to frontal brain areas (Fig. <ref type="figure" coords="7,217.76,471.57,9.03,9.00" target="#fig_6">7D</ref>). Interestingly, the latencies between neighbouring sensors along the occipital-frontal axis showed nearly linear increase which resembled the results of previous EEG studies [e.g., <ref type="bibr" coords="7,224.99,499.57,115.55,9.00" target="#b1">(Alamia &amp; VanRullen, 2019;</ref><ref type="bibr" coords="7,343.04,499.57,154.46,9.00" target="#b13">Lozano-Soldevilla &amp; VanRullen, 2019)</ref>]. These simulation results demonstrated that two dipoles located in the parietal and occipital cortices can produce the travelling waves at the sensor's level, propagating from the occipital to the frontal areas.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Discussion</head><p>In this study, we used broadband frequency tagging and MEG to assess the propagation of the alpha-echoes. Considering the better spatial resolution of MEG compared to EEG, we aimed at uncovering the neuronal sources explaining travelling waves in the brain. In contrast to previous EEG studies, we observed only a small (&lt;20 ms) propagation delay of perceptual echoes across the scalp. Using source modelling, we found that the perceptual alpha-echoes were well explained by two generators in the primary visual and parietal cortices. This is consistent with the notion that travelling waves at the scalp level may occur as a result of a summation of neuronal activity generated by two phase-lagged dipoles. To further clarify this, we used a realistic forward model to estimate the activity generated by two sources, in occipital and parietal areas, in the MEG sensors. These stimulations explained the MEG findings well. Finally, we used an EEG forward model to project the two-dipole activity to EEG sensors. The sensor-level EEG travelling waves closely resembled those reported in previous EEG studies. Thus, our simulation results show that the sensor-level travelling waves reported in MEG and EEG can be explained by a common two-dipole model.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Mechanism of travelling waves</head><p>Three mathematical models for generating travelling waves in the brain have been proposed <ref type="bibr" coords="8,150.00,219.57,125.96,9.00" target="#b9">(Ermentrout &amp; Kleinfeld, 2001)</ref>. These models are equally plausible and are built upon basic principles of neuronal coupling such as (i) delayed excitation from a single oscillator, (ii) propagating pulses in an excitable network, and (iii) phase-locked weakly coupled oscillators. Recently, <ref type="bibr" coords="8,236.01,261.57,209.70,9.00" target="#b1">Alamia and VanRullen (Alamia &amp; VanRullen, 2019)</ref> proposed an further developed model to describe the propagation of the perceptual alpha band echoes in EEG. This model utilises a principle similar to propagating pulses in an excitable network and is composed of multiple hierarchically organised neuronal generators. Our results are consistent with such a model composed of two hierarchical levels, but not a multi-level model. Our source-space analysis confirmed the presence of two sources of perceptual alpha-echoes that were located in the primary visual and parietal cortices with peak amplitude at around 100 and 200 ms, respectively. The spatial and temporal dynamics of these sources essentially represent the stages of visual processing when activation in the primary visual cortex is followed by activation in the parietal cortex. Such two-level hierarchical processing can produce activity that appears as travelling wave at the scalp level.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>The direction of propagation of travelling waves</head><p>In contrast to EEG studies, our MEG results revealed a more focal propagation of the perceptual alpha-echoes, essentially restricted by the occipital and parietal areas. Interestingly, EEG studies reveal predominantly occipital-frontal propagation of the travelling waves for either a single flickering stimulus presented centrally <ref type="bibr" coords="8,446.27,501.57,47.62,9.00;8,150.00,515.57,23.33,9.00" target="#b19">(Pang et al., 2020)</ref> or two independent stimuli presented bilaterally <ref type="bibr" coords="8,369.60,515.57,134.46,9.00;8,150.00,529.57,21.53,9.00" target="#b13">(Lozano-Soldevilla &amp; VanRullen, 2019)</ref>. In contrast, the travelling waves in this MEG study demonstrated a tendency for centro-lateral propagation. Since the direction of propagation might be functionally relevant (e.g., <ref type="bibr" coords="8,172.77,557.57,90.38,9.00" target="#b0">(Aggarwal et al., 2022)</ref>), the discrepancy between MEG and EEG results makes it difficult to assess the functional relevance of the travelling waves. We conclude that sensor-level results should be considered with caution.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Functional role of travelling waves</head><p>A growing body of evidence suggests that travelling waves are functionally relevant for memory and attention <ref type="bibr" coords="8,240.27,643.57,73.04,9.00" target="#b28">(Zhang et al., 2018</ref>). Although we have not observed a large-scale propagation of the perceptual echoes, we identified the sources and their dynamics, which can be further linked to cognitive functions, particularly, attention. Recently, we have shown that attention modulates the amplitude of the alpha-echo in the primary visual and parietal cortices <ref type="bibr" coords="9,183.60,63.57,160.29,9.00" target="#b13">(Lozano-Soldevilla &amp; VanRullen, 2019)</ref> and that the alpha oscillations do not implement the gain control in the primary visual cortex but rather gating in parietal regions <ref type="bibr" coords="9,150.00,91.57,105.21,9.00" target="#b29">(Zhigalov &amp; Jensen, 2020)</ref>. With our new insight, spatial attention paradigms could be used to uncover the visuo-parietal information flow by assessing the phase relationship between the primary visual and parietal cortices.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Functional role of parietal regions</head><p>In our recent study <ref type="bibr" coords="9,227.76,163.57,105.20,9.00" target="#b29">(Zhigalov &amp; Jensen, 2020)</ref>, we found that spatial attention modulates both frequency tagging response in the early visual cortex and the alpha band oscillations in parietal regions. Importantly the alpha activity and the frequency tagging response were not correlated over trials. This pointed to a scheme in which alpha oscillations gate the information flow in downstream visual regions without directly controlling the gain in the early visual cortex. In a similar study <ref type="bibr" coords="9,315.66,233.57,87.81,9.00" target="#b22">(Sokoliuk et al., 2019)</ref>, two sources of alpha oscillations in the primary visual cortex and parietal areas were identified. These sources were both modulated by attention but played different functional roles depending on behavioural demands. The stage is now set for investigating how the visual and parietal interactions are affected by the difference in alpha phase between the two generators in relation to cognitive demands.       </p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0" coords="12,150.00,310.85,120.37,8.10;12,150.00,322.17,368.11,9.00;12,150.00,336.17,335.97,9.00;12,150.00,350.17,371.15,9.00;12,150.00,364.17,30.28,9.00;12,84.00,62.00,504.00,234.60"><head>Fig. 1 .</head><label>1</label><figDesc>Fig. 1. Experimental paradigm.A) Two grating stimuli with either coherent or incoherent motion were presented bilaterally. Motion started 1 s after the onset of the flickering stimuli and lasted for 3 s. (B) The luminance of the left and right grating stimuli was modulated by two independent broadband signals.</figDesc><graphic coords="12,84.00,62.00,504.00,234.60" type="bitmap" /></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1" coords="13,150.00,493.85,23.62,8.10;13,150.00,505.17,357.86,9.00;13,150.00,519.17,356.04,9.00;13,150.00,533.17,369.66,9.00;13,150.00,547.17,162.83,9.00;13,84.22,62.00,503.57,417.60"><head>Fig. 2 .</head><label>2</label><figDesc>Fig. 2. Group-level temporal response functions (TRFs) were computed for the right (A) and left (B) flickering signals. Magnetometers with the largest alpha-echo amplitude are depicted with black and red circles, and the corresponding alpha-echoes are shown on the right panel. The topography is shown for t = 200 ms.</figDesc><graphic coords="13,84.22,62.00,503.57,417.60" type="bitmap" /></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_2" coords="14,150.00,418.61,23.62,8.10;14,150.00,429.93,342.97,9.00;14,150.00,443.93,349.54,9.00;14,150.00,457.93,352.97,9.00;14,150.00,471.93,179.71,9.00;14,84.00,62.00,504.00,342.36"><head>Fig. 3 .</head><label>3</label><figDesc>Fig. 3. (A) The topography of the TFR amplitudes with respect to the right (top plot) and left (bottom plot) stimulation sides. (B) Distribution of the TRF power in source space with respect to the right (top plot) and left (bottom plot) stimulation sides. The voxel with the strongest response is indicated with blue dot.</figDesc><graphic coords="14,84.00,62.00,504.00,342.36" type="bitmap" /></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_3" coords="15,150.00,424.49,23.62,8.10;15,150.00,435.81,334.07,9.00;15,150.00,449.81,359.43,9.00;15,150.00,463.81,365.87,9.00;15,150.00,477.81,370.60,9.00;15,84.00,62.00,504.00,348.24"><head>Fig. 4 .</head><label>4</label><figDesc>Fig. 4. (A) The topography of the TFR latencies with respect to the right (top plot) and left (bottom plot) stimulation. The sensor with maximum TRF is indicated by a red circle. (B) Distribution of the TRF latencies in source space with respect to the right (top plot) and left (bottom plot) stimulation. The voxel with the largest TRF power is indicated by the blue dot.</figDesc><graphic coords="15,84.00,62.00,504.00,348.24" type="bitmap" /></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_4" coords="16,150.00,380.69,369.79,8.10;16,150.00,390.69,17.25,8.10;16,150.00,402.01,360.79,9.00;16,150.00,416.01,351.68,9.00;16,150.00,430.01,368.63,9.00;16,150.00,444.01,259.57,9.00;16,84.00,62.00,504.00,304.44"><head>Fig. 5 .</head><label>5</label><figDesc>Fig. 5. Spatiotemporal dynamics of the TRF power in the alpha band with stimulation on the left side. (A) The maximum power of TRF in the alpha band at each lag. (B) The coordinates of the voxel with maximum power in the alpha band at each lag. (C) The distribution of power associated with the first source (S1) peaked at around 100 ms. (D) The distribution of power associated with the second source (S2) peaked at around 200 ms.</figDesc><graphic coords="16,84.00,62.00,504.00,304.44" type="bitmap" /></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_5" coords="17,150.00,475.13,344.70,8.10;17,150.00,486.45,360.51,9.00;17,150.00,500.45,362.48,9.00;17,150.00,514.45,352.40,9.00;17,150.00,528.45,372.03,9.00;17,150.00,542.45,74.70,9.00;17,84.00,62.00,504.00,398.88"><head>Fig. 6 .</head><label>6</label><figDesc>Fig. 6. Simulated MEG activity from two sources closely resembles our empirical findings. (A) The location of the dipoles (red arrows) in the parietal and occipital regions relative to the MEG sensors. (B) Simulated activity associated with the parietal and occipital sources. (C) Topography of the amplitudes of the simulated alpha-echoes. (D) Topography of the latencies of the simulated alpha-echoes, relatively to the sensor with the strongest alpha-echo response (red dot).</figDesc><graphic coords="17,84.00,62.00,504.00,398.88" type="bitmap" /></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_6" coords="18,150.00,475.13,351.60,8.10;18,150.00,485.13,50.01,8.10;18,150.00,496.45,356.51,9.00;18,150.00,510.45,368.01,9.00;18,150.00,524.45,346.02,9.00;18,150.00,538.45,319.81,9.00;18,84.00,62.00,504.00,398.88"><head>Fig. 7 .</head><label>7</label><figDesc>Fig. 7. Travelling waves in the simulated EEG activity resemble those reported in previously EEG studies. (A) The location of the dipoles (red arrows) is relative to the EEG sensors. (B) Simulated activity associated with the parietal and occipital sources. (C) Topography of the amplitudes of the simulated alpha-echoes. (D) Topography of the latencies of the simulated alphaechoes, relatively to the sensor with the strongest alpha-echo response (red dot).</figDesc><graphic coords="18,84.00,62.00,504.00,398.88" type="bitmap" /></figure>
+			<note xmlns="http://www.tei-c.org/ns/1.0" place="foot" xml:id="foot_0"><p>Neuroimage. Author manuscript; available in PMC 2023 September 08.</p></note>
+		</body>
+		<back>
+
+			<div type="acknowledgement">
+<div><head>Acknowledgement</head><p>The work was supported by the following funding: a <rs type="funder">James S. McDonnell Foundation Understanding Human Cognition Collaborative Award</rs> (grant number <rs type="grantNumber">220020448</rs>), the <rs type="funder">Wellcome Trust</rs> <rs type="grantName">Investigator Award in Science (grant number</rs> <rs type="grantNumber">207550</rs>), a <rs type="grantName">BBSRC grant</rs> (<rs type="grantNumber">BB/R018723/1</rs>) as well as the <rs type="institution">Royal Society Wolfson Research Merit Award</rs>. AZ acknowledges financial support from the <rs type="funder">University of Birmingham Dynamic Investment Fund</rs>.</p></div>
+			</div>
+			<listOrg type="funding">
+				<org type="funding" xml:id="_zNs7Gmr">
+					<idno type="grant-number">220020448</idno>
+				</org>
+				<org type="funding" xml:id="_bqASpXt">
+					<idno type="grant-number">207550</idno>
+					<orgName type="grant-name">Investigator Award in Science (grant number</orgName>
+				</org>
+				<org type="funding" xml:id="_aeQHBSp">
+					<idno type="grant-number">BB/R018723/1</idno>
+					<orgName type="grant-name">BBSRC grant</orgName>
+				</org>
+			</listOrg>
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct coords="9,150.00,428.76,327.06,8.10;9,160.00,439.76,359.09,8.10;9,160.00,450.76,334.49,8.10" xml:id="b0">
+	<analytic>
+		<title level="a" type="main">Visual evoked feedforward–feedback traveling waves organize neural activity across the cortical hierarchy in mice</title>
+		<author>
+			<persName><forename type="first">Adeeti</forename><surname>Aggarwal</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Connor</forename><surname>Brennan</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Jennifer</forename><surname>Luo</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Helen</forename><surname>Chung</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Diego</forename><surname>Contreras</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Max</forename><forename type="middle">B</forename><surname>Kelz</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Alex</forename><surname>Proekt</surname></persName>
+			<idno type="ORCID">0000-0002-9272-5337</idno>
+		</author>
+		<idno type="DOI">10.1038/s41467-022-32378-x</idno>
+	</analytic>
+	<monogr>
+		<title level="j">Nature Communications</title>
+		<title level="j" type="abbrev">Nat Commun</title>
+		<idno type="ISSNe">2041-1723</idno>
+		<imprint>
+			<biblScope unit="volume">13</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page" from="475" to="479" />
+			<date type="published" when="2022-08-13">2022</date>
+			<publisher>Springer Science and Business Media LLC</publisher>
+		</imprint>
+	</monogr>
+	<note>PubMed: 35078989</note>
+</biblStruct>
+
+<biblStruct coords="9,150.00,463.76,350.38,8.10;9,160.00,474.76,336.26,8.10" xml:id="b1">
+	<analytic>
+		<title level="a" type="main">Alpha oscillations and traveling waves: Signatures of predictive coding?</title>
+		<author>
+			<persName><forename type="first">Andrea</forename><surname>Alamia</surname></persName>
+			<idno type="ORCID">0000-0001-9826-2161</idno>
+		</author>
+		<author>
+			<persName><forename type="first">Rufin</forename><surname>Vanrullen</surname></persName>
+			<idno type="ORCID">0000-0002-3611-7716</idno>
+		</author>
+		<idno type="DOI">10.1371/journal.pbio.3000487</idno>
+	</analytic>
+	<monogr>
+		<title level="j">PLOS Biology</title>
+		<title level="j" type="abbrev">PLoS Biol</title>
+		<idno type="ISSNe">1545-7885</idno>
+		<imprint>
+			<biblScope unit="volume">17</biblScope>
+			<biblScope unit="issue">10</biblScope>
+			<biblScope unit="page">e3000487</biblScope>
+			<date type="published" when="2019-10-03">2019</date>
+			<publisher>Public Library of Science (PLoS)</publisher>
+		</imprint>
+	</monogr>
+	<note>PubMed: 31581198</note>
+</biblStruct>
+
+<biblStruct coords="9,150.00,487.76,341.83,8.10;9,160.00,498.76,341.97,8.10;9,160.00,509.76,339.37,8.10;9,160.00,520.76,39.00,8.10" xml:id="b2">
+	<analytic>
+		<title level="a" type="main">Propagating Neocortical Gamma Bursts Are Coordinated by Traveling Alpha Waves</title>
+		<author>
+			<persName><forename type="first">Ali</forename><surname>Bahramisharif</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Marcel</forename><forename type="middle">A J</forename><surname>Van Gerven</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Erik</forename><forename type="middle">J</forename><surname>Aarnoutse</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Manuel</forename><forename type="middle">R</forename><surname>Mercier</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Theodore</forename><forename type="middle">H</forename><surname>Schwartz</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">John</forename><forename type="middle">J</forename><surname>Foxe</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Nick</forename><forename type="middle">F</forename><surname>Ramsey</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Ole</forename><surname>Jensen</surname></persName>
+		</author>
+		<idno type="DOI">10.1523/jneurosci.2455-13.2013</idno>
+	</analytic>
+	<monogr>
+		<title level="j">The Journal of Neuroscience</title>
+		<title level="j" type="abbrev">J. Neurosci.</title>
+		<idno type="ISSN">0270-6474</idno>
+		<idno type="ISSNe">1529-2401</idno>
+		<imprint>
+			<biblScope unit="volume">33</biblScope>
+			<biblScope unit="issue">48</biblScope>
+			<biblScope unit="page" from="18849" to="18854" />
+			<date type="published" when="2013-11-27">2013</date>
+			<publisher>Society for Neuroscience</publisher>
+		</imprint>
+	</monogr>
+	<note>PubMed: 24285891</note>
+</biblStruct>
+
+<biblStruct coords="9,150.00,533.76,351.75,8.10;9,160.00,544.76,341.84,8.10;9,160.00,555.76,39.00,8.10" xml:id="b3">
+	<analytic>
+		<title level="a" type="main">Standing Waves and Traveling Waves Distinguish Two Circuits in Visual Cortex</title>
+		<author>
+			<persName><forename type="first">Andrea</forename><surname>Benucci</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Robert</forename><forename type="middle">A</forename><surname>Frazor</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Matteo</forename><surname>Carandini</surname></persName>
+		</author>
+		<idno type="DOI">10.1016/j.neuron.2007.06.017</idno>
+	</analytic>
+	<monogr>
+		<title level="j">Neuron</title>
+		<title level="j" type="abbrev">Neuron</title>
+		<idno type="ISSN">0896-6273</idno>
+		<imprint>
+			<biblScope unit="volume">55</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page" from="103" to="117" />
+			<date type="published" when="2007-07">2007</date>
+			<publisher>Elsevier BV</publisher>
+		</imprint>
+	</monogr>
+	<note>PubMed: 17610820</note>
+</biblStruct>
+
+<biblStruct coords="9,150.00,568.76,364.78,8.10;9,160.00,579.76,349.08,8.10;9,160.00,590.76,77.25,8.10" xml:id="b4">
+	<analytic>
+		<title level="a" type="main">Traveling waves in the prefrontal cortex during working memory</title>
+		<author>
+			<persName><forename type="first">Sayak</forename><surname>Bhattacharya</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Scott</forename><forename type="middle">L</forename><surname>Brincat</surname></persName>
+			<idno type="ORCID">0000-0002-7777-7294</idno>
+		</author>
+		<author>
+			<persName><forename type="first">Mikael</forename><surname>Lundqvist</surname></persName>
+			<idno type="ORCID">0000-0003-1011-5234</idno>
+		</author>
+		<author>
+			<persName><forename type="first">Earl</forename><forename type="middle">K</forename><surname>Miller</surname></persName>
+		</author>
+		<idno type="DOI">10.1371/journal.pcbi.1009827</idno>
+	</analytic>
+	<monogr>
+		<title level="j">PLOS Computational Biology</title>
+		<title level="j" type="abbrev">PLoS Comput Biol</title>
+		<idno type="ISSNe">1553-7358</idno>
+		<imprint>
+			<biblScope unit="volume">18</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page">e1009827</biblScope>
+			<date type="published" when="2022-01-28">2022</date>
+			<publisher>Public Library of Science (PLoS)</publisher>
+		</imprint>
+	</monogr>
+	<note>PubMed: 35089915</note>
+</biblStruct>
+
+<biblStruct coords="9,150.00,603.76,346.64,8.10;9,160.00,614.76,350.83,8.10;9,160.00,625.76,307.75,8.10" xml:id="b5">
+	<analytic>
+		<title level="a" type="main">The Multivariate Temporal Response Function (mTRF) Toolbox: A MATLAB Toolbox for Relating Neural Signals to Continuous Stimuli</title>
+		<author>
+			<persName><forename type="first">Michael</forename><forename type="middle">J</forename><surname>Crosse</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Giovanni</forename><forename type="middle">M</forename><surname>Di Liberto</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Adam</forename><surname>Bednar</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Edmund</forename><forename type="middle">C</forename><surname>Lalor</surname></persName>
+		</author>
+		<idno type="DOI">10.3389/fnhum.2016.00604</idno>
+	</analytic>
+	<monogr>
+		<title level="j">Frontiers in Human Neuroscience</title>
+		<title level="j" type="abbrev">Front. Hum. Neurosci.</title>
+		<idno type="ISSNe">1662-5161</idno>
+		<imprint>
+			<biblScope unit="volume">10</biblScope>
+			<biblScope unit="page">604</biblScope>
+			<date type="published" when="2016-11-30">2016</date>
+			<publisher>Frontiers Media SA</publisher>
+		</imprint>
+	</monogr>
+	<note>PubMed: 27965557</note>
+</biblStruct>
+
+<biblStruct coords="9,150.00,638.76,325.22,8.10;9,160.00,649.76,359.01,8.10;9,160.00,660.76,147.74,8.10" xml:id="b6">
+	<analytic>
+		<title level="a" type="main">Spontaneous neuronal oscillations in the human insula are hierarchically organized traveling waves</title>
+		<author>
+			<persName><forename type="first">Anup</forename><surname>Das</surname></persName>
+			<idno type="ORCID">0000-0002-8897-7021</idno>
+		</author>
+		<author>
+			<persName><forename type="first">John</forename><surname>Myers</surname></persName>
+			<idno type="ORCID">0000-0002-2412-7124</idno>
+		</author>
+		<author>
+			<persName><forename type="first">Raissa</forename><surname>Mathura</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Ben</forename><surname>Shofty</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Brian</forename><forename type="middle">A</forename><surname>Metzger</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Kelly</forename><surname>Bijanki</surname></persName>
+			<idno type="ORCID">0000-0003-1624-8767</idno>
+		</author>
+		<author>
+			<persName><forename type="first">Chengyuan</forename><surname>Wu</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Joshua</forename><surname>Jacobs</surname></persName>
+			<idno type="ORCID">0000-0003-1807-6882</idno>
+		</author>
+		<author>
+			<persName><forename type="first">Sameer</forename><forename type="middle">A</forename><surname>Sheth</surname></persName>
+		</author>
+		<idno type="DOI">10.7554/elife.76702</idno>
+	</analytic>
+	<monogr>
+		<title level="j">eLife</title>
+		<idno type="ISSNe">2050-084X</idno>
+		<imprint>
+			<biblScope unit="volume">11</biblScope>
+			<date type="published" when="2022-05-26">2022</date>
+			<publisher>eLife Sciences Publications, Ltd</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct coords="10,150.00,62.75,361.56,8.10;10,160.00,73.75,343.82,8.10;10,160.00,84.75,150.49,8.10" xml:id="b7">
+	<analytic>
+		<title level="a" type="main">Spontaneous travelling cortical waves gate perception in behaving primates</title>
+		<author>
+			<persName coords=""><forename type="first">Z</forename><forename type="middle">W</forename><surname>Davis</surname></persName>
+		</author>
+		<author>
+			<persName coords=""><forename type="first">L</forename><surname>Muller</surname></persName>
+		</author>
+		<author>
+			<persName coords=""><forename type="first">J</forename><surname>Martinez-Trujillo</surname></persName>
+		</author>
+		<author>
+			<persName coords=""><forename type="first">T</forename><surname>Sejnowski</surname></persName>
+		</author>
+		<author>
+			<persName coords=""><forename type="first">J</forename><forename type="middle">H</forename><surname>Reynolds</surname></persName>
+		</author>
+		<idno type="DOI">10.1038/s41586-020-2802-y[PubMed:33029013</idno>
+	</analytic>
+	<monogr>
+		<title level="j">Nature</title>
+		<imprint>
+			<biblScope unit="volume">587</biblScope>
+			<biblScope unit="issue">7834</biblScope>
+			<biblScope unit="page" from="432" to="436" />
+			<date type="published" when="2020">2020</date>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct coords="10,150.00,97.75,357.60,8.10;10,160.00,108.75,352.13,8.10;10,160.00,119.75,223.25,8.10" xml:id="b8">
+	<analytic>
+		<title level="a" type="main">Travelling spindles create necessary conditions for spike-timing-dependent plasticity in humans</title>
+		<author>
+			<persName><forename type="first">Charles</forename><forename type="middle">W</forename><surname>Dickey</surname></persName>
+			<idno type="ORCID">0000-0002-9118-8605</idno>
+		</author>
+		<author>
+			<persName><forename type="first">Anna</forename><surname>Sargsyan</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Joseph</forename><forename type="middle">R</forename><surname>Madsen</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Emad</forename><forename type="middle">N</forename><surname>Eskandar</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Sydney</forename><forename type="middle">S</forename><surname>Cash</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Eric</forename><surname>Halgren</surname></persName>
+		</author>
+		<idno type="DOI">10.1038/s41467-021-21298-x</idno>
+	</analytic>
+	<monogr>
+		<title level="j">Nature Communications</title>
+		<title level="j" type="abbrev">Nat Commun</title>
+		<idno type="ISSNe">2041-1723</idno>
+		<imprint>
+			<biblScope unit="volume">12</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page">1027</biblScope>
+			<date type="published" when="2021-02-15">2021</date>
+			<publisher>Springer Science and Business Media LLC</publisher>
+		</imprint>
+	</monogr>
+	<note>PubMed: 33589639</note>
+</biblStruct>
+
+<biblStruct coords="10,150.00,132.75,347.27,8.10;10,165.00,143.75,305.96,8.10;10,165.00,154.75,166.99,8.10" xml:id="b9">
+	<analytic>
+		<title level="a" type="main">Traveling Electrical Waves in Cortex</title>
+		<author>
+			<persName coords=""><forename type="first">G</forename><forename type="middle">Bard</forename><surname>Ermentrout</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">David</forename><surname>Kleinfeld</surname></persName>
+		</author>
+		<idno type="DOI">10.1016/s0896-6273(01)00178-7</idno>
+	</analytic>
+	<monogr>
+		<title level="j">Neuron</title>
+		<title level="j" type="abbrev">Neuron</title>
+		<idno type="ISSN">0896-6273</idno>
+		<imprint>
+			<biblScope unit="volume">29</biblScope>
+			<biblScope unit="issue">1</biblScope>
+			<biblScope unit="page" from="33" to="44" />
+			<date type="published" when="2001-01">2001</date>
+			<publisher>Elsevier BV</publisher>
+		</imprint>
+	</monogr>
+	<note>PubMed: 11182079</note>
+</biblStruct>
+
+<biblStruct coords="10,150.00,167.75,359.10,8.10;10,165.00,178.75,351.57,8.10;10,165.00,189.75,240.51,8.10" xml:id="b10">
+	<analytic>
+		<title level="a" type="main">MEG and EEG data analysis with MNE-Python</title>
+		<author>
+			<persName coords=""><forename type="first">Alexandre</forename><surname>Gramfort</surname></persName>
+		</author>
+		<author>
+			<persName coords=""><forename type="first">M</forename><surname>Luessi</surname></persName>
+		</author>
+		<author>
+			<persName coords=""><forename type="first">E</forename><surname>Larson</surname></persName>
+		</author>
+		<author>
+			<persName coords=""><forename type="first">D</forename><forename type="middle">A</forename><surname>Engemann</surname></persName>
+		</author>
+		<author>
+			<persName coords=""><forename type="first">Strohmeier</forename><surname>Brodbeck</surname></persName>
+		</author>
+		<author>
+			<persName coords=""><forename type="first">C</forename><surname>Goj</surname></persName>
+		</author>
+		<author>
+			<persName coords=""><forename type="first">R</forename><surname>Jas</surname></persName>
+		</author>
+		<author>
+			<persName coords=""><forename type="first">M</forename><surname>Brooks</surname></persName>
+		</author>
+		<author>
+			<persName coords=""><forename type="first">T</forename><surname>Parkkonen</surname></persName>
+		</author>
+		<author>
+			<persName coords=""><forename type="first">L</forename><surname>Hamalainen</surname></persName>
+		</author>
+		<author>
+			<persName coords=""><forename type="first">M</forename></persName>
+		</author>
+		<idno type="DOI">10.3389/fnins.2013.00267</idno>
+	</analytic>
+	<monogr>
+		<title level="j">Frontiers in Neuroscience</title>
+		<title level="j" type="abbrev">Front. Neurosci.</title>
+		<idno type="ISSNe">1662-453X</idno>
+		<imprint>
+			<biblScope unit="volume">7</biblScope>
+			<biblScope unit="page">267</biblScope>
+			<date type="published" when="2013">2013</date>
+			<publisher>Frontiers Media SA</publisher>
+		</imprint>
+	</monogr>
+	<note>PubMed: 24431986</note>
+</biblStruct>
+
+<biblStruct coords="10,150.00,202.75,350.24,8.10;10,165.00,213.75,346.24,8.10;10,165.00,224.75,343.98,8.10;10,165.00,235.75,39.00,8.10" xml:id="b11">
+	<analytic>
+		<title level="a" type="main">The generation and propagation of the human alpha rhythm</title>
+		<author>
+			<persName><forename type="first">Mila</forename><surname>Halgren</surname></persName>
+			<idno type="ORCID">0000-0003-2871-741X</idno>
+		</author>
+		<author>
+			<persName><forename type="first">István</forename><surname>Ulbert</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Hélène</forename><surname>Bastuji</surname></persName>
+			<idno type="ORCID">0000-0002-6690-2707</idno>
+		</author>
+		<author>
+			<persName><forename type="first">Dániel</forename><surname>Fabó</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Lorand</forename><surname>Erőss</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Marc</forename><surname>Rey</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Orrin</forename><surname>Devinsky</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Werner</forename><forename type="middle">K</forename><surname>Doyle</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Rachel</forename><surname>Mak-Mccully</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Eric</forename><surname>Halgren</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Lucia</forename><surname>Wittner</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Patrick</forename><surname>Chauvel</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Gary</forename><surname>Heit</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Emad</forename><surname>Eskandar</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Arnold</forename><surname>Mandell</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Sydney</forename><forename type="middle">S</forename><surname>Cash</surname></persName>
+		</author>
+		<idno type="DOI">10.1073/pnas.1913092116</idno>
+	</analytic>
+	<monogr>
+		<title level="j">Proceedings of the National Academy of Sciences</title>
+		<title level="j" type="abbrev">Proc. Natl. Acad. Sci. U.S.A.</title>
+		<idno type="ISSN">0027-8424</idno>
+		<idno type="ISSNe">1091-6490</idno>
+		<imprint>
+			<biblScope unit="volume">116</biblScope>
+			<biblScope unit="issue">47</biblScope>
+			<biblScope unit="page" from="23772" to="23782" />
+			<date type="published" when="2019-11-04">2019</date>
+			<publisher>Proceedings of the National Academy of Sciences</publisher>
+		</imprint>
+	</monogr>
+	<note>PubMed: 31685634</note>
+</biblStruct>
+
+<biblStruct coords="10,150.00,248.75,367.28,8.10;10,165.00,259.75,303.14,8.10" xml:id="b12">
+	<analytic>
+		<title level="a" type="main">Fast and robust fixed-point algorithms for independent component analysis</title>
+		<author>
+			<persName coords=""><forename type="first">A</forename><surname>Hyvarinen</surname></persName>
+		</author>
+		<idno type="DOI">10.1109/72.761722</idno>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Transactions on Neural Networks</title>
+		<title level="j" type="abbrev">IEEE Trans. Neural Netw.</title>
+		<idno type="ISSN">1045-9227</idno>
+		<idno type="ISSNe">1941-0093</idno>
+		<imprint>
+			<biblScope unit="volume">10</biblScope>
+			<biblScope unit="issue">3</biblScope>
+			<biblScope unit="page" from="626" to="634" />
+			<date type="published" when="1999-05">1999</date>
+			<publisher>Institute of Electrical and Electronics Engineers (IEEE)</publisher>
+		</imprint>
+	</monogr>
+	<note>PubMed: 18252563</note>
+</biblStruct>
+
+<biblStruct coords="10,150.00,272.75,371.73,8.10;10,165.00,283.75,354.74,8.10;10,165.00,294.75,201.49,8.10" xml:id="b13">
+	<analytic>
+		<title level="a" type="main">The Hidden Spatial Dimension of Alpha: 10-Hz Perceptual Echoes Propagate as Periodic Traveling Waves in the Human Brain</title>
+		<author>
+			<persName><forename type="first">Diego</forename><surname>Lozano-Soldevilla</surname></persName>
+			<idno type="ORCID">0000-0003-1794-8204</idno>
+		</author>
+		<author>
+			<persName><forename type="first">Rufin</forename><surname>Vanrullen</surname></persName>
+			<idno type="ORCID">0000-0002-3611-7716</idno>
+		</author>
+		<idno type="DOI">10.1016/j.celrep.2018.12.058</idno>
+	</analytic>
+	<monogr>
+		<title level="j">Cell Reports</title>
+		<title level="j" type="abbrev">Cell Reports</title>
+		<idno type="ISSN">2211-1247</idno>
+		<imprint>
+			<biblScope unit="volume">26</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page" from="374" to="380.e4" />
+			<date type="published" when="2019-01">2019</date>
+			<publisher>Elsevier BV</publisher>
+		</imprint>
+	</monogr>
+	<note>PubMed: 30625320</note>
+</biblStruct>
+
+<biblStruct coords="10,150.00,307.75,330.27,8.10;10,165.00,318.75,341.24,8.10;10,165.00,329.75,77.25,8.10" xml:id="b14">
+	<analytic>
+		<title level="a" type="main">Cortical travelling waves: mechanisms and computational principles</title>
+		<author>
+			<persName><forename type="first">Lyle</forename><surname>Muller</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Frédéric</forename><surname>Chavane</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">John</forename><surname>Reynolds</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Terrence</forename><forename type="middle">J</forename><surname>Sejnowski</surname></persName>
+		</author>
+		<idno type="DOI">10.1038/nrn.2018.20</idno>
+	</analytic>
+	<monogr>
+		<title level="j">Nature Reviews Neuroscience</title>
+		<title level="j" type="abbrev">Nat Rev Neurosci</title>
+		<idno type="ISSN">1471-003X</idno>
+		<idno type="ISSNe">1471-0048</idno>
+		<imprint>
+			<biblScope unit="volume">19</biblScope>
+			<biblScope unit="issue">5</biblScope>
+			<biblScope unit="page" from="255" to="268" />
+			<date type="published" when="2018-03-22">2018</date>
+			<publisher>Springer Science and Business Media LLC</publisher>
+		</imprint>
+	</monogr>
+	<note>PubMed: 29563572</note>
+</biblStruct>
+
+<biblStruct coords="10,150.00,342.75,323.52,8.10;10,165.00,353.75,336.34,8.10;10,165.00,364.75,306.24,8.10" xml:id="b15">
+	<analytic>
+		<title level="a" type="main">The magnetic lead field theorem in the quasi-static approximation and its use for magnetoencephalography forward calculation in realistic volume conductors</title>
+		<author>
+			<persName coords=""><forename type="first">Guido</forename><surname>Nolte</surname></persName>
+		</author>
+		<idno type="DOI">10.1088/0031-9155/48/22/002</idno>
+	</analytic>
+	<monogr>
+		<title level="j">Physics in Medicine and Biology</title>
+		<title level="j" type="abbrev">Phys. Med. Biol.</title>
+		<idno type="ISSN">0031-9155</idno>
+		<idno type="ISSNe">1361-6560</idno>
+		<imprint>
+			<biblScope unit="volume">48</biblScope>
+			<biblScope unit="issue">22</biblScope>
+			<biblScope unit="page" from="3637" to="3652" />
+			<date type="published" when="2003-10-24">2003</date>
+			<publisher>IOP Publishing</publisher>
+		</imprint>
+	</monogr>
+	<note>PubMed: 14680264</note>
+</biblStruct>
+
+<biblStruct coords="10,150.00,377.75,325.54,8.10;10,165.00,388.75,117.75,8.10" xml:id="b16">
+	<analytic>
+		<title level="a" type="main">The brain wave equation: a model for the EEG</title>
+		<author>
+			<persName coords=""><forename type="first">Paul</forename><forename type="middle">L</forename><surname>Nunez</surname></persName>
+		</author>
+		<idno type="DOI">10.1016/0025-5564(74)90020-0</idno>
+	</analytic>
+	<monogr>
+		<title level="j">Mathematical Biosciences</title>
+		<title level="j" type="abbrev">Mathematical Biosciences</title>
+		<idno type="ISSN">0025-5564</idno>
+		<imprint>
+			<biblScope unit="volume">21</biblScope>
+			<biblScope unit="issue">3-4</biblScope>
+			<biblScope unit="page" from="279" to="297" />
+			<date type="published" when="1974-12">1974</date>
+			<publisher>Elsevier BV</publisher>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct coords="10,150.00,401.75,369.09,8.10;10,165.00,412.75,356.98,8.10;10,165.00,423.75,175.01,8.10" xml:id="b17">
+	<analytic>
+		<title level="a" type="main">FieldTrip: Open Source Software for Advanced Analysis of MEG, EEG, and Invasive Electrophysiological Data</title>
+		<author>
+			<persName><forename type="first">Robert</forename><surname>Oostenveld</surname></persName>
+			<idno type="ORCID">0000-0002-1974-1293</idno>
+		</author>
+		<author>
+			<persName><forename type="first">Pascal</forename><surname>Fries</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Eric</forename><surname>Maris</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Jan-Mathijs</forename><surname>Schoffelen</surname></persName>
+		</author>
+		<idno type="DOI">10.1155/2011/156869</idno>
+	</analytic>
+	<monogr>
+		<title level="j">Computational Intelligence and Neuroscience</title>
+		<title level="j" type="abbrev">Computational Intelligence and Neuroscience</title>
+		<idno type="ISSN">1687-5265</idno>
+		<idno type="ISSNe">1687-5273</idno>
+		<imprint>
+			<biblScope unit="volume">2011</biblScope>
+			<biblScope unit="page" from="1" to="9" />
+			<date type="published" when="2011">2011. 2011</date>
+			<publisher>Wiley</publisher>
+		</imprint>
+	</monogr>
+	<note>PubMed: 21253357</note>
+</biblStruct>
+
+<biblStruct coords="10,150.00,436.75,360.05,8.10;10,165.00,447.75,342.20,8.10;10,165.00,458.75,326.62,8.10;10,165.00,469.75,77.25,8.10" xml:id="b18">
+	<analytic>
+		<title level="a" type="main">Cross Laminar Traveling Components of Field Potentials due to Volume Conduction of Non-Traveling Neuronal Activity in Macaque Sensory Cortices</title>
+		<author>
+			<persName><forename type="first">John</forename><forename type="middle">J</forename><surname>Orczyk</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Annamaria</forename><surname>Barczak</surname></persName>
+			<idno type="ORCID">0000-0002-0829-1768</idno>
+		</author>
+		<author>
+			<persName><forename type="first">Jordi</forename><surname>Costa-Faidella</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Yoshinao</forename><surname>Kajikawa</surname></persName>
+		</author>
+		<idno type="DOI">10.1523/jneurosci.3225-20.2021</idno>
+	</analytic>
+	<monogr>
+		<title level="j">The Journal of Neuroscience</title>
+		<title level="j" type="abbrev">J. Neurosci.</title>
+		<idno type="ISSN">0270-6474</idno>
+		<idno type="ISSNe">1529-2401</idno>
+		<imprint>
+			<biblScope unit="volume">41</biblScope>
+			<biblScope unit="issue">36</biblScope>
+			<biblScope unit="page" from="7578" to="7590" />
+			<date type="published" when="2021-07-28">2021</date>
+			<publisher>Society for Neuroscience</publisher>
+		</imprint>
+	</monogr>
+	<note>PubMed: 34321312</note>
+</biblStruct>
+
+<biblStruct coords="10,150.00,482.75,353.95,8.10;10,165.00,493.75,274.44,8.10" xml:id="b19">
+	<monogr>
+		<title level="m" type="main">Turning the Stimulus On and Off Changes the Direction of alpha Traveling Waves. eNeuro</title>
+		<author>
+			<persName coords=""><forename type="first">Z</forename><surname>Pang</surname></persName>
+		</author>
+		<author>
+			<persName coords=""><forename type="first">A</forename><surname>Alamia</surname></persName>
+		</author>
+		<author>
+			<persName coords=""><forename type="first">R</forename><surname>Vanrullen</surname></persName>
+		</author>
+		<idno type="DOI">10.1523/ENEURO.0218-20.2020</idno>
+		<imprint>
+			<date type="published" when="2020">2020</date>
+			<biblScope unit="volume">7</biblScope>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct coords="10,150.00,506.75,359.19,8.10;10,165.00,517.75,190.21,8.10" xml:id="b20">
+	<analytic>
+		<title level="a" type="main">The VideoToolbox software for visual psychophysics: transforming numbers into movies</title>
+		<author>
+			<persName coords=""><forename type="first">Denis</forename><forename type="middle">G</forename><surname>Pelli</surname></persName>
+		</author>
+		<idno type="DOI">10.1163/156856897x00366</idno>
+	</analytic>
+	<monogr>
+		<title level="j">Spatial Vision</title>
+		<title level="j" type="abbrev">Spatial Vis</title>
+		<idno type="ISSNe">1568-5683</idno>
+		<imprint>
+			<biblScope unit="volume">10</biblScope>
+			<biblScope unit="issue">4</biblScope>
+			<biblScope unit="page" from="437" to="442" />
+			<date type="published" when="1997">1997</date>
+			<publisher>Walter de Gruyter GmbH</publisher>
+		</imprint>
+	</monogr>
+	<note>PubMed: 9176953</note>
+</biblStruct>
+
+<biblStruct coords="10,150.00,530.75,359.03,8.10;10,165.00,541.75,208.99,8.10" xml:id="b21">
+	<analytic>
+		<title level="a" type="main">Traveling Waves in Visual Cortex</title>
+		<author>
+			<persName><forename type="first">Tatsuo</forename><forename type="middle">K</forename><surname>Sato</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Ian</forename><surname>Nauhaus</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Matteo</forename><surname>Carandini</surname></persName>
+		</author>
+		<idno type="DOI">10.1016/j.neuron.2012.06.029</idno>
+	</analytic>
+	<monogr>
+		<title level="j">Neuron</title>
+		<title level="j" type="abbrev">Neuron</title>
+		<idno type="ISSN">0896-6273</idno>
+		<imprint>
+			<biblScope unit="volume">75</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page" from="218" to="229" />
+			<date type="published" when="2012-07">2012</date>
+			<publisher>Elsevier BV</publisher>
+		</imprint>
+	</monogr>
+	<note>PubMed: 22841308</note>
+</biblStruct>
+
+<biblStruct coords="10,150.00,554.75,359.82,8.10;10,165.00,565.75,355.78,8.10;10,165.00,576.75,330.37,8.10;10,165.00,587.75,39.00,8.10" xml:id="b22">
+	<analytic>
+		<title level="a" type="main">Two Spatially Distinct Posterior Alpha Sources Fulfill Different Functional Roles in Attention</title>
+		<author>
+			<persName><forename type="first">Rodika</forename><surname>Sokoliuk</surname></persName>
+			<idno type="ORCID">0000-0003-1798-6657</idno>
+		</author>
+		<author>
+			<persName><forename type="first">Stephen</forename><forename type="middle">D</forename><surname>Mayhew</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Kevin</forename><forename type="middle">M</forename><surname>Aquino</surname></persName>
+			<idno type="ORCID">0000-0002-7435-0236</idno>
+		</author>
+		<author>
+			<persName><forename type="first">Ross</forename><surname>Wilson</surname></persName>
+			<idno type="ORCID">0000-0001-5241-8749</idno>
+		</author>
+		<author>
+			<persName><forename type="first">Matthew</forename><forename type="middle">J</forename><surname>Brookes</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Susan</forename><forename type="middle">T</forename><surname>Francis</surname></persName>
+			<idno type="ORCID">0000-0003-0903-7507</idno>
+		</author>
+		<author>
+			<persName><forename type="first">Simon</forename><surname>Hanslmayr</surname></persName>
+			<idno type="ORCID">0000-0003-4448-2147</idno>
+		</author>
+		<author>
+			<persName><forename type="first">Karen</forename><forename type="middle">J</forename><surname>Mullinger</surname></persName>
+			<idno type="ORCID">0000-0002-8164-0274</idno>
+		</author>
+		<idno type="DOI">10.1523/jneurosci.1993-18.2019</idno>
+	</analytic>
+	<monogr>
+		<title level="j">The Journal of Neuroscience</title>
+		<title level="j" type="abbrev">J. Neurosci.</title>
+		<idno type="ISSN">0270-6474</idno>
+		<idno type="ISSNe">1529-2401</idno>
+		<imprint>
+			<biblScope unit="volume">39</biblScope>
+			<biblScope unit="issue">36</biblScope>
+			<biblScope unit="page" from="7183" to="7194" />
+			<date type="published" when="2019-07-24">2019</date>
+			<publisher>Society for Neuroscience</publisher>
+		</imprint>
+	</monogr>
+	<note>PubMed: 31341028</note>
+</biblStruct>
+
+<biblStruct coords="10,150.00,600.75,364.97,8.10;10,165.00,611.75,354.45,8.10;10,165.00,622.75,77.25,8.10" xml:id="b23">
+	<analytic>
+		<title level="a" type="main">Spatiotemporal signal space separation method for rejecting nearby interference in MEG measurements</title>
+		<author>
+			<persName coords=""><forename type="first">S</forename><surname>Taulu</surname></persName>
+		</author>
+		<author>
+			<persName coords=""><forename type="first">J</forename><surname>Simola</surname></persName>
+		</author>
+		<idno type="DOI">10.1088/0031-9155/51/7/008[PubMed:16552102</idno>
+	</analytic>
+	<monogr>
+		<title level="j">Phys Med Biol</title>
+		<imprint>
+			<biblScope unit="volume">51</biblScope>
+			<biblScope unit="issue">7</biblScope>
+			<biblScope unit="page" from="1759" to="1768" />
+			<date type="published" when="2006">2006</date>
+		</imprint>
+	</monogr>
+</biblStruct>
+
+<biblStruct coords="10,150.00,635.75,363.40,8.10;10,165.00,646.75,340.74,8.10;10,165.00,657.75,201.74,8.10" xml:id="b24">
+	<analytic>
+		<title level="a" type="main">Localization of brain electrical activity via linearly constrained minimum variance spatial filtering</title>
+		<author>
+			<persName coords=""><forename type="first">B</forename><forename type="middle">D</forename><surname>Van Veen</surname></persName>
+		</author>
+		<author>
+			<persName coords=""><forename type="first">W</forename><surname>Van Drongelen</surname></persName>
+		</author>
+		<author>
+			<persName coords=""><forename type="first">M</forename><surname>Yuchtman</surname></persName>
+		</author>
+		<author>
+			<persName coords=""><forename type="first">A</forename><surname>Suzuki</surname></persName>
+		</author>
+		<idno type="DOI">10.1109/10.623056</idno>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Transactions on Biomedical Engineering</title>
+		<title level="j" type="abbrev">IEEE Trans. Biomed. Eng.</title>
+		<idno type="ISSN">0018-9294</idno>
+		<imprint>
+			<biblScope unit="volume">44</biblScope>
+			<biblScope unit="issue">9</biblScope>
+			<biblScope unit="page" from="867" to="880" />
+			<date type="published" when="1997">1997</date>
+			<publisher>Institute of Electrical and Electronics Engineers (IEEE)</publisher>
+		</imprint>
+	</monogr>
+	<note>PubMed: 9282479</note>
+</biblStruct>
+
+<biblStruct coords="10,150.00,670.75,366.21,8.10;10,165.00,681.75,232.63,8.10" xml:id="b25">
+	<analytic>
+		<title level="a" type="main">Perceptual Echoes at 10 Hz in the Human Brain</title>
+		<author>
+			<persName><forename type="first">Rufin</forename><surname>Vanrullen</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">James</forename><forename type="middle">S P</forename><surname>Macdonald</surname></persName>
+		</author>
+		<idno type="DOI">10.1016/j.cub.2012.03.050</idno>
+	</analytic>
+	<monogr>
+		<title level="j">Current Biology</title>
+		<title level="j" type="abbrev">Current Biology</title>
+		<idno type="ISSN">0960-9822</idno>
+		<imprint>
+			<biblScope unit="volume">22</biblScope>
+			<biblScope unit="issue">11</biblScope>
+			<biblScope unit="page" from="995" to="999" />
+			<date type="published" when="2012-06">2012</date>
+			<publisher>Elsevier BV</publisher>
+		</imprint>
+	</monogr>
+	<note>PubMed: 22560609</note>
+</biblStruct>
+
+<biblStruct coords="11,150.00,62.75,365.57,8.10;11,165.00,73.75,337.17,8.10;11,165.00,84.75,77.25,8.10" xml:id="b26">
+	<analytic>
+		<title level="a" type="main">Standing and travelling waves in a spherical brain model: The Nunez model revisited</title>
+		<author>
+			<persName coords=""><forename type="first">S</forename><surname>Visser</surname></persName>
+		</author>
+		<author>
+			<persName coords=""><forename type="first">R</forename><surname>Nicks</surname></persName>
+		</author>
+		<author>
+			<persName coords=""><forename type="first">O</forename><surname>Faugeras</surname></persName>
+			<idno type="ORCID">0000-0001-8363-1550</idno>
+		</author>
+		<author>
+			<persName coords=""><forename type="first">S</forename><surname>Coombes</surname></persName>
+			<idno type="ORCID">0000-0003-1610-7665</idno>
+		</author>
+		<idno type="DOI">10.1016/j.physd.2017.02.017</idno>
+	</analytic>
+	<monogr>
+		<title level="j">Physica D: Nonlinear Phenomena</title>
+		<title level="j" type="abbrev">Physica D: Nonlinear Phenomena</title>
+		<idno type="ISSN">0167-2789</idno>
+		<imprint>
+			<biblScope unit="volume">349</biblScope>
+			<biblScope unit="page" from="27" to="45" />
+			<date type="published" when="2017-06">2017</date>
+			<publisher>Elsevier BV</publisher>
+		</imprint>
+	</monogr>
+	<note>PubMed: 28626276</note>
+</biblStruct>
+
+<biblStruct coords="11,150.00,97.75,354.86,8.10;11,165.00,108.75,335.97,8.10;11,165.00,119.75,207.99,8.10" xml:id="b27">
+	<analytic>
+		<title level="a" type="main">A unified view on beamformers for M/EEG source reconstruction</title>
+		<author>
+			<persName><forename type="first">Britta</forename><forename type="middle">U</forename><surname>Westner</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Sarang</forename><forename type="middle">S</forename><surname>Dalal</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Alexandre</forename><surname>Gramfort</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Vladimir</forename><surname>Litvak</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">John</forename><forename type="middle">C</forename><surname>Mosher</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Robert</forename><surname>Oostenveld</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Jan-Mathijs</forename><surname>Schoffelen</surname></persName>
+		</author>
+		<idno type="DOI">10.1016/j.neuroimage.2021.118789</idno>
+	</analytic>
+	<monogr>
+		<title level="j">NeuroImage</title>
+		<title level="j" type="abbrev">NeuroImage</title>
+		<idno type="ISSN">1053-8119</idno>
+		<imprint>
+			<biblScope unit="volume">246</biblScope>
+			<biblScope unit="page">118789</biblScope>
+			<date type="published" when="2022-02">2022</date>
+			<publisher>Elsevier BV</publisher>
+		</imprint>
+	</monogr>
+	<note>PubMed: 34890794</note>
+</biblStruct>
+
+<biblStruct coords="11,150.00,132.75,353.92,8.10;11,165.00,143.75,343.08,8.10;11,165.00,154.75,77.25,8.10" xml:id="b28">
+	<analytic>
+		<title level="a" type="main">Theta and Alpha Oscillations Are Traveling Waves in the Human Neocortex</title>
+		<author>
+			<persName><forename type="first">Honghui</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Andrew</forename><forename type="middle">J</forename><surname>Watrous</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Ansh</forename><surname>Patel</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Joshua</forename><surname>Jacobs</surname></persName>
+		</author>
+		<idno type="DOI">10.1016/j.neuron.2018.05.019</idno>
+	</analytic>
+	<monogr>
+		<title level="j">Neuron</title>
+		<title level="j" type="abbrev">Neuron</title>
+		<idno type="ISSN">0896-6273</idno>
+		<imprint>
+			<biblScope unit="volume">98</biblScope>
+			<biblScope unit="issue">6</biblScope>
+			<biblScope unit="page" from="1269" to="1281.e4" />
+			<date type="published" when="1264">2018. 1264</date>
+			<publisher>Elsevier BV</publisher>
+		</imprint>
+	</monogr>
+	<note>PubMed: 29887341</note>
+</biblStruct>
+
+<biblStruct coords="11,150.00,167.75,350.69,8.10;11,165.00,178.75,332.03,8.10;11,165.00,189.75,152.00,8.10" xml:id="b29">
+	<analytic>
+		<title level="a" type="main">Alpha oscillations do not implement gain control in early visual cortex but rather gating in parieto‐occipital regions</title>
+		<author>
+			<persName><forename type="first">Alexander</forename><surname>Zhigalov</surname></persName>
+			<idno type="ORCID">0000-0002-3359-5093</idno>
+		</author>
+		<author>
+			<persName><forename type="first">Ole</forename><surname>Jensen</surname></persName>
+		</author>
+		<idno type="DOI">10.1002/hbm.25183</idno>
+	</analytic>
+	<monogr>
+		<title level="j">Human Brain Mapping</title>
+		<title level="j" type="abbrev">Human Brain Mapping</title>
+		<idno type="ISSN">1065-9471</idno>
+		<idno type="ISSNe">1097-0193</idno>
+		<imprint>
+			<biblScope unit="volume">41</biblScope>
+			<biblScope unit="issue">18</biblScope>
+			<biblScope unit="page" from="5176" to="5186" />
+			<date type="published" when="2020-08-21">2020</date>
+			<publisher>Wiley</publisher>
+		</imprint>
+	</monogr>
+	<note>PubMed: 32822098</note>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
-from .citekeys import load_citekeys_md
+from .citekeys import load_active_citekeys
 from .config import BiblioConfig
 from .docling import outputs_for_key, pdf_path_for_key, run_docling_for_key
 
@@ -71,7 +71,7 @@ def find_pending_docling(
     """
     from .docling import resolve_docling_outputs
 
-    all_keys = load_citekeys_md(cfg.citekeys_path)
+    all_keys = load_active_citekeys(cfg)
 
     if filter_glob:
         all_keys = [k for k in all_keys if fnmatch.fnmatch(k, filter_glob)]

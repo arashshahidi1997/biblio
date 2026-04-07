@@ -1,0 +1,364 @@
+from pathlib import Path
+from glob import glob
+import hashlib
+import json
+
+# Configurable roots (override via snakemake --config data_root=... overrides_dir=...)
+DATA_ROOT = Path(config.get("data_root", "data"))
+BRONZE_ROOT = DATA_ROOT / "01_bronze"
+RAW_ROOT = DATA_ROOT / "02_raw"
+SILVER_ROOT = DATA_ROOT / "03_silver"
+GOLD_ROOT = DATA_ROOT / "04_gold"
+OVERRIDES_DIR = Path(config.get("overrides_dir", "overrides"))
+
+# Dummy targets for the skeleton pipeline
+rule all:
+    input:
+        GOLD_ROOT / "vector_index.dummy"
+
+def file_hash(path: Path) -> str:
+    hasher = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            hasher.update(chunk)
+    return hasher.hexdigest()
+
+
+def extraction_id_for(pdf_path: Path, tool_name: str, tool_version: str, config_path: Path) -> str:
+    artifact_id = file_hash(pdf_path)
+    config_hash = file_hash(config_path) if config_path.exists() else "missing"
+    return f"{artifact_id}__{tool_name}__{tool_version}__{config_hash}"
+
+
+def load_registry():
+    registry_path = BRONZE_ROOT / "registry.json"
+    if not registry_path.exists():
+        return {}
+    try:
+        return json.loads(registry_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+
+
+def pdf_path_for_work_id(work_id: str) -> Path:
+    shortname = BRONZE_ROOT / "shortnames" / f"{work_id}.pdf"
+    if shortname.exists():
+        return shortname
+    registry = load_registry()
+    for work in registry.get("works", []):
+        if work.get("work_id") == work_id and work.get("pdf_path"):
+            return Path(work["pdf_path"])
+    return BRONZE_ROOT / "pdfs" / f"{work_id}.pdf"
+
+
+def cas_docling_path(work_id: str) -> Path:
+    pdf_path = pdf_path_for_work_id(work_id)
+    tool_name = config.get("docling_tool", "docling")
+    tool_version = config.get("docling_version", "0.0.0")
+    config_path = Path(config.get("docling_config", ".config/docling.yaml"))
+    extraction_id = extraction_id_for(pdf_path, tool_name, tool_version, config_path)
+    return RAW_ROOT / "docling" / extraction_id / "docling.json"
+
+
+def cas_grobid_path(work_id: str) -> Path:
+    pdf_path = pdf_path_for_work_id(work_id)
+    tool_name = config.get("grobid_tool", "grobid")
+    tool_version = config.get("grobid_version", "0.0.0")
+    config_path = Path(config.get("grobid_config", ".config/grobid.yaml"))
+    extraction_id = extraction_id_for(pdf_path, tool_name, tool_version, config_path)
+    return RAW_ROOT / "grobid" / extraction_id / "grobid.xml"
+
+def load_work_ids():
+    configured = config.get("work_ids")
+    if configured:
+        return configured
+    registry = load_registry()
+    return [work["work_id"] for work in registry.get("works", [])]
+    return []
+
+WORK_IDS = load_work_ids()
+
+rule ingest_bronze:
+    """
+    Parse the project bibliography into a registry artifact.
+    This writes the Bronze registry and appends manifest records.
+    """
+    input:
+        bib = BRONZE_ROOT / "project.bib",
+        pdf_map = BRONZE_ROOT / "pdf_map.json"
+    output:
+        BRONZE_ROOT / "registry.json"
+    log:
+        "logs/ingest_bronze.log"
+    shell:
+        "mkdir -p logs && "
+        "python src/scripts/ingest_bronze.py "
+        "--bib {input.bib} "
+        "--bronze-root " + str(BRONZE_ROOT) + " "
+        "--pdf-map {input.pdf_map} "
+        "--objects-dir " + str(BRONZE_ROOT / "objects") + " "
+        "--registry {output} "
+        "--manifest manifest.ingest.jsonl "
+        "--log {log} "
+        "> {log} 2>&1"
+
+rule internalize_pdfs:
+    """
+    Internalize PDFs into content-addressable storage.
+    """
+    input:
+        sources=lambda wc: sorted(glob("bib/*.bib"))
+    output:
+        objects_dir = directory(BRONZE_ROOT / "objects"),
+        pdf_map = BRONZE_ROOT / "pdf_map.json"
+    log:
+        "logs/internalize_pdfs.log"
+    shell:
+        "mkdir -p logs && "
+        "python src/scripts/internalize_pdfs.py "
+        "--inputs {input.sources} "
+        "--objects-dir {output.objects_dir} "
+        "--map-output {output.pdf_map} "
+        "> {log} 2>&1"
+
+rule fetch_missing:
+    """
+    Attempt to fetch missing PDFs and ingest them into CAS.
+    """
+    input:
+        manifest = "manifest.jsonl",
+        candidates = "data/graph/expansion_candidates.json"
+    output:
+        BRONZE_ROOT / ".fetch_last_run"
+    log:
+        "logs/fetch_missing.log"
+    shell:
+        "mkdir -p logs && "
+        "python src/scripts/fetch_missing.py "
+        "--manifest {input.manifest} "
+        "--candidates {input.candidates} "
+        "--objects-dir " + str(BRONZE_ROOT / "objects") + " "
+        "--pdf-map " + str(BRONZE_ROOT / "pdf_map.json") + " "
+        "> {log} 2>&1 && "
+        "touch {output}"
+
+rule compile_project_bib:
+    """
+    Compile project.bib using the existing merge script.
+    """
+    input:
+        sources=lambda wc: sorted(glob("bib/*.bib"))
+    output:
+        BRONZE_ROOT / "project.bib"
+    log:
+        "logs/compile_project_bib.log"
+    shell:
+        "mkdir -p logs && "
+        "python src/scripts/merge_bib.py "
+        "--inputs {input.sources} "
+        "--output {output} "
+        "> {log} 2>&1"
+
+rule validate_project_bib:
+    """
+    Validate project.bib syntax using pybtex.
+    """
+    input:
+        BRONZE_ROOT / "project.bib"
+    output:
+        BRONZE_ROOT / "project.bib.valid"
+    log:
+        "logs/validate_project_bib.log"
+    shell:
+        "mkdir -p logs && "
+        "python src/scripts/validate_bib.py {input} "
+        "> {log} 2>&1 && "
+        "touch {output}"
+
+
+rule link_pdfs:
+    """
+    Symlink PDFs using BibTeX citekeys as filenames.
+    """
+    input:
+        pdf_map = BRONZE_ROOT / "pdf_map.json",
+        objects_dir = BRONZE_ROOT / "objects",
+        valid = BRONZE_ROOT / "project.bib.valid"
+    output:
+        shortnames = directory(BRONZE_ROOT / "shortnames"),
+        report = "reports/pdf_linking.json"
+    log:
+        "logs/link_pdfs.log"
+    shell:
+        "mkdir -p logs && "
+        "python src/scripts/link_pdfs.py "
+        "--pdf-map {input.pdf_map} "
+        "--objects-dir {input.objects_dir} "
+        "--out-dir {output.shortnames} "
+        "--report {output.report} "
+        "--clean "
+        "> {log} 2>&1"
+
+rule build_manifest:
+    """
+    Build a project manifest by combining BibTeX metadata with PDF presence.
+    """
+    input:
+        validation_flag = BRONZE_ROOT / "project.bib.valid",
+        bib = BRONZE_ROOT / "project.bib",
+        pdf_report = "reports/pdf_linking.json",
+    output:
+        "manifest.jsonl"
+    log:
+        "logs/manifest.log"
+    shell:
+        "mkdir -p logs && "
+        "python src/scripts/generate_manifest.py "
+        "--bib {input.bib} "
+        "--pdf-report {input.pdf_report} "
+        "--output {output} "
+        "> {log} 2>&1"
+
+rule expand_graph:
+    """
+    Expand the citation graph using OpenAlex and emit discovery candidates.
+    """
+    input:
+        "manifest.jsonl"
+    output:
+        "data/graph/expansion_candidates.json"
+    log:
+        "logs/expand_graph.log"
+    shell:
+        "mkdir -p logs && "
+        "python src/scripts/expand_graph.py "
+        "--manifest {input} "
+        "--output {output} "
+        "> {log} 2>&1"
+
+
+rule extract_docling:
+    """
+    Docling extraction with caching.
+    """
+    input:
+        pdf = BRONZE_ROOT / "shortnames" / "{work_id}.pdf",
+        config = "src/bib_pipeline/config.py",
+    output:
+        RAW_ROOT / "docling" / "{work_id}.json"
+    log:
+        "logs/docling/{work_id}.log"
+    shell:
+        "mkdir -p logs/docling && "
+        "python src/scripts/extract_docling.py "
+        "--input {input.pdf} "
+        "--output {output} "
+        "> {log} 2>&1"
+
+# rule extract_grobid:
+#     """
+#     GROBID extraction with caching.
+#     """
+#     input:
+#         pdf = BRONZE_ROOT / "shortnames" / "{work_id}.pdf",
+#         config = "src/bib_pipeline/config.py",
+#     output:
+#         RAW_ROOT / "grobid" / "{work_id}.tei.xml"
+#     log:
+#         "logs/grobid/{work_id}.log"
+#     shell:
+#         "mkdir -p logs/grobid && "
+#         "python src/scripts/extract_grobid.py "
+#         "--input {input.pdf} "
+#         "--output {output} "
+#         "> {log} 2>&1"
+
+
+rule promote_docling_to_silver:
+    """
+    Promote raw Docling output into a minimal Silver artifact.
+    """
+    input:
+        raw_doc = RAW_ROOT / "docling" / "{work_id}.json"
+    output:
+        SILVER_ROOT / "{work_id}.json"
+    log:
+        "logs/promote_docling/{work_id}.log"
+    shell:
+        "mkdir -p logs/promote_docling && "
+        "python src/scripts/promote_docling.py "
+        "--work-id {wildcards.work_id} "
+        "--docling {input.raw_doc} "
+        "--output {output} "
+        "> {log} 2>&1"
+
+# rule reconcile_silver:
+#     """
+#     Merge raw tool output with human overrides into a reconciled Silver artifact.
+#     In production, overrides would be parsed with pydantic models from src/bib_pipeline/models.py.
+#     """
+#     input:
+#         raw_doc = RAW_ROOT / "docling" / "{work_id}.json",
+#         raw_grobid = RAW_ROOT / "grobid" / "{work_id}.tei.xml",
+#         overrides = OVERRIDES_DIR / "alignment.yaml",
+#     output:
+#         SILVER_ROOT / "{work_id}.json"
+#     log:
+#         "logs/reconcile_silver/{work_id}.log"
+#     run:
+#         shell(
+#             "mkdir -p logs/reconcile_silver && "
+#             "python src/scripts/reconcile_silver.py "
+#             "--work-id {wildcards.work_id} "
+#             "--docling {input.raw_doc} "
+#             "--grobid {input.raw_grobid} "
+#             "--overrides {input.overrides} "
+#             "--output {output} "
+#             "> {log} 2>&1",
+#             log=str(log[0]),
+#         )
+
+rule validate:
+    """
+    Validate Silver artifacts before Gold indexing.
+    """
+    input:
+        expand(str(SILVER_ROOT / "{work_id}.json"), work_id=WORK_IDS),
+        overrides = OVERRIDES_DIR / "alignment.yaml",
+        manifest = "manifest.jsonl",
+    output:
+        GOLD_ROOT / "validation.json"
+    log:
+        "logs/validate.log"
+    run:
+        shell(
+            "mkdir -p logs && "
+            "python src/scripts/validate_pipeline.py "
+            "--silver-root {silver_root} "
+            "--overrides {input.overrides} "
+            "--manifest {input.manifest} "
+            "--output {output} "
+            "> {log} 2>&1",
+            silver_root=str(SILVER_ROOT),
+            log=str(log[0]),
+        )
+
+
+rule build_gold:
+    """
+    Placeholder rule that would vectorize and index Silver artifacts.
+    Gold outputs live under data/04_gold/ and are fully regenerable from Silver.
+    """
+    input:
+        expand(str(SILVER_ROOT / "{work_id}.json"), work_id=WORK_IDS),
+        GOLD_ROOT / "validation.json"
+    output:
+        GOLD_ROOT / "vector_index.dummy"
+    log:
+        "logs/build_gold.log"
+    run:
+        out_path = Path(output[0])
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text("gold layer scaffold\n", encoding="utf-8")
+        Path(log[0]).parent.mkdir(parents=True, exist_ok=True)
+        Path(log[0]).write_text("build_gold completed\n", encoding="utf-8")

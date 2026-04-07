@@ -1,0 +1,4056 @@
+{
+  "run_id": "20251219T195004Z",
+  "source_bib": "project.bib",
+  "works": [
+    {
+      "work_id": "...ImpactCorticalDeafferentation2014",
+      "citekey": "...ImpactCorticalDeafferentation2014",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "...InfralimbicPrefrontalCortex2019",
+      "citekey": "...InfralimbicPrefrontalCortex2019",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "abadchiSpatiotemporalPatternsNeocortical2020",
+      "citekey": "abadchiSpatiotemporalPatternsNeocortical2020",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "abrahamSlowCorticalWaves2021",
+      "citekey": "abrahamSlowCorticalWaves2021",
+      "artifact_id": "b5546da7b03a4ff7dfd13b5f5af6bf7862e74d77a207c0ce9b4e4a9f522ab01b",
+      "pdf_path": "data/01_bronze/objects/b5546da7b03a4ff7dfd13b5f5af6bf7862e74d77a207c0ce9b4e4a9f522ab01b.pdf"
+    },
+    {
+      "work_id": "Abstract",
+      "citekey": "Abstract",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "acquasConditionedUnconditionedStimuli1996",
+      "citekey": "acquasConditionedUnconditionedStimuli1996",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "adcockRewardmotivatedLearningMesolimbic2006",
+      "citekey": "adcockRewardmotivatedLearningMesolimbic2006",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "aggarwalVisualEvokedFeedforward2022",
+      "citekey": "aggarwalVisualEvokedFeedforward2022",
+      "artifact_id": "2e0196f52c50c6fbe43e551b9c761d8b8f9c8ea987af7062c1b59d7c91d866eb",
+      "pdf_path": "data/01_bronze/objects/2e0196f52c50c6fbe43e551b9c761d8b8f9c8ea987af7062c1b59d7c91d866eb.pdf"
+    },
+    {
+      "work_id": "aggarwalVisualEvokedFeedforward2022a",
+      "citekey": "aggarwalVisualEvokedFeedforward2022a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "ainsworthDualRhythmGenerators2011",
+      "citekey": "ainsworthDualRhythmGenerators2011",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "ajabiPopulationDynamicsHeaddirection2023",
+      "citekey": "ajabiPopulationDynamicsHeaddirection2023",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "ajabiPopulationDynamicsHeaddirection2023a",
+      "citekey": "ajabiPopulationDynamicsHeaddirection2023a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "aksenovAnalysisPhaseWaves2021",
+      "citekey": "aksenovAnalysisPhaseWaves2021",
+      "artifact_id": "1b6b6f051d8a0ee305500ea2429a6db0489255150a0d95cbb6b61738172b87a3",
+      "pdf_path": "data/01_bronze/objects/1b6b6f051d8a0ee305500ea2429a6db0489255150a0d95cbb6b61738172b87a3.pdf"
+    },
+    {
+      "work_id": "alamiaAlphaOscillationsTraveling2019",
+      "citekey": "alamiaAlphaOscillationsTraveling2019",
+      "artifact_id": "acf240770faf4307ae2cef7e19564f8b64d57a77d5448e427031df89bdcc2682",
+      "pdf_path": "data/01_bronze/objects/acf240770faf4307ae2cef7e19564f8b64d57a77d5448e427031df89bdcc2682.pdf"
+    },
+    {
+      "work_id": "albergariaLocomotorActivityModulates2017",
+      "citekey": "albergariaLocomotorActivityModulates2017",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "alexanderLargescaleCorticalTravelling2019",
+      "citekey": "alexanderLargescaleCorticalTravelling2019",
+      "artifact_id": "3c7ba3ec16df3a2dc19de607743072311ec277e66a3cf7f6f1eed74b2ca576f1",
+      "pdf_path": "data/01_bronze/objects/3c7ba3ec16df3a2dc19de607743072311ec277e66a3cf7f6f1eed74b2ca576f1.pdf"
+    },
+    {
+      "work_id": "alexanderTravelingWavesTrial2013",
+      "citekey": "alexanderTravelingWavesTrial2013",
+      "artifact_id": "09a79d7be76677b3c203b53a1294ab2a822a8c9e3b77e88dd6bde0613882a26c",
+      "pdf_path": "data/01_bronze/objects/09a79d7be76677b3c203b53a1294ab2a822a8c9e3b77e88dd6bde0613882a26c.pdf"
+    },
+    {
+      "work_id": "alexanderTravelingWavesTrial2013a",
+      "citekey": "alexanderTravelingWavesTrial2013a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "allenEvolutionEpisodicMemory2013",
+      "citekey": "allenEvolutionEpisodicMemory2013",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "altmannPermutationImportanceCorrected2010",
+      "citekey": "altmannPermutationImportanceCorrected2010",
+      "artifact_id": "05cef3a491aff7715c245ec1604a49edf7519535ce7b0ecb6ad8eae263763e2a",
+      "pdf_path": "data/01_bronze/objects/05cef3a491aff7715c245ec1604a49edf7519535ce7b0ecb6ad8eae263763e2a.pdf"
+    },
+    {
+      "work_id": "altmannPermutationImportanceCorrected2010a",
+      "citekey": "altmannPermutationImportanceCorrected2010a",
+      "artifact_id": "80279ba0118f3f191e74d146dd5571ae2cebb39dd3ca99968ebc285001ba42ae",
+      "pdf_path": "data/01_bronze/objects/80279ba0118f3f191e74d146dd5571ae2cebb39dd3ca99968ebc285001ba42ae.pdf"
+    },
+    {
+      "work_id": "amzicaElectrophysiologicalCorrelatesSleep1998",
+      "citekey": "amzicaElectrophysiologicalCorrelatesSleep1998",
+      "artifact_id": "4181c539029b389d0a585be7a55371f3e07985251db612929d77d6456ba4ef1d",
+      "pdf_path": "data/01_bronze/objects/4181c539029b389d0a585be7a55371f3e07985251db612929d77d6456ba4ef1d.pdf"
+    },
+    {
+      "work_id": "amzicaMembraneCapacitanceCortical1999",
+      "citekey": "amzicaMembraneCapacitanceCortical1999",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "andelPathIntegrationDesert2004",
+      "citekey": "andelPathIntegrationDesert2004",
+      "artifact_id": "ec5d1249f82bbcdd4c59e6974f15c7cf99b60c27a4ffee98e0d62336ed503134",
+      "pdf_path": "data/01_bronze/objects/ec5d1249f82bbcdd4c59e6974f15c7cf99b60c27a4ffee98e0d62336ed503134.pdf"
+    },
+    {
+      "work_id": "andrillonSleepSpindlesHumans2011",
+      "citekey": "andrillonSleepSpindlesHumans2011",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "antoniouIndividualResponsesNovelty2008",
+      "citekey": "antoniouIndividualResponsesNovelty2008",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "antonySleepSpindleRefractoriness2018",
+      "citekey": "antonySleepSpindleRefractoriness2018",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "antonySleepSpindlesMemory2019",
+      "citekey": "antonySleepSpindlesMemory2019",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "aquinoHemodynamicTravelingWaves2012",
+      "citekey": "aquinoHemodynamicTravelingWaves2012",
+      "artifact_id": "074ec1563e7757d34811163696c56aa1175121f98fbef7108586167b93048849",
+      "pdf_path": "data/01_bronze/objects/074ec1563e7757d34811163696c56aa1175121f98fbef7108586167b93048849.pdf"
+    },
+    {
+      "work_id": "arleoMultimodalSensoryIntegration2007",
+      "citekey": "arleoMultimodalSensoryIntegration2007",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "arneodoNeuralDecoderLearned2017",
+      "citekey": "arneodoNeuralDecoderLearned2017",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "arriagaMiceBirdsMen2012",
+      "citekey": "arriagaMiceBirdsMen2012",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "asanoOriginPropagationEpileptic2005",
+      "citekey": "asanoOriginPropagationEpileptic2005",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "astoriCaV33CalciumChannel2011",
+      "citekey": "astoriCaV33CalciumChannel2011",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "asumbisaFlexibleCueAnchoring2022",
+      "citekey": "asumbisaFlexibleCueAnchoring2022",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "asumbisaFlexibleCueAnchoring2022a",
+      "citekey": "asumbisaFlexibleCueAnchoring2022a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "axmacherIntracranialEEGGuide2023",
+      "citekey": "axmacherIntracranialEEGGuide2023",
+      "artifact_id": "4ea42274450265ac0183bd6d3016af43a70ab292a42f18907d44bbff4368c0c3",
+      "pdf_path": "data/01_bronze/objects/4ea42274450265ac0183bd6d3016af43a70ab292a42f18907d44bbff4368c0c3.pdf"
+    },
+    {
+      "work_id": "azeglioTopologicalDataAnalysis2021",
+      "citekey": "azeglioTopologicalDataAnalysis2021",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "bahramisharifPropagatingNeocorticalGamma2013",
+      "citekey": "bahramisharifPropagatingNeocorticalGamma2013",
+      "artifact_id": "bb9f04b5d78682648f2f31807309a3efdd038272387b5624b5e45df1935d3273",
+      "pdf_path": "data/01_bronze/objects/bb9f04b5d78682648f2f31807309a3efdd038272387b5624b5e45df1935d3273.pdf"
+    },
+    {
+      "work_id": "bahramisharifPropagatingNeocorticalGamma2013a",
+      "citekey": "bahramisharifPropagatingNeocorticalGamma2013a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "bandarabadiRoleSpindlesOnset2020",
+      "citekey": "bandarabadiRoleSpindlesOnset2020",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "barachantMulticlassBraincomputerInterface2012",
+      "citekey": "barachantMulticlassBraincomputerInterface2012",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "bastosVisualAreasExert2015",
+      "citekey": "bastosVisualAreasExert2015",
+      "artifact_id": "4f6040a951be8f98d44b45d7e41aa9de045d13a19a30a8ff24da468acd11a2a0",
+      "pdf_path": "data/01_bronze/objects/4f6040a951be8f98d44b45d7e41aa9de045d13a19a30a8ff24da468acd11a2a0.pdf"
+    },
+    {
+      "work_id": "bastujiLocalSleepSpindles2020",
+      "citekey": "bastujiLocalSleepSpindles2020",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "battigEffectsSexStrain1979",
+      "citekey": "battigEffectsSexStrain1979",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "bellAcetylcholineReleaseMouse2015",
+      "citekey": "bellAcetylcholineReleaseMouse2015",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "bellesiEnhancementSleepSlow2014",
+      "citekey": "bellesiEnhancementSleepSlow2014",
+      "artifact_id": "caa4bf1ef9b473542f963659cd19b767a3c33200d7355dd444b35bdb35a80a70",
+      "pdf_path": "data/01_bronze/objects/caa4bf1ef9b473542f963659cd19b767a3c33200d7355dd444b35bdb35a80a70.pdf"
+    },
+    {
+      "work_id": "benhamouHowReliablyEstimate2004",
+      "citekey": "benhamouHowReliablyEstimate2004",
+      "artifact_id": "6038dd974bc632bafa3363bc9b997667f360d6e94d14640c494acb6f6f82a5d1",
+      "pdf_path": "data/01_bronze/objects/6038dd974bc632bafa3363bc9b997667f360d6e94d14640c494acb6f6f82a5d1.pdf"
+    },
+    {
+      "work_id": "benhamouHowReliablyEstimate2004a",
+      "citekey": "benhamouHowReliablyEstimate2004a",
+      "artifact_id": "6038dd974bc632bafa3363bc9b997667f360d6e94d14640c494acb6f6f82a5d1",
+      "pdf_path": "data/01_bronze/objects/6038dd974bc632bafa3363bc9b997667f360d6e94d14640c494acb6f6f82a5d1.pdf"
+    },
+    {
+      "work_id": "benignoWhatComputationsCan2022",
+      "citekey": "benignoWhatComputationsCan2022",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "benignoWhatComputationsCan2022a",
+      "citekey": "benignoWhatComputationsCan2022a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "benucciStandingWavesTraveling2007",
+      "citekey": "benucciStandingWavesTraveling2007",
+      "artifact_id": "02674f45cee4b96f1106be01f3c8f46d9ca7be05fa5735e9ec4b8f4f6d5166f9",
+      "pdf_path": "data/01_bronze/objects/02674f45cee4b96f1106be01f3c8f46d9ca7be05fa5735e9ec4b8f4f6d5166f9.pdf"
+    },
+    {
+      "work_id": "berenyiClosedloopControlEpilepsy2012",
+      "citekey": "berenyiClosedloopControlEpilepsy2012",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "berger-sweeneyDifferentialEffectsSpatial1994",
+      "citekey": "berger-sweeneyDifferentialEffectsSpatial1994",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "bergmannSleepSpindlerelatedReactivation2012",
+      "citekey": "bergmannSleepSpindlerelatedReactivation2012",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "berlyneCuriosityExploration1966",
+      "citekey": "berlyneCuriosityExploration1966",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "berlyneNoveltyArousalReinforcement1966",
+      "citekey": "berlyneNoveltyArousalReinforcement1966",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "berlyneNoveltyCuriosityDeterminants1950",
+      "citekey": "berlyneNoveltyCuriosityDeterminants1950",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "bernardiLocalWidespreadSlow2018",
+      "citekey": "bernardiLocalWidespreadSlow2018",
+      "artifact_id": "e8c13a4f4d4bfa92a1c35e3f742983845c167668c2369005097c649547408c47",
+      "pdf_path": "data/01_bronze/objects/e8c13a4f4d4bfa92a1c35e3f742983845c167668c2369005097c649547408c47.pdf"
+    },
+    {
+      "work_id": "bernhardSpatiotemporalPatternsSleep2022",
+      "citekey": "bernhardSpatiotemporalPatternsSleep2022",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "bestSpatiotemporalPatterningPrimary2016",
+      "citekey": "bestSpatiotemporalPatterningPrimary2016",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "bettertonModulationHippocampalGamma2015",
+      "citekey": "bettertonModulationHippocampalGamma2015",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "bhattacharyaImpactClosedloopThalamocortical2021",
+      "citekey": "bhattacharyaImpactClosedloopThalamocortical2021",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "bicanskiEnvironmentalAnchoringHead2016",
+      "citekey": "bicanskiEnvironmentalAnchoringHead2016",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "bicanskiEnvironmentalAnchoringHead2016a",
+      "citekey": "bicanskiEnvironmentalAnchoringHead2016a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "biellaOlfactoryInputsActivate2000",
+      "citekey": "biellaOlfactoryInputsActivate2000",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "biglCholinergicProjectionsBasal1982",
+      "citekey": "biglCholinergicProjectionsBasal1982",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "bindraMotivationalEffectsRewarding1967",
+      "citekey": "bindraMotivationalEffectsRewarding1967",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "bindraNeuropsychologicalInterpretationEffects1968",
+      "citekey": "bindraNeuropsychologicalInterpretationEffects1968",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "bindraResponseDifferentDegrees1958",
+      "citekey": "bindraResponseDifferentDegrees1958",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "blairAnticipatoryHeadDirection1995",
+      "citekey": "blairAnticipatoryHeadDirection1995",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "blairAnticipatoryHeadDirection1995a",
+      "citekey": "blairAnticipatoryHeadDirection1995a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "blairAnticipatoryTimeIntervals1997",
+      "citekey": "blairAnticipatoryTimeIntervals1997",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "blairAnticipatoryTimeIntervals1997a",
+      "citekey": "blairAnticipatoryTimeIntervals1997a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "blairRoleLateralMammillary1998",
+      "citekey": "blairRoleLateralMammillary1998",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "blairRoleLateralMammillary1998a",
+      "citekey": "blairRoleLateralMammillary1998a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "bourdillonBrainscaleCorticocorticalFunctional2020",
+      "citekey": "bourdillonBrainscaleCorticocorticalFunctional2020",
+      "artifact_id": "20b64e7da9e2b945c1c7a634c50644383eaf21fa020ab5cadea9dd685cc4c466",
+      "pdf_path": "data/01_bronze/objects/20b64e7da9e2b945c1c7a634c50644383eaf21fa020ab5cadea9dd685cc4c466.pdf"
+    },
+    {
+      "work_id": "boutinSleepSpindleFramework2020",
+      "citekey": "boutinSleepSpindleFramework2020",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "boutinSleepSpindleFramework2020a",
+      "citekey": "boutinSleepSpindleFramework2020a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "bringuierHorizontalPropagationVisual1999",
+      "citekey": "bringuierHorizontalPropagationVisual1999",
+      "artifact_id": "e5739ead68cc0c952bc36ed24eedd35e7eae1a6fc5d8762ddb851cb1c2586e11",
+      "pdf_path": "data/01_bronze/objects/e5739ead68cc0c952bc36ed24eedd35e7eae1a6fc5d8762ddb851cb1c2586e11.pdf"
+    },
+    {
+      "work_id": "bromberg-martinDopamineMotivationalControl2010",
+      "citekey": "bromberg-martinDopamineMotivationalControl2010",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "bruntonExtractingSpatialTemporal2016",
+      "citekey": "bruntonExtractingSpatialTemporal2016",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "budzinskiGeometryUnitesSynchrony2022",
+      "citekey": "budzinskiGeometryUnitesSynchrony2022",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "bukhtiyarova2019",
+      "citekey": "bukhtiyarova2019",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "bukhtiyarovaSlowWaveDetection2019",
+      "citekey": "bukhtiyarovaSlowWaveDetection2019",
+      "artifact_id": "edd75636851bc75ed98c303d7f16bf90d73d84571ff7873579f66880fc3e5906",
+      "pdf_path": "data/01_bronze/objects/edd75636851bc75ed98c303d7f16bf90d73d84571ff7873579f66880fc3e5906.pdf"
+    },
+    {
+      "work_id": "burakAccuratePathIntegration2009",
+      "citekey": "burakAccuratePathIntegration2009",
+      "artifact_id": "bceee88a0d7d3cbdefd0b02f877ccd782421923b4131c3010e607d64da3ad2b8",
+      "pdf_path": "data/01_bronze/objects/bceee88a0d7d3cbdefd0b02f877ccd782421923b4131c3010e607d64da3ad2b8.pdf"
+    },
+    {
+      "work_id": "burgessSpatialCognitionBrain2008",
+      "citekey": "burgessSpatialCognitionBrain2008",
+      "artifact_id": "be468b8f13ec0376e69ffaa4ff9a30d52e02467e5473ccd9aa31336b2fe198eb",
+      "pdf_path": "data/01_bronze/objects/be468b8f13ec0376e69ffaa4ff9a30d52e02467e5473ccd9aa31336b2fe198eb.pdf"
+    },
+    {
+      "work_id": "burgessSpatialMemoryHow2006",
+      "citekey": "burgessSpatialMemoryHow2006",
+      "artifact_id": "6c6ea57f5d479214f767194c202c94f157bcce891074dae1c6e3354aeef71654",
+      "pdf_path": "data/01_bronze/objects/6c6ea57f5d479214f767194c202c94f157bcce891074dae1c6e3354aeef71654.pdf"
+    },
+    {
+      "work_id": "buzsakiMemoryNavigationTheta2013",
+      "citekey": "buzsakiMemoryNavigationTheta2013",
+      "artifact_id": "8c98958ce0814dfd0aea039c1d39ce701a3997f3554b0cfff5772fffc64c94ad",
+      "pdf_path": "data/01_bronze/objects/8c98958ce0814dfd0aea039c1d39ce701a3997f3554b0cfff5772fffc64c94ad.pdf"
+    },
+    {
+      "work_id": "buzsakiMemoryNavigationTheta2013a",
+      "citekey": "buzsakiMemoryNavigationTheta2013a",
+      "artifact_id": "ab0a50612fee79d59bb31c27dc1fd5b631ea3978a48bf543b2246c7872b7196e",
+      "pdf_path": "data/01_bronze/objects/ab0a50612fee79d59bb31c27dc1fd5b631ea3978a48bf543b2246c7872b7196e.pdf"
+    },
+    {
+      "work_id": "byrneRememberingImaginingFuture2007",
+      "citekey": "byrneRememberingImaginingFuture2007",
+      "artifact_id": "85cf571fe161ba94ad7aa46447e3379b11cd787b0c5bcffc242c3be607caa242",
+      "pdf_path": "data/01_bronze/objects/85cf571fe161ba94ad7aa46447e3379b11cd787b0c5bcffc242c3be607caa242.pdf"
+    },
+    {
+      "work_id": "caddyeLactateTheranosticBiomarker2023",
+      "citekey": "caddyeLactateTheranosticBiomarker2023",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "cagigalMovementCharacterizationSpatiotemporal1995",
+      "citekey": "cagigalMovementCharacterizationSpatiotemporal1995",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "campagnerCorticocollicularCircuitOrienting2023",
+      "citekey": "campagnerCorticocollicularCircuitOrienting2023",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "campagnerCorticocollicularCircuitOrienting2023a",
+      "citekey": "campagnerCorticocollicularCircuitOrienting2023a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "capekParabolicAvalancheScaling2023",
+      "citekey": "capekParabolicAvalancheScaling2023",
+      "artifact_id": "61608f13c480b8721d59eb2ee5d821d8fa5decfd0664df79a40c17ddbc11cc35",
+      "pdf_path": "data/01_bronze/objects/61608f13c480b8721d59eb2ee5d821d8fa5decfd0664df79a40c17ddbc11cc35.pdf"
+    },
+    {
+      "work_id": "caporroFunctionalMRISleep2012",
+      "citekey": "caporroFunctionalMRISleep2012",
+      "artifact_id": "630eb44bd13e8076d567ff46954a66fd028f04147c02298f53b207c15a1af9af",
+      "pdf_path": "data/01_bronze/objects/630eb44bd13e8076d567ff46954a66fd028f04147c02298f53b207c15a1af9af.pdf"
+    },
+    {
+      "work_id": "casselReuniensRhomboidNuclei2013",
+      "citekey": "casselReuniensRhomboidNuclei2013",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "celottoAnalysisModelCortical2020",
+      "citekey": "celottoAnalysisModelCortical2020",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "chengPurelyGeometricModule1986",
+      "citekey": "chengPurelyGeometricModule1986",
+      "artifact_id": "90218adb58341095f9f1b1fb9c5c3d6e5b59701224bdc5ba093957a2f97839ba",
+      "pdf_path": "data/01_bronze/objects/90218adb58341095f9f1b1fb9c5c3d6e5b59701224bdc5ba093957a2f97839ba.pdf"
+    },
+    {
+      "work_id": "chenSpatialCellFiring2018",
+      "citekey": "chenSpatialCellFiring2018",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "cheungMaintainingCognitiveMap2012",
+      "citekey": "cheungMaintainingCognitiveMap2012",
+      "artifact_id": "0a443baf734fc2b0c9a92f5aba9688fbc41781d997b842da5050004544bca091",
+      "pdf_path": "data/01_bronze/objects/0a443baf734fc2b0c9a92f5aba9688fbc41781d997b842da5050004544bca091.pdf"
+    },
+    {
+      "work_id": "cholvinVentralMidlineThalamus2013",
+      "citekey": "cholvinVentralMidlineThalamus2013",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "clineActivitydependentOrganizationTopographic2022",
+      "citekey": "clineActivitydependentOrganizationTopographic2022",
+      "artifact_id": "aef655e6e97deb1af9825931f7f912baea50a85bc59330d4f66ffce21dfce665",
+      "pdf_path": "data/01_bronze/objects/aef655e6e97deb1af9825931f7f912baea50a85bc59330d4f66ffce21dfce665.pdf"
+    },
+    {
+      "work_id": "cohenNeurontypespecificSignalsReward2012",
+      "citekey": "cohenNeurontypespecificSignalsReward2012",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "collettAnimalNavigationPath2004",
+      "citekey": "collettAnimalNavigationPath2004",
+      "artifact_id": "60c638066bece20d8b177f6d29f2503f57043e2602b44f6955fee31712a7a82d",
+      "pdf_path": "data/01_bronze/objects/60c638066bece20d8b177f6d29f2503f57043e2602b44f6955fee31712a7a82d.pdf"
+    },
+    {
+      "work_id": "colrainKcomplex7decadeHistory2005",
+      "citekey": "colrainKcomplex7decadeHistory2005",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "colrainN550ComponentEvoked1999",
+      "citekey": "colrainN550ComponentEvoked1999",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "condeAfferentConnectionsMedial1995",
+      "citekey": "condeAfferentConnectionsMedial1995",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "coonOscillatoryPhaseModulates2016",
+      "citekey": "coonOscillatoryPhaseModulates2016",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "cortezModelAtypicalAbsence2001",
+      "citekey": "cortezModelAtypicalAbsence2001",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "cowanSystematicPatrollingOrderly1977",
+      "citekey": "cowanSystematicPatrollingOrderly1977",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "crutcherStudyRatSeptohippocampal1981",
+      "citekey": "crutcherStudyRatSeptohippocampal1981",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "csercsaLaminarAnalysisSlow2010",
+      "citekey": "csercsaLaminarAnalysisSlow2010",
+      "artifact_id": "c7e4576f73420d6692a0cdfb0c938ec58d28d92d80f424024ef5774e388eef2b",
+      "pdf_path": "data/01_bronze/objects/c7e4576f73420d6692a0cdfb0c938ec58d28d92d80f424024ef5774e388eef2b.pdf"
+    },
+    {
+      "work_id": "custoElectroencephalographicRestingstateNetworks2017",
+      "citekey": "custoElectroencephalographicRestingstateNetworks2017",
+      "artifact_id": "6d3cf2eb7671255288301e845fc82596dda14df45ccb8c5bd69cf5a43e49a5d6",
+      "pdf_path": "data/01_bronze/objects/6d3cf2eb7671255288301e845fc82596dda14df45ccb8c5bd69cf5a43e49a5d6.pdf"
+    },
+    {
+      "work_id": "dang-vuNeuronalOscillationsSleep2012",
+      "citekey": "dang-vuNeuronalOscillationsSleep2012",
+      "artifact_id": "5f8b4d14e7876716d5c57e8a0d3ee288dc0de806eb058ceb12774875e4f62723",
+      "pdf_path": "data/01_bronze/objects/5f8b4d14e7876716d5c57e8a0d3ee288dc0de806eb058ceb12774875e4f62723.pdf"
+    },
+    {
+      "work_id": "danielsonDefaultModeNetwork2011",
+      "citekey": "danielsonDefaultModeNetwork2011",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "dannenbergEffectsVisualInputs2020",
+      "citekey": "dannenbergEffectsVisualInputs2020",
+      "artifact_id": "de9c33edc053c9d1d9459e65cdcc0c4af885cb90226ad67de1c0904ff703f352",
+      "pdf_path": "data/01_bronze/objects/de9c33edc053c9d1d9459e65cdcc0c4af885cb90226ad67de1c0904ff703f352.pdf"
+    },
+    {
+      "work_id": "dasHowCanWe2022",
+      "citekey": "dasHowCanWe2022",
+      "artifact_id": "eb07c81c9c0cfb52a6eeb2a768452ea77338f3480c93cfad2b9f133b64b94e76",
+      "pdf_path": "data/01_bronze/objects/eb07c81c9c0cfb52a6eeb2a768452ea77338f3480c93cfad2b9f133b64b94e76.pdf"
+    },
+    {
+      "work_id": "dasPlanarSpiralConcentric2024",
+      "citekey": "dasPlanarSpiralConcentric2024",
+      "artifact_id": "ba51ce8996c81cb93398b980069976eae90345cbc542c74d0d3787946cf18ef9",
+      "pdf_path": "data/01_bronze/objects/ba51ce8996c81cb93398b980069976eae90345cbc542c74d0d3787946cf18ef9.pdf"
+    },
+    {
+      "work_id": "dasSpontaneousNeuronalOscillations2022",
+      "citekey": "dasSpontaneousNeuronalOscillations2022",
+      "artifact_id": "e0c655027bfe15390ece20df579f7810c00c2958c5e75180a6039573de8c02a2",
+      "pdf_path": "data/01_bronze/objects/e0c655027bfe15390ece20df579f7810c00c2958c5e75180a6039573de8c02a2.pdf"
+    },
+    {
+      "work_id": "davisDeltaWavePower2011",
+      "citekey": "davisDeltaWavePower2011",
+      "artifact_id": "62b93aef7788f72d31c1acfaae729b2464b2f17009bee07d3fc2f5b433caa142",
+      "pdf_path": "data/01_bronze/objects/62b93aef7788f72d31c1acfaae729b2464b2f17009bee07d3fc2f5b433caa142.pdf"
+    },
+    {
+      "work_id": "davisSpontaneousTravelingWaves2021",
+      "citekey": "davisSpontaneousTravelingWaves2021",
+      "artifact_id": "ce63790f24d49cbb56a1afcbfdc7105b7518662af169c5e41de0c939a89e70f9",
+      "pdf_path": "data/01_bronze/objects/ce63790f24d49cbb56a1afcbfdc7105b7518662af169c5e41de0c939a89e70f9.pdf"
+    },
+    {
+      "work_id": "davisSpontaneousTravellingCortical2020",
+      "citekey": "davisSpontaneousTravellingCortical2020",
+      "artifact_id": "8c96614e22512ee4aeae81575f85dc618fa8b362fd3b7b0bb14a9f1180486633",
+      "pdf_path": "data/01_bronze/objects/8c96614e22512ee4aeae81575f85dc618fa8b362fd3b7b0bb14a9f1180486633.pdf"
+    },
+    {
+      "work_id": "dayanRewardMotivationReinforcement2002",
+      "citekey": "dayanRewardMotivationReinforcement2002",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "degennaroFallSleepKcomplex2017",
+      "citekey": "degennaroFallSleepKcomplex2017",
+      "artifact_id": "b605c6c1ab3614409af72ff4cd2d833aac38e531a87dc7294e63e412775d9978",
+      "pdf_path": "data/01_bronze/objects/b605c6c1ab3614409af72ff4cd2d833aac38e531a87dc7294e63e412775d9978.pdf"
+    },
+    {
+      "work_id": "dehghaniDivergentCorticalGenerators2010",
+      "citekey": "dehghaniDivergentCorticalGenerators2010",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "dehghaniEmergenceSynchronousEEG2011",
+      "citekey": "dehghaniEmergenceSynchronousEEG2011",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "dehghaniMagnetoencephalographyDemonstratesMultiple2010",
+      "citekey": "dehghaniMagnetoencephalographyDemonstratesMultiple2010",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "dehghaniTopographicalFrequencyDynamics2011",
+      "citekey": "dehghaniTopographicalFrequencyDynamics2011",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "demberResponseRatEnvironmental1956",
+      "citekey": "demberResponseRatEnvironmental1956",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "denkerLFPBetaAmplitude2018",
+      "citekey": "denkerLFPBetaAmplitude2018",
+      "artifact_id": "6315e5dc2e4f96bcd762b5c42b25fdbdc0c91e204c395309985d7e64675b8322",
+      "pdf_path": "data/01_bronze/objects/6315e5dc2e4f96bcd762b5c42b25fdbdc0c91e204c395309985d7e64675b8322.pdf"
+    },
+    {
+      "work_id": "denkerLFPBetaAmplitude2018a",
+      "citekey": "denkerLFPBetaAmplitude2018a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "denkerLocalFieldPotential2011",
+      "citekey": "denkerLocalFieldPotential2011",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "depaulisPathophysiologyAbsenceEpilepsy2018",
+      "citekey": "depaulisPathophysiologyAbsenceEpilepsy2018",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "derdikmanFragmentationGridCell2009",
+      "citekey": "derdikmanFragmentationGridCell2009",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "dezambottiKComplexesInteractionCentral2016",
+      "citekey": "dezambottiKComplexesInteractionCentral2016",
+      "artifact_id": "64aec20035ed293bd4953616028bd72429090dfba26670f2628b1f82936bd6c3",
+      "pdf_path": "data/01_bronze/objects/64aec20035ed293bd4953616028bd72429090dfba26670f2628b1f82936bd6c3.pdf"
+    },
+    {
+      "work_id": "dfosterFreelymovingMonkeyTreadmill2014",
+      "citekey": "dfosterFreelymovingMonkeyTreadmill2014",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "dickeyTravellingSpindlesCreate2021",
+      "citekey": "dickeyTravellingSpindlesCreate2021",
+      "artifact_id": "9d2e1c140432c459bff315c8cf8a27be8376fcda1cbdc12a6e48606255ccc5a9",
+      "pdf_path": "data/01_bronze/objects/9d2e1c140432c459bff315c8cf8a27be8376fcda1cbdc12a6e48606255ccc5a9.pdf"
+    },
+    {
+      "work_id": "dickeyTravellingSpindlesCreate2021a",
+      "citekey": "dickeyTravellingSpindlesCreate2021a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "dimitrovSleepSpindlesComprise2021",
+      "citekey": "dimitrovSleepSpindlesComprise2021",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "DistinctRolesForward",
+      "citekey": "DistinctRolesForward",
+      "artifact_id": "865c1eff8fbdb07cae4a87780f494b22470926ea1fbc8d55d9ba53f62a690b22",
+      "pdf_path": "/home/arash/snap/zotero-snap/common/Zotero/storage/6I6CJLP8/85035.html"
+    },
+    {
+      "work_id": "doCellTypespecificLongrange2016",
+      "citekey": "doCellTypespecificLongrange2016",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "donmez-demirKClinducedCorticalSpreading2020",
+      "citekey": "donmez-demirKClinducedCorticalSpreading2020",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "donoghueParameterizingNeuralPower2020",
+      "citekey": "donoghueParameterizingNeuralPower2020",
+      "artifact_id": "5fb2e060a6b50212de9719c280fe08f065a7ae87b4fd84d1a257eab06aa2e816",
+      "pdf_path": "data/01_bronze/objects/5fb2e060a6b50212de9719c280fe08f065a7ae87b4fd84d1a257eab06aa2e816.pdf"
+    },
+    {
+      "work_id": "duarte-guevaraCharacterization102410242017",
+      "citekey": "duarte-guevaraCharacterization102410242017",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "dudchenkoEffectsRepeatedDisorientation1997",
+      "citekey": "dudchenkoEffectsRepeatedDisorientation1997",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "duncanRTCTRodentTriangle2025",
+      "citekey": "duncanRTCTRodentTriangle2025",
+      "artifact_id": "4b624de58c892996b13cfc6b2d48c594c72933442d6102bd70159d474e8ba52f",
+      "pdf_path": "data/01_bronze/objects/4b624de58c892996b13cfc6b2d48c594c72933442d6102bd70159d474e8ba52f.pdf"
+    },
+    {
+      "work_id": "duntleyCharacterizationMuRhythm2001",
+      "citekey": "duntleyCharacterizationMuRhythm2001",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "duraivelHighresolutionNeuralRecordings2023",
+      "citekey": "duraivelHighresolutionNeuralRecordings2023",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "durkinHowSleepShapes2019",
+      "citekey": "durkinHowSleepShapes2019",
+      "artifact_id": "aa6df113b570392559d82d1b4fb0eebaa380dd16bbdbe418fe5b6fb07c313088",
+      "pdf_path": "data/01_bronze/objects/aa6df113b570392559d82d1b4fb0eebaa380dd16bbdbe418fe5b6fb07c313088.pdf"
+    },
+    {
+      "work_id": "durstewitzReconstructingComputationalSystem2023",
+      "citekey": "durstewitzReconstructingComputationalSystem2023",
+      "artifact_id": "c86ffb5db68366652f9cccc35f1501fb4eea10366402179ba3202ef65fffc439",
+      "pdf_path": "data/01_bronze/objects/c86ffb5db68366652f9cccc35f1501fb4eea10366402179ba3202ef65fffc439.pdf"
+    },
+    {
+      "work_id": "duszkiewiczReciprocalRepresentationEncoded2022",
+      "citekey": "duszkiewiczReciprocalRepresentationEncoded2022",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "duszkiewiczReciprocalRepresentationEncoded2022a",
+      "citekey": "duszkiewiczReciprocalRepresentationEncoded2022a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "dutarSeptohippocampalPathwayStructure1995",
+      "citekey": "dutarSeptohippocampalPathwayStructure1995",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "eckensteinAnatomicalStudyCholinergic1988",
+      "citekey": "eckensteinAnatomicalStudyCholinergic1988",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "eckertReliableInductionSleep2020",
+      "citekey": "eckertReliableInductionSleep2020",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "eichenlaubReplayLearnedNeural2020",
+      "citekey": "eichenlaubReplayLearnedNeural2020",
+      "artifact_id": "31f89e1eb3bdfca3e4c05a41e498fbc79fdd73725b665fb00dea1a10e84e7472",
+      "pdf_path": "data/01_bronze/objects/31f89e1eb3bdfca3e4c05a41e498fbc79fdd73725b665fb00dea1a10e84e7472.pdf"
+    },
+    {
+      "work_id": "el-kanbiDistinctionSlowWaves2022",
+      "citekey": "el-kanbiDistinctionSlowWaves2022",
+      "artifact_id": "bd9173f36e8df254fe52134ebd1686bbb5787bb23398e26318b6c9384103ce08",
+      "pdf_path": "data/01_bronze/objects/bd9173f36e8df254fe52134ebd1686bbb5787bb23398e26318b6c9384103ce08.pdf"
+    },
+    {
+      "work_id": "engelNewPerspectivesDimensionality2019",
+      "citekey": "engelNewPerspectivesDimensionality2019",
+      "artifact_id": "d303366e7ed132cd77f768e4125f478948a9cf915cfd021ad5eb1d1ee0693bd1",
+      "pdf_path": "data/01_bronze/objects/d303366e7ed132cd77f768e4125f478948a9cf915cfd021ad5eb1d1ee0693bd1.pdf"
+    },
+    {
+      "work_id": "ennaceurNewOnetrialTest1988",
+      "citekey": "ennaceurNewOnetrialTest1988",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "ermentroutTravelingElectricalWaves2001",
+      "citekey": "ermentroutTravelingElectricalWaves2001",
+      "artifact_id": "9ed33865bd01273c0e32ee44f4b7d5164ce560bbf9b89c0713c93fcc1cc80c63",
+      "pdf_path": "data/01_bronze/objects/9ed33865bd01273c0e32ee44f4b7d5164ce560bbf9b89c0713c93fcc1cc80c63.pdf"
+    },
+    {
+      "work_id": "fakchePerceptualCyclesTravel2022",
+      "citekey": "fakchePerceptualCyclesTravel2022",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "ferinoAnatomicalElectrophysiologicalEvidence1987",
+      "citekey": "ferinoAnatomicalElectrophysiologicalEvidence1987",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "ferinoInterhemisphericSubcorticalCollaterals1987",
+      "citekey": "ferinoInterhemisphericSubcorticalCollaterals1987",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "fernandezThalamicReticularControl2018",
+      "citekey": "fernandezThalamicReticularControl2018",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "ferrarelliReducedNaturalOscillatory2012",
+      "citekey": "ferrarelliReducedNaturalOscillatory2012",
+      "artifact_id": "05402d0ad39437e8027f3672446a7202bcea69bd6c3868aa289d66129cee9699",
+      "pdf_path": "data/01_bronze/objects/05402d0ad39437e8027f3672446a7202bcea69bd6c3868aa289d66129cee9699.pdf"
+    },
+    {
+      "work_id": "ferrarisNucleusReuniensThalamic2021",
+      "citekey": "ferrarisNucleusReuniensThalamic2021",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "ferstlVisualAnalysisSpatial2016",
+      "citekey": "ferstlVisualAnalysisSpatial2016",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "fiathLargescaleRecordingThalamocortical2016",
+      "citekey": "fiathLargescaleRecordingThalamocortical2016",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "fiebelkornFunctionalSpecializationAttention2020",
+      "citekey": "fiebelkornFunctionalSpecializationAttention2020",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "fiebelkornFunctionalSpecializationAttention2020a",
+      "citekey": "fiebelkornFunctionalSpecializationAttention2020a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "fitzgeraldMazePatrollingRats1985",
+      "citekey": "fitzgeraldMazePatrollingRats1985",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "fonioCoordinationSniffingWhisking2016",
+      "citekey": "fonioCoordinationSniffingWhisking2016",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "freemanAnalysisSpatialPatterns2000",
+      "citekey": "freemanAnalysisSpatialPatterns2000",
+      "artifact_id": "bd87c0731b3ebe42af1b1452d99c0fae99e3b9f0f5f6c6f777f2efdb809cb47a",
+      "pdf_path": "data/01_bronze/objects/bd87c0731b3ebe42af1b1452d99c0fae99e3b9f0f5f6c6f777f2efdb809cb47a.pdf"
+    },
+    {
+      "work_id": "freemanChangesSpatialPatterns1982",
+      "citekey": "freemanChangesSpatialPatterns1982",
+      "artifact_id": "9ae1abedc69f27f239648cd682987f5abc04023165d2caaaa29f97ac9db1182b",
+      "pdf_path": "data/01_bronze/objects/9ae1abedc69f27f239648cd682987f5abc04023165d2caaaa29f97ac9db1182b.pdf"
+    },
+    {
+      "work_id": "freemanOriginStructureRole2005",
+      "citekey": "freemanOriginStructureRole2005",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "freemanRelationOlfactoryEEG1987",
+      "citekey": "freemanRelationOlfactoryEEG1987",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "freemanSpatialPropertiesEEG1978",
+      "citekey": "freemanSpatialPropertiesEEG1978",
+      "artifact_id": "01f9110eb05e83a4b485d14b56108288aeb5e5f0752862d7f16ff7030713fdba",
+      "pdf_path": "data/01_bronze/objects/01f9110eb05e83a4b485d14b56108288aeb5e5f0752862d7f16ff7030713fdba.pdf"
+    },
+    {
+      "work_id": "freemanVorticesBrainActivity2009",
+      "citekey": "freemanVorticesBrainActivity2009",
+      "artifact_id": "93a19bf69f08e31f7b87eec2005bb43e84c0e24197450c305077b7071c5ff280",
+      "pdf_path": "data/01_bronze/objects/93a19bf69f08e31f7b87eec2005bb43e84c0e24197450c305077b7071c5ff280.pdf"
+    },
+    {
+      "work_id": "fremeauLocalizationD1Dopamine1991",
+      "citekey": "fremeauLocalizationD1Dopamine1991",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "friesRhythmicAttentionalScanning2023",
+      "citekey": "friesRhythmicAttentionalScanning2023",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "funkRoleSomatostatinpositiveCortical2017",
+      "citekey": "funkRoleSomatostatinpositiveCortical2017",
+      "artifact_id": "f80e992d50ce152b3f5c507b8ac94f9e3323c465f814c382a03879f8c72dd1d6",
+      "pdf_path": "data/01_bronze/objects/f80e992d50ce152b3f5c507b8ac94f9e3323c465f814c382a03879f8c72dd1d6.pdf"
+    },
+    {
+      "work_id": "furtunatoSpecificIncreaseHippocampal2020",
+      "citekey": "furtunatoSpecificIncreaseHippocampal2020",
+      "artifact_id": "fc5732ff40f00275a7a752fdcc6e0e5179c18f17df67969ccd6a824a69128ccf",
+      "pdf_path": "data/01_bronze/objects/fc5732ff40f00275a7a752fdcc6e0e5179c18f17df67969ccd6a824a69128ccf.pdf"
+    },
+    {
+      "work_id": "gabrielMultichannelCorrelationMethod2003",
+      "citekey": "gabrielMultichannelCorrelationMethod2003",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "gaillardPrefrontalAttentionalSaccades2020",
+      "citekey": "gaillardPrefrontalAttentionalSaccades2020",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "gaisLowAcetylcholineSlowwave2004",
+      "citekey": "gaisLowAcetylcholineSlowwave2004",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "gallagherSeveritySpatialLearning1993",
+      "citekey": "gallagherSeveritySpatialLearning1993",
+      "artifact_id": "a3cbf4eaccd10849362d4213aa8707b22d4ea59cb07fe312ad091e5422cdb8c6",
+      "pdf_path": "data/01_bronze/objects/a3cbf4eaccd10849362d4213aa8707b22d4ea59cb07fe312ad091e5422cdb8c6.pdf"
+    },
+    {
+      "work_id": "gandolfoStudySleepSpindles1985",
+      "citekey": "gandolfoStudySleepSpindles1985",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "garcia-molinaClosedloopSystemEnhance2018",
+      "citekey": "garcia-molinaClosedloopSystemEnhance2018",
+      "artifact_id": "77d804b11eca3405e482a65b39a93b592cce911b4c7a7a96273a7abfedf09ecd",
+      "pdf_path": "data/01_bronze/objects/77d804b11eca3405e482a65b39a93b592cce911b4c7a7a96273a7abfedf09ecd.pdf"
+    },
+    {
+      "work_id": "gardnerToroidalTopologyPopulation2022",
+      "citekey": "gardnerToroidalTopologyPopulation2022",
+      "artifact_id": "ca9bdede2572d45e7ebed1f7cde1d64aec79046b80d57b1cbaeff742e65c7a7d",
+      "pdf_path": "data/01_bronze/objects/ca9bdede2572d45e7ebed1f7cde1d64aec79046b80d57b1cbaeff742e65c7a7d.pdf"
+    },
+    {
+      "work_id": "gaudreaultLengthThalamocorticalWhite2022",
+      "citekey": "gaudreaultLengthThalamocorticalWhite2022",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "gaykemaCorticalProjectionPatterns1990",
+      "citekey": "gaykemaCorticalProjectionPatterns1990",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "gazteluSeptohippocampalRelationshipsEEG1982",
+      "citekey": "gazteluSeptohippocampalRelationshipsEEG1982",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "gehringAnalysisBehaviourActive2017",
+      "citekey": "gehringAnalysisBehaviourActive2017",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "gencSurfaceAreaEarly2015",
+      "citekey": "gencSurfaceAreaEarly2015",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "gentThalamicDualControl2018",
+      "citekey": "gentThalamicDualControl2018",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "genzelLightSleepSlow2014",
+      "citekey": "genzelLightSleepSlow2014",
+      "artifact_id": "c37aa2919a581b6f5f5506af14482faed1b313e1d1a24d91761d224e6b33f11e",
+      "pdf_path": "data/01_bronze/objects/c37aa2919a581b6f5f5506af14482faed1b313e1d1a24d91761d224e6b33f11e.pdf"
+    },
+    {
+      "work_id": "genzelYinYangMemory2017",
+      "citekey": "genzelYinYangMemory2017",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "gerfenAnterogradeNeuroanatomicalTracing1984",
+      "citekey": "gerfenAnterogradeNeuroanatomicalTracing1984",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "ghorbaniNonlineardynamicsTheoryUpdown2012",
+      "citekey": "ghorbaniNonlineardynamicsTheoryUpdown2012",
+      "artifact_id": "c027fa34bdaef7c2fdec5cce4def4908fc5f6018ecc553ba20aa8e96d312f4bb",
+      "pdf_path": "data/01_bronze/objects/c027fa34bdaef7c2fdec5cce4def4908fc5f6018ecc553ba20aa8e96d312f4bb.pdf"
+    },
+    {
+      "work_id": "giriHippocampalReactivationExtends2019",
+      "citekey": "giriHippocampalReactivationExtends2019",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "giriHippocampalReactivationExtends2019a",
+      "citekey": "giriHippocampalReactivationExtends2019a",
+      "artifact_id": "2801c25fc4b1317eed41039fd04753e4089d0d9da98414a794c11abe3fb15d27",
+      "pdf_path": "data/01_bronze/objects/2801c25fc4b1317eed41039fd04753e4089d0d9da98414a794c11abe3fb15d27.pdf"
+    },
+    {
+      "work_id": "givensLocalModulationBasal1994",
+      "citekey": "givensLocalModulationBasal1994",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "glickfeldInterneuronsHyperpolarizePyramidal2009",
+      "citekey": "glickfeldInterneuronsHyperpolarizePyramidal2009",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "gobboPhysiologyPathologyCorticothalamocortical2021",
+      "citekey": "gobboPhysiologyPathologyCorticothalamocortical2021",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "gothardBindingHippocampalCA11996",
+      "citekey": "gothardBindingHippocampalCA11996",
+      "artifact_id": "32909c16519771059606c754c336b0d0f839890a78cad492040d29f5193e0526",
+      "pdf_path": "data/01_bronze/objects/32909c16519771059606c754c336b0d0f839890a78cad492040d29f5193e0526.pdf"
+    },
+    {
+      "work_id": "gotmanGeneralizedEpilepticDischarges2005",
+      "citekey": "gotmanGeneralizedEpilepticDischarges2005",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "gottliebAttentionLearningValue2012",
+      "citekey": "gottliebAttentionLearningValue2012",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "gottliebInformationseekingCuriosityAttention2013",
+      "citekey": "gottliebInformationseekingCuriosityAttention2013",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "gourevitchDirectionalCouplingOlfactory2010",
+      "citekey": "gourevitchDirectionalCouplingOlfactory2010",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "gralewiczSpontaneousSpikewaveDischarges2000",
+      "citekey": "gralewiczSpontaneousSpikewaveDischarges2000",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "grechImportanceDistinguishingAllocentric2018",
+      "citekey": "grechImportanceDistinguishingAllocentric2018",
+      "artifact_id": "e9e3f645aa4813351e2e6955e20ab4891b8419c77bcf28e3b9bbbb549630c994",
+      "pdf_path": "data/01_bronze/objects/e9e3f645aa4813351e2e6955e20ab4891b8419c77bcf28e3b9bbbb549630c994.pdf"
+    },
+    {
+      "work_id": "grechImportanceDistinguishingAllocentric2018a",
+      "citekey": "grechImportanceDistinguishingAllocentric2018a",
+      "artifact_id": "e9e3f645aa4813351e2e6955e20ab4891b8419c77bcf28e3b9bbbb549630c994",
+      "pdf_path": "data/01_bronze/objects/e9e3f645aa4813351e2e6955e20ab4891b8419c77bcf28e3b9bbbb549630c994.pdf"
+    },
+    {
+      "work_id": "grittiStereologicalEstimatesBasal2006",
+      "citekey": "grittiStereologicalEstimatesBasal2006",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "grossoVirtualRealitySystem2017",
+      "citekey": "grossoVirtualRealitySystem2017",
+      "artifact_id": "4d59323be143078ca4186d8ac8092dbe5da1002ae058d88721d802b9f98114c8",
+      "pdf_path": "data/01_bronze/objects/4d59323be143078ca4186d8ac8092dbe5da1002ae058d88721d802b9f98114c8.pdf"
+    },
+    {
+      "work_id": "grunEmergingPrinciplesSpacetime2022",
+      "citekey": "grunEmergingPrinciplesSpacetime2022",
+      "artifact_id": "acebb31a519284cad6cce5f7accdb29985a4d3414a3ae4ef73a1c77b0deac531",
+      "pdf_path": "data/01_bronze/objects/acebb31a519284cad6cce5f7accdb29985a4d3414a3ae4ef73a1c77b0deac531.pdf"
+    },
+    {
+      "work_id": "guBrainActivityFluctuations2021",
+      "citekey": "guBrainActivityFluctuations2021",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "guentherWirelessBrainmachineInterface2009",
+      "citekey": "guentherWirelessBrainmachineInterface2009",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "gulatiReactivationEmergentTaskrelated2014",
+      "citekey": "gulatiReactivationEmergentTaskrelated2014",
+      "artifact_id": "ea5271438b661f1bda1e6b8aa89737eb5d8089bbf8e05d89af8a20fae2f4d078",
+      "pdf_path": "data/01_bronze/objects/ea5271438b661f1bda1e6b8aa89737eb5d8089bbf8e05d89af8a20fae2f4d078.pdf"
+    },
+    {
+      "work_id": "gulledgeCholinergicInhibitionNeocortical2005",
+      "citekey": "gulledgeCholinergicInhibitionNeocortical2005",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "guntupalliGraphSchemasAbstractions2023",
+      "citekey": "guntupalliGraphSchemasAbstractions2023",
+      "artifact_id": "c9cfe248d0fdfb18f088c37bd4ad0a811dace3d4886859dce3812032e4d03cd5",
+      "pdf_path": "data/01_bronze/objects/c9cfe248d0fdfb18f088c37bd4ad0a811dace3d4886859dce3812032e4d03cd5.pdf"
+    },
+    {
+      "work_id": "gutierrez-barraganEvolutionarilyConservedFMRI2023",
+      "citekey": "gutierrez-barraganEvolutionarilyConservedFMRI2023",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "gutierrez-barraganUniqueSpatiotemporalFMRI2022",
+      "citekey": "gutierrez-barraganUniqueSpatiotemporalFMRI2022",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "guTimingdependentSeptalCholinergic2011",
+      "citekey": "guTimingdependentSeptalCholinergic2011",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "haftingMicrostructureSpatialMap2005",
+      "citekey": "haftingMicrostructureSpatialMap2005",
+      "artifact_id": "61e2fbb36ab41b55fdae404b6667ad0fa454e521a0c5b42faafa21fbe502d037",
+      "pdf_path": "data/01_bronze/objects/61e2fbb36ab41b55fdae404b6667ad0fa454e521a0c5b42faafa21fbe502d037.pdf"
+    },
+    {
+      "work_id": "haglerHeterogeneousOriginsHuman2018",
+      "citekey": "haglerHeterogeneousOriginsHuman2018",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "hahnSlowOscillationspindleCoupling2021",
+      "citekey": "hahnSlowOscillationspindleCoupling2021",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "hajnikCharacteristicChangesSlow2013",
+      "citekey": "hajnikCharacteristicChangesSlow2013",
+      "artifact_id": "8e1d2dc47ee9bc5661d85907150577d221ca77a72ae3c849c701ba1547489b7a",
+      "pdf_path": "data/01_bronze/objects/8e1d2dc47ee9bc5661d85907150577d221ca77a72ae3c849c701ba1547489b7a.pdf"
+    },
+    {
+      "work_id": "halaszKcomplexSpecialReactive2016",
+      "citekey": "halaszKcomplexSpecialReactive2016",
+      "artifact_id": "7aa770f0f24bace093fe4598f7a958f0b033ff67433cb0fe7d8fb0fd242392f4",
+      "pdf_path": "data/01_bronze/objects/7aa770f0f24bace093fe4598f7a958f0b033ff67433cb0fe7d8fb0fd242392f4.pdf"
+    },
+    {
+      "work_id": "halgrenGenerationPropagationHuman2019",
+      "citekey": "halgrenGenerationPropagationHuman2019",
+      "artifact_id": "93e5ebca816d083fbbc3767fc45aefb8c55de4c30a170e11f4cd15f5e647d458",
+      "pdf_path": "data/01_bronze/objects/93e5ebca816d083fbbc3767fc45aefb8c55de4c30a170e11f4cd15f5e647d458.pdf"
+    },
+    {
+      "work_id": "halgrenGenerationPropagationHuman2019a",
+      "citekey": "halgrenGenerationPropagationHuman2019a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "halgrenSuperficialSlowRhythms2018",
+      "citekey": "halgrenSuperficialSlowRhythms2018",
+      "artifact_id": "04f916a5fe6759e8a5065894549f93230453754888dc4d00f3a4b707afda85e7",
+      "pdf_path": "data/01_bronze/objects/04f916a5fe6759e8a5065894549f93230453754888dc4d00f3a4b707afda85e7.pdf"
+    },
+    {
+      "work_id": "hammerRoleECoGMagnitude2013",
+      "citekey": "hammerRoleECoGMagnitude2013",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "harrisonLowpowerLownoiseCmos2003",
+      "citekey": "harrisonLowpowerLownoiseCmos2003",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "harveyTopographicRepresentationNumerosity2013",
+      "citekey": "harveyTopographicRepresentationNumerosity2013",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "hassaniDischargeProfilesIdentified2009",
+      "citekey": "hassaniDischargeProfilesIdentified2009",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "hasselmoModesModelsForebrain2011",
+      "citekey": "hasselmoModesModelsForebrain2011",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "heitmannDirectionselectiveMotionDiscrimination2020",
+      "citekey": "heitmannDirectionselectiveMotionDiscrimination2020",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "helfrichOldBrainsCome2018",
+      "citekey": "helfrichOldBrainsCome2018",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "herreroAcetylcholineContributesMuscarinic2008",
+      "citekey": "herreroAcetylcholineContributesMuscarinic2008",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "higleySpatiotemporalDynamicsLargescale2022",
+      "citekey": "higleySpatiotemporalDynamicsLargescale2022",
+      "artifact_id": "100736c07cc6d404c3e105400127848c1484e088a698175956809eeb6301e8f6",
+      "pdf_path": "data/01_bronze/objects/100736c07cc6d404c3e105400127848c1484e088a698175956809eeb6301e8f6.pdf"
+    },
+    {
+      "work_id": "holmesAreGeneralizedSeizures2004",
+      "citekey": "holmesAreGeneralizedSeizures2004",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "holmesAreGeneralizedSeizures2004a",
+      "citekey": "holmesAreGeneralizedSeizures2004a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "horvitzBurstActivityVentral1997",
+      "citekey": "horvitzBurstActivityVentral1997",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "hossainStudyPhaseRelationships2012",
+      "citekey": "hossainStudyPhaseRelationships2012",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "huangSpiralWaveDynamics2010",
+      "citekey": "huangSpiralWaveDynamics2010",
+      "artifact_id": "4c4d37bf230f5caa8ae01dffbfb8bea6fbc462390dadf0f08b3f9e2af35ae277",
+      "pdf_path": "data/01_bronze/objects/4c4d37bf230f5caa8ae01dffbfb8bea6fbc462390dadf0f08b3f9e2af35ae277.pdf"
+    },
+    {
+      "work_id": "huangSpiralWavesDisinhibited2004",
+      "citekey": "huangSpiralWavesDisinhibited2004",
+      "artifact_id": "68ea7ec9ea9240fd178e5e5392b989e6944d1dad9b983cbf99a05e06b0e0787a",
+      "pdf_path": "data/01_bronze/objects/68ea7ec9ea9240fd178e5e5392b989e6944d1dad9b983cbf99a05e06b0e0787a.pdf"
+    },
+    {
+      "work_id": "hughesIntrinsicExplorationAnimals1997",
+      "citekey": "hughesIntrinsicExplorationAnimals1997",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "huotilainenSleepEnhancementSound2015",
+      "citekey": "huotilainenSleepEnhancementSound2015",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "ikedaNeuralDecodingSingle2014",
+      "citekey": "ikedaNeuralDecodingSingle2014",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "ikemotoRelationshipSelfstimulationSniffing1994",
+      "citekey": "ikemotoRelationshipSelfstimulationSniffing1994",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "ilinDetectionSpatiotemporalPhase2013",
+      "citekey": "ilinDetectionSpatiotemporalPhase2013",
+      "artifact_id": "f4e8abae6bb9a70435bd50b227ef4af1d7bacbd0e51efafb9e84c78b8d2c7466",
+      "pdf_path": "data/01_bronze/objects/f4e8abae6bb9a70435bd50b227ef4af1d7bacbd0e51efafb9e84c78b8d2c7466.pdf"
+    },
+    {
+      "work_id": "illouzModifiedBarnesMaze2020",
+      "citekey": "illouzModifiedBarnesMaze2020",
+      "artifact_id": "d99b5885954d7931a1c4d460ceb5bc7f070e38297b17e47fc5fa26cbd1533b7b",
+      "pdf_path": "data/01_bronze/objects/d99b5885954d7931a1c4d460ceb5bc7f070e38297b17e47fc5fa26cbd1533b7b.pdf"
+    },
+    {
+      "work_id": "indurskyLowfrequencyRhythmicElectrocutaneous2013",
+      "citekey": "indurskyLowfrequencyRhythmicElectrocutaneous2013",
+      "artifact_id": "1459ca92cb7fd3abcd47ae7dee4eed585594376427396e2bef3fffd86102a823",
+      "pdf_path": "data/01_bronze/objects/1459ca92cb7fd3abcd47ae7dee4eed585594376427396e2bef3fffd86102a823.pdf"
+    },
+    {
+      "work_id": "itoWhiskerBarrelCortex2014",
+      "citekey": "itoWhiskerBarrelCortex2014",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "itoWhiskerBarrelCortex2014a",
+      "citekey": "itoWhiskerBarrelCortex2014a",
+      "artifact_id": "51f4ea9d6b9ebfd4fcfa5f91f90e73f7a9f4bad36637676bd052dee421b1b135",
+      "pdf_path": "data/01_bronze/objects/51f4ea9d6b9ebfd4fcfa5f91f90e73f7a9f4bad36637676bd052dee421b1b135.pdf"
+    },
+    {
+      "work_id": "izakiDifferencesPairedpulseFacilitation2003",
+      "citekey": "izakiDifferencesPairedpulseFacilitation2003",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "izakiLocalPropertiesCA12002",
+      "citekey": "izakiLocalPropertiesCA12002",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "jainPulmonaryVagalReceptors1981",
+      "citekey": "jainPulmonaryVagalReceptors1981",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "jarreBuildingAbsenceSeizures2017",
+      "citekey": "jarreBuildingAbsenceSeizures2017",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "jayPlasticityHippocampalprefrontalCortex1996",
+      "citekey": "jayPlasticityHippocampalprefrontalCortex1996",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "jazayeriNavigatingNeuralSpace2017",
+      "citekey": "jazayeriNavigatingNeuralSpace2017",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "jenImagesurferToolVisualizing2004",
+      "citekey": "jenImagesurferToolVisualizing2004",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "jiangDecodingSpeechUsing2016",
+      "citekey": "jiangDecodingSpeechUsing2016",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "jiangPosteriorHippocampalSpindle2019",
+      "citekey": "jiangPosteriorHippocampalSpindle2019",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "jiangReplayLargescaleSpatiotemporal2017",
+      "citekey": "jiangReplayLargescaleSpatiotemporal2017",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "jiCoordinatedMemoryReplay2007",
+      "citekey": "jiCoordinatedMemoryReplay2007",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "jiroutChildrensScientificCuriosity2012",
+      "citekey": "jiroutChildrensScientificCuriosity2012",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "jobertTopographicalAnalysisSleep1992",
+      "citekey": "jobertTopographicalAnalysisSleep1992",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "jurado-parrasObservationalLearningMice2012",
+      "citekey": "jurado-parrasObservationalLearningMice2012",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "kahnIntrinsicConnectivityHippocampus2013",
+      "citekey": "kahnIntrinsicConnectivityHippocampus2013",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "kalmbachSelectiveOptogeneticStimulation2012",
+      "citekey": "kalmbachSelectiveOptogeneticStimulation2012",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "kamDynamicsSleepSpindles2019",
+      "citekey": "kamDynamicsSleepSpindles2019",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "kanekoCorticalNeuralDynamics2022",
+      "citekey": "kanekoCorticalNeuralDynamics2022",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "kangBetaOscillationsWaves2022",
+      "citekey": "kangBetaOscillationsWaves2022",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "kangWickCandleLearning2009",
+      "citekey": "kangWickCandleLearning2009",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "kaplanEpilepticNatureRodent1985",
+      "citekey": "kaplanEpilepticNatureRodent1985",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "karcherRiemannianCenterMass1977",
+      "citekey": "karcherRiemannianCenterMass1977",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "kartenVertebrateBrainsEvolutionary2015",
+      "citekey": "kartenVertebrateBrainsEvolutionary2015",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "kaupertSpatialCognitionVirtual2017",
+      "citekey": "kaupertSpatialCognitionVirtual2017",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "kayThetaOscillationsSensorimotor2005",
+      "citekey": "kayThetaOscillationsSensorimotor2005",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "kellawayRelationshipSleepSpindles1990",
+      "citekey": "kellawayRelationshipSleepSpindles1990",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "kellisDecodingSpokenWords2010",
+      "citekey": "kellisDecodingSpokenWords2010",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "khonaAttractorIntegratorNetworks2022",
+      "citekey": "khonaAttractorIntegratorNetworks2022",
+      "artifact_id": "060c3993b6e9c27bec6a4e9480ddbff5602f9126d8c53620f673db7a4995ee22",
+      "pdf_path": "data/01_bronze/objects/060c3993b6e9c27bec6a4e9480ddbff5602f9126d8c53620f673db7a4995ee22.pdf"
+    },
+    {
+      "work_id": "kilgardCholinergicModulationSkill2003",
+      "citekey": "kilgardCholinergicModulationSkill2003",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "kimCharacterizationTopographicallySpecific2015",
+      "citekey": "kimCharacterizationTopographicallySpecific2015",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "kimchiSubterraneanMammalUses2004",
+      "citekey": "kimchiSubterraneanMammalUses2004",
+      "artifact_id": "944490ba5d38b0903e6e8d3fd5dcda100229a687f45388bcfff5a6c89c05dbdf",
+      "pdf_path": "data/01_bronze/objects/944490ba5d38b0903e6e8d3fd5dcda100229a687f45388bcfff5a6c89c05dbdf.pdf"
+    },
+    {
+      "work_id": "kishidaSubsecondDopamineFluctuations2016",
+      "citekey": "kishidaSubsecondDopamineFluctuations2016",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "kitamuraEngramsCircuitsCrucial2017",
+      "citekey": "kitamuraEngramsCircuitsCrucial2017",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "kitanishiNetworkMechanismsHippocampal2016",
+      "citekey": "kitanishiNetworkMechanismsHippocampal2016",
+      "artifact_id": "81471b7c9c773ac29f75e38713d047b7addaaa817109a8533febd2b5f3776cdc",
+      "pdf_path": "data/01_bronze/objects/81471b7c9c773ac29f75e38713d047b7addaaa817109a8533febd2b5f3776cdc.pdf"
+    },
+    {
+      "work_id": "knierimInteractionsIdiotheticCues1998",
+      "citekey": "knierimInteractionsIdiotheticCues1998",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "kodamaSlowFluctuationsSingle1989",
+      "citekey": "kodamaSlowFluctuationsSingle1989",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "kohlHemispherespecificOptogeneticStimulation2011",
+      "citekey": "kohlHemispherespecificOptogeneticStimulation2011",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "kokkinosIntraKcomplexOscillationIndependent2013",
+      "citekey": "kokkinosIntraKcomplexOscillationIndependent2013",
+      "artifact_id": "ef34406988c622e16b5f84661bdd412f390fd9c7a6a3e57365c7147038f979e8",
+      "pdf_path": "data/01_bronze/objects/ef34406988c622e16b5f84661bdd412f390fd9c7a6a3e57365c7147038f979e8.pdf"
+    },
+    {
+      "work_id": "kolesSpatialPatternsUnderlying1990",
+      "citekey": "kolesSpatialPatternsUnderlying1990",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "kosakiOvershadowingGeometryLearning2013",
+      "citekey": "kosakiOvershadowingGeometryLearning2013",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "kostopoulosLaminarAnalysisSpindles1982",
+      "citekey": "kostopoulosLaminarAnalysisSpindles1982",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "kozakAbsenceEpilepsyMight2019",
+      "citekey": "kozakAbsenceEpilepsyMight2019",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "kozakSpikeWaveDischarges2019",
+      "citekey": "kozakSpikeWaveDischarges2019",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "kozakSpikeWaveDischarges2019a",
+      "citekey": "kozakSpikeWaveDischarges2019a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "kozakSustainedEfficacyClosed2017",
+      "citekey": "kozakSustainedEfficacyClosed2017",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "kozhevnikovDifferentTypesSurveyBased2023",
+      "citekey": "kozhevnikovDifferentTypesSurveyBased2023",
+      "artifact_id": "c1a3b1e3c09daba3b1917c7ce4727d19fc8b0681dfebae283a5b6064feabea1a",
+      "pdf_path": "data/01_bronze/objects/c1a3b1e3c09daba3b1917c7ce4727d19fc8b0681dfebae283a5b6064feabea1a.pdf"
+    },
+    {
+      "work_id": "kozhevnikovDifferentTypesSurveyBased2023a",
+      "citekey": "kozhevnikovDifferentTypesSurveyBased2023a",
+      "artifact_id": "c1a3b1e3c09daba3b1917c7ce4727d19fc8b0681dfebae283a5b6064feabea1a",
+      "pdf_path": "data/01_bronze/objects/c1a3b1e3c09daba3b1917c7ce4727d19fc8b0681dfebae283a5b6064feabea1a.pdf"
+    },
+    {
+      "work_id": "kozhevnikovDifferentTypesSurveyBased2023b",
+      "citekey": "kozhevnikovDifferentTypesSurveyBased2023b",
+      "artifact_id": "c1a3b1e3c09daba3b1917c7ce4727d19fc8b0681dfebae283a5b6064feabea1a",
+      "pdf_path": "data/01_bronze/objects/c1a3b1e3c09daba3b1917c7ce4727d19fc8b0681dfebae283a5b6064feabea1a.pdf"
+    },
+    {
+      "work_id": "kozmaClassificationEEGPatterns2002",
+      "citekey": "kozmaClassificationEEGPatterns2002",
+      "artifact_id": "8b5deab9397a6a9c4768342cabefab2941ab0fad5ea8e64cb135de6586c29287",
+      "pdf_path": "data/01_bronze/objects/8b5deab9397a6a9c4768342cabefab2941ab0fad5ea8e64cb135de6586c29287.pdf"
+    },
+    {
+      "work_id": "kozmaIntermittentSpatiotemporalDesynchronization2008",
+      "citekey": "kozmaIntermittentSpatiotemporalDesynchronization2008",
+      "artifact_id": "fe0a6e8ec79e091ee26d726e7ac959a944c8054bbd88f5ffcbf4e1a124ffc7f4",
+      "pdf_path": "data/01_bronze/objects/fe0a6e8ec79e091ee26d726e7ac959a944c8054bbd88f5ffcbf4e1a124ffc7f4.pdf"
+    },
+    {
+      "work_id": "kozmaSynchronizedMinimaECoG2012",
+      "citekey": "kozmaSynchronizedMinimaECoG2012",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "krauzlisSuperiorColliculusVisual2013",
+      "citekey": "krauzlisSuperiorColliculusVisual2013",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "krauzlisSuperiorColliculusVisual2013a",
+      "citekey": "krauzlisSuperiorColliculusVisual2013a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "krishnanCellularNeurochemicalBasis2016",
+      "citekey": "krishnanCellularNeurochemicalBasis2016",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "krishnanThalamocorticalIntracorticalLaminar2018",
+      "citekey": "krishnanThalamocorticalIntracorticalLaminar2018",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "kruegerLocalSleep2019",
+      "citekey": "kruegerLocalSleep2019",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "kruegerSleepFundamentalProperty2008",
+      "citekey": "kruegerSleepFundamentalProperty2008",
+      "artifact_id": "4b5187a5b408493e7a7f235af2af02f234c7168d75f4df34e038c6ccbba65b49",
+      "pdf_path": "data/01_bronze/objects/4b5187a5b408493e7a7f235af2af02f234c7168d75f4df34e038c6ccbba65b49.pdf"
+    },
+    {
+      "work_id": "kulkarniDeepLearningApproach2019",
+      "citekey": "kulkarniDeepLearningApproach2019",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "kumarIntraperitonealCoadministrationLow2015",
+      "citekey": "kumarIntraperitonealCoadministrationLow2015",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "kushikataBrainderivedNeurotrophicFactor1999",
+      "citekey": "kushikataBrainderivedNeurotrophicFactor1999",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "langdonUnifyingPerspectiveNeural2023",
+      "citekey": "langdonUnifyingPerspectiveNeural2023",
+      "artifact_id": "cf5701f8d96d0ea0c6119371eb9539b904c79d94dca2f099293f0dec3cbf0f63",
+      "pdf_path": "data/01_bronze/objects/cf5701f8d96d0ea0c6119371eb9539b904c79d94dca2f099293f0dec3cbf0f63.pdf"
+    },
+    {
+      "work_id": "latreilleHumanKcomplexInsights2020",
+      "citekey": "latreilleHumanKcomplexInsights2020",
+      "artifact_id": "33368d9b8bef9349d7ab71855c90501a3f6212d9878f39dde9457ffa95d74ae8",
+      "pdf_path": "data/01_bronze/objects/33368d9b8bef9349d7ab71855c90501a3f6212d9878f39dde9457ffa95d74ae8.pdf"
+    },
+    {
+      "work_id": "laurensModelbasedReassessmentThreedimensional2019",
+      "citekey": "laurensModelbasedReassessmentThreedimensional2019",
+      "artifact_id": "f747b04f2bd57aaa5be83f9f659666891db6e3fde2c413193c9d1a3e9853fbfe",
+      "pdf_path": "data/01_bronze/objects/f747b04f2bd57aaa5be83f9f659666891db6e3fde2c413193c9d1a3e9853fbfe.pdf"
+    },
+    {
+      "work_id": "laurinoDisentanglingDifferentFunctional2014",
+      "citekey": "laurinoDisentanglingDifferentFunctional2014",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "lazarCircadianRegulationSlow2015",
+      "citekey": "lazarCircadianRegulationSlow2015",
+      "artifact_id": "efdd0675496b8543c29f765aaf64a4c70851daf05bf478258afca7f4fdb55b3e",
+      "pdf_path": "data/01_bronze/objects/efdd0675496b8543c29f765aaf64a4c70851daf05bf478258afca7f4fdb55b3e.pdf"
+    },
+    {
+      "work_id": "lechatKcomplexBinaryScoring2020",
+      "citekey": "lechatKcomplexBinaryScoring2020",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "lechatKcomplexesAreSensitive2021",
+      "citekey": "lechatKcomplexesAreSensitive2021",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "leeHighdensityEEGRecordings2011",
+      "citekey": "leeHighdensityEEGRecordings2011",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "leeSlowWaveSleep2020",
+      "citekey": "leeSlowWaveSleep2020",
+      "artifact_id": "5b1cb1ec156cb47c31ac0587d2cbc78cbd5899138674042dc7472a0d540c185c",
+      "pdf_path": "data/01_bronze/objects/5b1cb1ec156cb47c31ac0587d2cbc78cbd5899138674042dc7472a0d540c185c.pdf"
+    },
+    {
+      "work_id": "leeTravelingWavesActivity2005",
+      "citekey": "leeTravelingWavesActivity2005",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "leminenComparingAuditoryStimuli2014",
+      "citekey": "leminenComparingAuditoryStimuli2014",
+      "artifact_id": "7eb57ca65c1c1d9a99f2a024352212030cb45bb7188048a29747babd6c46e184",
+      "pdf_path": "data/01_bronze/objects/7eb57ca65c1c1d9a99f2a024352212030cb45bb7188048a29747babd6c46e184.pdf"
+    },
+    {
+      "work_id": "leminenEnhancedMemoryConsolidation2017",
+      "citekey": "leminenEnhancedMemoryConsolidation2017",
+      "artifact_id": "c596d18eeb96d100e3dbd1b864b2c738362c8044f0e91165f533489d46674ea0",
+      "pdf_path": "data/01_bronze/objects/c596d18eeb96d100e3dbd1b864b2c738362c8044f0e91165f533489d46674ea0.pdf"
+    },
+    {
+      "work_id": "leungGenerationThetaGamma1998",
+      "citekey": "leungGenerationThetaGamma1998",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "levanquyenExploringDynamicsCollective2006",
+      "citekey": "levanquyenExploringDynamicsCollective2006",
+      "artifact_id": "dc4f10af54af83822a47581a6ca95bcd13f2cbe6e76cf12946165a0046304d89",
+      "pdf_path": "data/01_bronze/objects/dc4f10af54af83822a47581a6ca95bcd13f2cbe6e76cf12946165a0046304d89.pdf"
+    },
+    {
+      "work_id": "levitaRoleHippocampusGoaloriented2010",
+      "citekey": "levitaRoleHippocampusGoaloriented2010",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "lewisCholinergicLimbicSystem1967",
+      "citekey": "lewisCholinergicLimbicSystem1967",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "lewisConfirmationCholineAcetylase1967",
+      "citekey": "lewisConfirmationCholineAcetylase1967",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "liangCortexWideDynamicsIntrinsic2021",
+      "citekey": "liangCortexWideDynamicsIntrinsic2021",
+      "artifact_id": "f5f82aa3b60fc0a5b4eb5df741edc7a32e5226800e46556dc2a943f040d97c8b",
+      "pdf_path": "data/01_bronze/objects/f5f82aa3b60fc0a5b4eb5df741edc7a32e5226800e46556dc2a943f040d97c8b.pdf"
+    },
+    {
+      "work_id": "liangCortexwideDynamicsIntrinsic2021a",
+      "citekey": "liangCortexwideDynamicsIntrinsic2021a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "liCircuitMechanismSuppression2023",
+      "citekey": "liCircuitMechanismSuppression2023",
+      "artifact_id": "8d4b02c79417dfc5a3edcdd1c981e06c4363cdc9d31eecc4db8587661978879e",
+      "pdf_path": "data/01_bronze/objects/8d4b02c79417dfc5a3edcdd1c981e06c4363cdc9d31eecc4db8587661978879e.pdf"
+    },
+    {
+      "work_id": "lindenGoFLOWVisualizing2021",
+      "citekey": "lindenGoFLOWVisualizing2021",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "liuCortexwideSpontaneousActivity2022",
+      "citekey": "liuCortexwideSpontaneousActivity2022",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "liuMultimodalNeuralRecordings2021",
+      "citekey": "liuMultimodalNeuralRecordings2021",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "loewensteinPsychologyCuriosityReview1994",
+      "citekey": "loewensteinPsychologyCuriosityReview1994",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "loomisNonvisualNavigationBlind1993",
+      "citekey": "loomisNonvisualNavigationBlind1993",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "lopes-dos-santosDetectingCellAssemblies2013",
+      "citekey": "lopes-dos-santosDetectingCellAssemblies2013",
+      "artifact_id": "c001c72a81afc687bbd75bf3a02a4091fc6558f43d3fd65cad4ca1036caae9bc",
+      "pdf_path": "data/01_bronze/objects/c001c72a81afc687bbd75bf3a02a4091fc6558f43d3fd65cad4ca1036caae9bc.pdf"
+    },
+    {
+      "work_id": "lopes-dos-santosParsingHippocampalTheta2018",
+      "citekey": "lopes-dos-santosParsingHippocampalTheta2018",
+      "artifact_id": "a6ddbf10d7dba109ef44f25e9105382c0f27e49acc0db2b4ceaf4182a3ce4fa5",
+      "pdf_path": "data/01_bronze/objects/a6ddbf10d7dba109ef44f25e9105382c0f27e49acc0db2b4ceaf4182a3ce4fa5.pdf"
+    },
+    {
+      "work_id": "lopesdasilvaCorticalAlphaRhythm1978",
+      "citekey": "lopesdasilvaCorticalAlphaRhythm1978",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "lopez-ramosLearningCapabilitiesCA1prefrontal2012",
+      "citekey": "lopez-ramosLearningCapabilitiesCA1prefrontal2012",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "loureiroVentralMidlineThalamus2012",
+      "citekey": "loureiroVentralMidlineThalamus2012",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "lozano-soldevillaHiddenSpatialDimension2019",
+      "citekey": "lozano-soldevillaHiddenSpatialDimension2019",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "lozanoRetrosplenialPostsubicularHead2017",
+      "citekey": "lozanoRetrosplenialPostsubicularHead2017",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "lozanoRetrosplenialPostsubicularHead2017a",
+      "citekey": "lozanoRetrosplenialPostsubicularHead2017a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "lufkinEmergentOrganizationReceptive2022",
+      "citekey": "lufkinEmergentOrganizationReceptive2022",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "luitenCorticalProjectionPatterns1987",
+      "citekey": "luitenCorticalProjectionPatterns1987",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "luOptogeneticDissectionIctal2016",
+      "citekey": "luOptogeneticDissectionIctal2016",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "lysakowskiAtlasRegionalLaminar1989",
+      "citekey": "lysakowskiAtlasRegionalLaminar1989",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "maApplicationsMinimallyInvasive2020",
+      "citekey": "maApplicationsMinimallyInvasive2020",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "macridesTemporalRelationshipsHippocampal1975",
+      "citekey": "macridesTemporalRelationshipsHippocampal1975",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "madhavControlRecalibrationPath2024",
+      "citekey": "madhavControlRecalibrationPath2024",
+      "artifact_id": "903c5c2dccea4c4b7a86ad0adad8505550a1279b68318096851689566e4c333b",
+      "pdf_path": "data/01_bronze/objects/903c5c2dccea4c4b7a86ad0adad8505550a1279b68318096851689566e4c333b.pdf"
+    },
+    {
+      "work_id": "maeiWhatMostSensitive2009",
+      "citekey": "maeiWhatMostSensitive2009",
+      "artifact_id": "283fd21afa3c5f31dc6bd9e408d339bc7a47ea72b8ad7902fc53c4ee1f4f30c2",
+      "pdf_path": "data/01_bronze/objects/283fd21afa3c5f31dc6bd9e408d339bc7a47ea72b8ad7902fc53c4ee1f4f30c2.pdf"
+    },
+    {
+      "work_id": "maingretHippocampocorticalCouplingMediates2016",
+      "citekey": "maingretHippocampocorticalCouplingMediates2016",
+      "artifact_id": "d3d8670cfc22f258eb12910300a122cb5e358e22309fea478e471f4c4af58db1",
+      "pdf_path": "data/01_bronze/objects/d3d8670cfc22f258eb12910300a122cb5e358e22309fea478e471f4c4af58db1.pdf"
+    },
+    {
+      "work_id": "mak-mccullyDistributionAmplitudeIncidence2015",
+      "citekey": "mak-mccullyDistributionAmplitudeIncidence2015",
+      "artifact_id": "7b5ea0ca44e97b57e3501ba70225931ea1f957ae941924926042f8046c748909",
+      "pdf_path": "data/01_bronze/objects/7b5ea0ca44e97b57e3501ba70225931ea1f957ae941924926042f8046c748909.pdf"
+    },
+    {
+      "work_id": "malkinConstructionVeryHighdensity2000",
+      "citekey": "malkinConstructionVeryHighdensity2000",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "manningCorticalareaSpecificBlock2004",
+      "citekey": "manningCorticalareaSpecificBlock2004",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "mannMechanismsUnderlyingGamma2005",
+      "citekey": "mannMechanismsUnderlyingGamma2005",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "mannsRhythmicallyDischargingBasal2003",
+      "citekey": "mannsRhythmicallyDischargingBasal2003",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "manzarSpontaneousKcomplexDensity2016",
+      "citekey": "manzarSpontaneousKcomplexDensity2016",
+      "artifact_id": "ca96776dcf15f5f145d62705c75eb175ab75631aead630e1b93f304d115d810e",
+      "pdf_path": "data/01_bronze/objects/ca96776dcf15f5f145d62705c75eb175ab75631aead630e1b93f304d115d810e.pdf"
+    },
+    {
+      "work_id": "markramElectrophysiologicalCharacteristicsCholinergic1990",
+      "citekey": "markramElectrophysiologicalCharacteristicsCholinergic1990",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "martin-vazquezDeterminingTruePolarity2013",
+      "citekey": "martin-vazquezDeterminingTruePolarity2013",
+      "artifact_id": "f2e0fe88e1441c3d17e2b14d4c34e7f5a38a527a44b244af1712c423f2096c77",
+      "pdf_path": "data/01_bronze/objects/f2e0fe88e1441c3d17e2b14d4c34e7f5a38a527a44b244af1712c423f2096c77.pdf"
+    },
+    {
+      "work_id": "massiminiSleepSlowOscillation2004",
+      "citekey": "massiminiSleepSlowOscillation2004",
+      "artifact_id": "958176d39bb8ea0fe595c3e5c8ddb4917ea0ff380779c335d848e490f12da52b",
+      "pdf_path": "data/01_bronze/objects/958176d39bb8ea0fe595c3e5c8ddb4917ea0ff380779c335d848e490f12da52b.pdf"
+    },
+    {
+      "work_id": "mathiasenDirectComparisonAfferents2021",
+      "citekey": "mathiasenDirectComparisonAfferents2021",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "matsumotoTwoTypesDopamine2009",
+      "citekey": "matsumotoTwoTypesDopamine2009",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "mattisFrequencydependentCellTypedivergent2014",
+      "citekey": "mattisFrequencydependentCellTypedivergent2014",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "mckennaDistributionIntrinsicMembrane2013",
+      "citekey": "mckennaDistributionIntrinsicMembrane2013",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "mcloughlinSimilarityMeasuresEnhancing2012",
+      "citekey": "mcloughlinSimilarityMeasuresEnhancing2012",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "mcnaughtonDecipheringHippocampalPolyglot1996",
+      "citekey": "mcnaughtonDecipheringHippocampalPolyglot1996",
+      "artifact_id": "985757c410222971ac21a29f82937489f704c833174b07e077253071c842520d",
+      "pdf_path": "data/01_bronze/objects/985757c410222971ac21a29f82937489f704c833174b07e077253071c842520d.pdf"
+    },
+    {
+      "work_id": "mcnaughtonPathIntegrationNeural2006",
+      "citekey": "mcnaughtonPathIntegrationNeural2006",
+      "artifact_id": "be173f6d018d9f533592fbec5b54b2ac943f444c0de6ddc41fe6fa74d6a8538e",
+      "pdf_path": "data/01_bronze/objects/be173f6d018d9f533592fbec5b54b2ac943f444c0de6ddc41fe6fa74d6a8538e.pdf"
+    },
+    {
+      "work_id": "meibachEfferentConnectionsSeptal1977",
+      "citekey": "meibachEfferentConnectionsSeptal1977",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "melonakosGainModulationCholinergic2016",
+      "citekey": "melonakosGainModulationCholinergic2016",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "mheichHDEEGTrackingSubsecond2021",
+      "citekey": "mheichHDEEGTrackingSubsecond2021",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "micheauAcetylcholineMemoryLong2011",
+      "citekey": "micheauAcetylcholineMemoryLong2011",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "midzianovskaiaElectrophysiologicalPharmacologicalCharacteristics2001",
+      "citekey": "midzianovskaiaElectrophysiologicalPharmacologicalCharacteristics2001",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "mitelutLFPClusteringCortex2019",
+      "citekey": "mitelutLFPClusteringCortex2019",
+      "artifact_id": "9f6f15407fb88ab0a50a9da17bbffc5346df35bcbfdde9c2de8a590bf3a7354c",
+      "pdf_path": "data/01_bronze/objects/9f6f15407fb88ab0a50a9da17bbffc5346df35bcbfdde9c2de8a590bf3a7354c.pdf"
+    },
+    {
+      "work_id": "mitraAnalysisDynamicBrain1999",
+      "citekey": "mitraAnalysisDynamicBrain1999",
+      "artifact_id": "03fc793e666ec155bfc228e9485a581bc9afc35418114a77e5ec7e80851fa569",
+      "pdf_path": "data/01_bronze/objects/03fc793e666ec155bfc228e9485a581bc9afc35418114a77e5ec7e80851fa569.pdf"
+    },
+    {
+      "work_id": "mitraSpontaneousInfraslowBrain2018",
+      "citekey": "mitraSpontaneousInfraslowBrain2018",
+      "artifact_id": "f41287971742613070992f8ede6e0f55c91ea7970df66cd0355b211024347061",
+      "pdf_path": "data/01_bronze/objects/f41287971742613070992f8ede6e0f55c91ea7970df66cd0355b211024347061.pdf"
+    },
+    {
+      "work_id": "mittelstaedtHomingPathIntegration1980",
+      "citekey": "mittelstaedtHomingPathIntegration1980",
+      "artifact_id": "32cc0b90672d8924a0d594c2a8fcefa62148965109b693d056647cd6bd437ab2",
+      "pdf_path": "data/01_bronze/objects/32cc0b90672d8924a0d594c2a8fcefa62148965109b693d056647cd6bd437ab2.pdf"
+    },
+    {
+      "work_id": "mofradWaveformDetectionDeep2022",
+      "citekey": "mofradWaveformDetectionDeep2022",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "mohajeraniMirroredBilateralSlowwave2010",
+      "citekey": "mohajeraniMirroredBilateralSlowwave2010",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "mohanDirectionTimingTheta2022",
+      "citekey": "mohanDirectionTimingTheta2022",
+      "artifact_id": "48ba2a9b468a3b719f5ab4b0b99d2d7580911c89f4f27d7849c208abf54805bd",
+      "pdf_path": "data/01_bronze/objects/48ba2a9b468a3b719f5ab4b0b99d2d7580911c89f4f27d7849c208abf54805bd.pdf"
+    },
+    {
+      "work_id": "mooreDynamicsCorticalDendritic2017",
+      "citekey": "mooreDynamicsCorticalDendritic2017",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "moranLosingControlKetamine2015",
+      "citekey": "moranLosingControlKetamine2015",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "morrisPlaceNavigationImpaired1982",
+      "citekey": "morrisPlaceNavigationImpaired1982",
+      "artifact_id": "1c733add7154715a9e55a47005f427b7a2869dcf19169d5cb68edba4cfa716a2",
+      "pdf_path": "data/01_bronze/objects/1c733add7154715a9e55a47005f427b7a2869dcf19169d5cb68edba4cfa716a2.pdf"
+    },
+    {
+      "work_id": "morrisSpatialLocalizationDoes1981",
+      "citekey": "morrisSpatialLocalizationDoes1981",
+      "artifact_id": "047280f5f11350a8446bfb3913770bfa2635ea73de1bb8b93f1d377dbd8d7c82",
+      "pdf_path": "data/01_bronze/objects/047280f5f11350a8446bfb3913770bfa2635ea73de1bb8b93f1d377dbd8d7c82.pdf"
+    },
+    {
+      "work_id": "moserPlaceCellsGrid2008",
+      "citekey": "moserPlaceCellsGrid2008",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "moserSpatialRepresentationHippocampal2017",
+      "citekey": "moserSpatialRepresentationHippocampal2017",
+      "artifact_id": "843d054d134b59bfaaa8e6ff13b991fbf3d9026991e6c24ef2a937bfd2b48581",
+      "pdf_path": "data/01_bronze/objects/843d054d134b59bfaaa8e6ff13b991fbf3d9026991e6c24ef2a937bfd2b48581.pdf"
+    },
+    {
+      "work_id": "mulhollandHumanEEGBehavioral1995",
+      "citekey": "mulhollandHumanEEGBehavioral1995",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "mullerCorticalTravellingWaves2018",
+      "citekey": "mullerCorticalTravellingWaves2018",
+      "artifact_id": "e334ee9a018a5e82244a93d7c62bb701d6492e15d66e05a1da4d3f7d2bce6ded",
+      "pdf_path": "data/01_bronze/objects/e334ee9a018a5e82244a93d7c62bb701d6492e15d66e05a1da4d3f7d2bce6ded.pdf"
+    },
+    {
+      "work_id": "mullerCorticalTravellingWaves2018a",
+      "citekey": "mullerCorticalTravellingWaves2018a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "mullerPathIntegrationDesert1988",
+      "citekey": "mullerPathIntegrationDesert1988",
+      "artifact_id": "7a5aaf65d69523a1acebfe0d7aa3c3670edec334d3363de30482331b9795e4af",
+      "pdf_path": "data/01_bronze/objects/7a5aaf65d69523a1acebfe0d7aa3c3670edec334d3363de30482331b9795e4af.pdf"
+    },
+    {
+      "work_id": "mullerPropagatingWavesThalamus2012",
+      "citekey": "mullerPropagatingWavesThalamus2012",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "mullerRotatingWavesHuman2016",
+      "citekey": "mullerRotatingWavesHuman2016",
+      "artifact_id": "5c3ef6a6cdb58b6f275f6a58ab96ca816df9efb58a9ae53aa4844f8de331fcf4",
+      "pdf_path": "data/01_bronze/objects/5c3ef6a6cdb58b6f275f6a58ab96ca816df9efb58a9ae53aa4844f8de331fcf4.pdf"
+    },
+    {
+      "work_id": "mullerRotatingWavesHuman2016a",
+      "citekey": "mullerRotatingWavesHuman2016a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "mullerRotatingWavesHuman2016b",
+      "citekey": "mullerRotatingWavesHuman2016b",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "mullerStimulusevokedPopulationResponse2014",
+      "citekey": "mullerStimulusevokedPopulationResponse2014",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "murtyEnrichedEncodingReward2014",
+      "citekey": "murtyEnrichedEncodingReward2014",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "muzzioWhatRememberedRole2009",
+      "citekey": "muzzioWhatRememberedRole2009",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "naberSubicularEfferentsAre1998",
+      "citekey": "naberSubicularEfferentsAre1998",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "najafianjaziHippocampalFiringFields2023",
+      "citekey": "najafianjaziHippocampalFiringFields2023",
+      "artifact_id": "d5859dd109fa4276729a2e3a1d999b468fe792adbdb4b9fcbe38f5c3518bbe8a",
+      "pdf_path": "data/01_bronze/objects/d5859dd109fa4276729a2e3a1d999b468fe792adbdb4b9fcbe38f5c3518bbe8a.pdf"
+    },
+    {
+      "work_id": "narikiyoClaustrumCoordinatesCortical2020",
+      "citekey": "narikiyoClaustrumCoordinatesCortical2020",
+      "artifact_id": "3b51dcab058bf4c719542ffb61da9d1159b5955c21000ae16f65e6e9eb94fee9",
+      "pdf_path": "data/01_bronze/objects/3b51dcab058bf4c719542ffb61da9d1159b5955c21000ae16f65e6e9eb94fee9.pdf"
+    },
+    {
+      "work_id": "nasretdinovDiversityCorticalActivity2023",
+      "citekey": "nasretdinovDiversityCorticalActivity2023",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "natsuboriSerotonergicNeuronsControl2023",
+      "citekey": "natsuboriSerotonergicNeuronsControl2023",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "nauhausRobustnessTravelingWaves2012",
+      "citekey": "nauhausRobustnessTravelingWaves2012",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "nauhausStimulusContrastModulates2009",
+      "citekey": "nauhausStimulusContrastModulates2009",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "nestvogelVisualThalamocorticalMechanisms2022",
+      "citekey": "nestvogelVisualThalamocorticalMechanisms2022",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "NeuralMechanismsNavigation",
+      "citekey": "NeuralMechanismsNavigation",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "ngoAuditoryClosedloopStimulation2013",
+      "citekey": "ngoAuditoryClosedloopStimulation2013",
+      "artifact_id": "8731fd8933b8ed8f6e98d8d804a28587cc8935ddca9c964321a4629a6bda5a67",
+      "pdf_path": "data/01_bronze/objects/8731fd8933b8ed8f6e98d8d804a28587cc8935ddca9c964321a4629a6bda5a67.pdf"
+    },
+    {
+      "work_id": "ngoDrivingSleepSlow2015",
+      "citekey": "ngoDrivingSleepSlow2015",
+      "artifact_id": "5f6291845c2277f214c38fe1a2e301d6b54b07f826d873ec86cf23de62b06c43",
+      "pdf_path": "data/01_bronze/objects/5f6291845c2277f214c38fe1a2e301d6b54b07f826d873ec86cf23de62b06c43.pdf"
+    },
+    {
+      "work_id": "ngoInsightsAuditoryClosedloop2018",
+      "citekey": "ngoInsightsAuditoryClosedloop2018",
+      "artifact_id": "db843f155402f2e6932749c72bc048c85a2c3616b3a69ab335ff372274120808",
+      "pdf_path": "data/01_bronze/objects/db843f155402f2e6932749c72bc048c85a2c3616b3a69ab335ff372274120808.pdf"
+    },
+    {
+      "work_id": "niethardCorticalCircuitActivity2018",
+      "citekey": "niethardCorticalCircuitActivity2018",
+      "artifact_id": "f828473617e417b43676a90c61b93f0fb04fa38e5854c840d37681b81e27673d",
+      "pdf_path": "data/01_bronze/objects/f828473617e417b43676a90c61b93f0fb04fa38e5854c840d37681b81e27673d.pdf"
+    },
+    {
+      "work_id": "niiyamaElectrophysiologicalEvidenceSuggesting1996",
+      "citekey": "niiyamaElectrophysiologicalEvidenceSuggesting1996",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "nirRegionalSlowWaves2011",
+      "citekey": "nirRegionalSlowWaves2011",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "nunezRelationshipSynapticActivity2000",
+      "citekey": "nunezRelationshipSynapticActivity2000",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "nunezSpatialtemporalStructuresHuman2001",
+      "citekey": "nunezSpatialtemporalStructuresHuman2001",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "nyakasDetailedProjectionPatterns1987",
+      "citekey": "nyakasDetailedProjectionPatterns1987",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "oddieHippocampalFormationTheta1998",
+      "citekey": "oddieHippocampalFormationTheta1998",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "ohlTopographicAnalysisEpidural2000",
+      "citekey": "ohlTopographicAnalysisEpidural2000",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "okeefeHippocampusCognitiveMap1978",
+      "citekey": "okeefeHippocampusCognitiveMap1978",
+      "artifact_id": "8e40d32cf7f87e304d3e047520eb12994756ad72c60e2105b116af187d1356db",
+      "pdf_path": "data/01_bronze/objects/8e40d32cf7f87e304d3e047520eb12994756ad72c60e2105b116af187d1356db.pdf"
+    },
+    {
+      "work_id": "okeefeHippocampusSpatialMap1971",
+      "citekey": "okeefeHippocampusSpatialMap1971",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "okeHighfrequencyGammaOscillations2010",
+      "citekey": "okeHighfrequencyGammaOscillations2010",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "okunSubthresholdRelationCortical2010",
+      "citekey": "okunSubthresholdRelationCortical2010",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "orsheryTravellingWavesSequentially",
+      "citekey": "orsheryTravellingWavesSequentially",
+      "artifact_id": "5d237c2122416779f6a28302f1040412db2ba02fa06f84faf64b612eb1dadf9e",
+      "pdf_path": "/home/arash/snap/zotero-snap/common/Zotero/storage/BCZIXE48/92254v1.html"
+    },
+    {
+      "work_id": "osanTwoDimensionalSynaptically2001",
+      "citekey": "osanTwoDimensionalSynaptically2001",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "oudietteReinforcingRhythmsSleeping2013",
+      "citekey": "oudietteReinforcingRhythmsSleeping2013",
+      "artifact_id": "bdcef50a75b0de9b5d89b1d70700fc36284f8b5374632b77a80e3f10e17a9796",
+      "pdf_path": "data/01_bronze/objects/bdcef50a75b0de9b5d89b1d70700fc36284f8b5374632b77a80e3f10e17a9796.pdf"
+    },
+    {
+      "work_id": "ovchinnikovAlgorithmRealtimeDetection2010",
+      "citekey": "ovchinnikovAlgorithmRealtimeDetection2010",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "paciaIntracranialEEGSubstrates1997",
+      "citekey": "paciaIntracranialEEGSubstrates1997",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "palhalmiDistinctPropertiesCarbachol2004",
+      "citekey": "palhalmiDistinctPropertiesCarbachol2004",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "pandarinathInferringSingletrialNeural2018",
+      "citekey": "pandarinathInferringSingletrialNeural2018",
+      "artifact_id": "b1a818440681f8d743a4ac6c74cb31d876b4839d2623246375a9420ef6104b46",
+      "pdf_path": "data/01_bronze/objects/b1a818440681f8d743a4ac6c74cb31d876b4839d2623246375a9420ef6104b46.pdf"
+    },
+    {
+      "work_id": "pangGeometricConstraintsHuman2023",
+      "citekey": "pangGeometricConstraintsHuman2023",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "pangTurningStimulusDynamically2020",
+      "citekey": "pangTurningStimulusDynamically2020",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "papalambrosAcousticEnhancementSleep2017",
+      "citekey": "papalambrosAcousticEnhancementSleep2017",
+      "artifact_id": "115618b7add8f267f115fb87f12c35a57ef9089ec25e00727c8797a8a05650d3",
+      "pdf_path": "data/01_bronze/objects/115618b7add8f267f115fb87f12c35a57ef9089ec25e00727c8797a8a05650d3.pdf"
+    },
+    {
+      "work_id": "pascual-marquiSegmentationBrainElectrical1995",
+      "citekey": "pascual-marquiSegmentationBrainElectrical1995",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "patonPatternCardiorespiratoryAfferent1998",
+      "citekey": "patonPatternCardiorespiratoryAfferent1998",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "pattenHumanCorticalTraveling2012",
+      "citekey": "pattenHumanCorticalTraveling2012",
+      "artifact_id": "246bde7eb002d9e68b1bb4887ed16b161ac273a894206b96f8b6f0315a2d2d52",
+      "pdf_path": "data/01_bronze/objects/246bde7eb002d9e68b1bb4887ed16b161ac273a894206b96f8b6f0315a2d2d52.pdf"
+    },
+    {
+      "work_id": "pellegriniSuppressionSleepSpindle2016",
+      "citekey": "pellegriniSuppressionSleepSpindle2016",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "pena-ortegaBrainArrhythmiasInduced2019",
+      "citekey": "pena-ortegaBrainArrhythmiasInduced2019",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "pengGridCellsPerform2023",
+      "citekey": "pengGridCellsPerform2023",
+      "artifact_id": "2658c997e96808c78f1eab2c6349f5482521f7bcdea4d3c3ec840cac66a0f7bc",
+      "pdf_path": "data/01_bronze/objects/2658c997e96808c78f1eab2c6349f5482521f7bcdea4d3c3ec840cac66a0f7bc.pdf"
+    },
+    {
+      "work_id": "perryCorticoThalamocorticalInteractions2022",
+      "citekey": "perryCorticoThalamocorticalInteractions2022",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "perryCorticoThalamocorticalInteractions2022a",
+      "citekey": "perryCorticoThalamocorticalInteractions2022a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "pesaranInvestigatingLargescaleBrain2018",
+      "citekey": "pesaranInvestigatingLargescaleBrain2018",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "petersEnhancedControlAttention2011",
+      "citekey": "petersEnhancedControlAttention2011",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "peyracheElectrophysiologicalMonitoringInhibition2019",
+      "citekey": "peyracheElectrophysiologicalMonitoringInhibition2019",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "peyracheSpatiotemporalDynamicsNeocortical2012",
+      "citekey": "peyracheSpatiotemporalDynamicsNeocortical2012",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "peyracheThalamocorticalProcessingHeaddirection2019",
+      "citekey": "peyracheThalamocorticalProcessingHeaddirection2019",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "peyracheThalamocorticalProcessingHeaddirection2019a",
+      "citekey": "peyracheThalamocorticalProcessingHeaddirection2019a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "picciottoAcetylcholineNeuromodulatorCholinergic2012",
+      "citekey": "picciottoAcetylcholineNeuromodulatorCholinergic2012",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "pietersenTransitionFastSlow2013",
+      "citekey": "pietersenTransitionFastSlow2013",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "pietersenTransitionFastSlow2014",
+      "citekey": "pietersenTransitionFastSlow2014",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "pinedaFunctionalSignificanceMu2005",
+      "citekey": "pinedaFunctionalSignificanceMu2005",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "pinesDevelopmentTopdownCortical2022",
+      "citekey": "pinesDevelopmentTopdownCortical2022",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "pintoMicroglialTNFaControls2022",
+      "citekey": "pintoMicroglialTNFaControls2022",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "pistohlDecodingNaturalGrasp2012",
+      "citekey": "pistohlDecodingNaturalGrasp2012",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "pistohlPredictionArmMovement2008",
+      "citekey": "pistohlPredictionArmMovement2008",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "piterkinLimitedRoleHippocampus2008",
+      "citekey": "piterkinLimitedRoleHippocampus2008",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "polackDeepLayerSomatosensory2007",
+      "citekey": "polackDeepLayerSomatosensory2007",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "poucetExploratoryPatternsRats2001",
+      "citekey": "poucetExploratoryPatternsRats2001",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "prechtlVisualStimuliInduce1997",
+      "citekey": "prechtlVisualStimuliInduce1997",
+      "artifact_id": "3c51fed810b461661630ea3a5f623e9047b61adc88d6b3a056aa8fbc6a835677",
+      "pdf_path": "data/01_bronze/objects/3c51fed810b461661630ea3a5f623e9047b61adc88d6b3a056aa8fbc6a835677.pdf"
+    },
+    {
+      "work_id": "prerauSleepNeurophysiologicalDynamics2016",
+      "citekey": "prerauSleepNeurophysiologicalDynamics2016",
+      "artifact_id": "6ab64533760e849e9c204e5550355904a341e1074f53864905116be2be2a2873",
+      "pdf_path": "data/01_bronze/objects/6ab64533760e849e9c204e5550355904a341e1074f53864905116be2be2a2873.pdf"
+    },
+    {
+      "work_id": "prsaCharacteristicsResponsesGolgi2009",
+      "citekey": "prsaCharacteristicsResponsesGolgi2009",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "purtellElectrographicSpikesAre2018",
+      "citekey": "purtellElectrographicSpikesAre2018",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "pychAcetylcholineReleaseHippocampus2005",
+      "citekey": "pychAcetylcholineReleaseHippocampus2005",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "quinnWithincycleInstantaneousFrequency2021",
+      "citekey": "quinnWithincycleInstantaneousFrequency2021",
+      "artifact_id": "8f8a667af611ca49b8551f4875162972d56aff08ac8956c1185e16f37e70f5fd",
+      "pdf_path": "data/01_bronze/objects/8f8a667af611ca49b8551f4875162972d56aff08ac8956c1185e16f37e70f5fd.pdf"
+    },
+    {
+      "work_id": "racicotHighResolutionWide2022",
+      "citekey": "racicotHighResolutionWide2022",
+      "artifact_id": "51df2d704a1e65a232776810facb403bc7ce1cfd72c83cf402646536ecfe9771",
+      "pdf_path": "data/01_bronze/objects/51df2d704a1e65a232776810facb403bc7ce1cfd72c83cf402646536ecfe9771.pdf"
+    },
+    {
+      "work_id": "radekCharacterizationHighVoltage1994",
+      "citekey": "radekCharacterizationHighVoltage1994",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "ramanathanSleepDependentReactivationEnsembles2015",
+      "citekey": "ramanathanSleepDependentReactivationEnsembles2015",
+      "artifact_id": "a940fcb5f5258d79568581fa7dbfc3a08226606e41d4ebdd3af6c8ad82b4fe16",
+      "pdf_path": "data/01_bronze/objects/a940fcb5f5258d79568581fa7dbfc3a08226606e41d4ebdd3af6c8ad82b4fe16.pdf"
+    },
+    {
+      "work_id": "ramonSpatiotemporalPhaseClusters2015",
+      "citekey": "ramonSpatiotemporalPhaseClusters2015",
+      "artifact_id": "246bde7eb002d9e68b1bb4887ed16b161ac273a894206b96f8b6f0315a2d2d52",
+      "pdf_path": "data/01_bronze/objects/246bde7eb002d9e68b1bb4887ed16b161ac273a894206b96f8b6f0315a2d2d52.pdf"
+    },
+    {
+      "work_id": "ramonSpatiotemporalPhaseClusters2015a",
+      "citekey": "ramonSpatiotemporalPhaseClusters2015a",
+      "artifact_id": "246bde7eb002d9e68b1bb4887ed16b161ac273a894206b96f8b6f0315a2d2d52",
+      "pdf_path": "data/01_bronze/objects/246bde7eb002d9e68b1bb4887ed16b161ac273a894206b96f8b6f0315a2d2d52.pdf"
+    },
+    {
+      "work_id": "ramseyDecodingSpokenPhonemes2017",
+      "citekey": "ramseyDecodingSpokenPhonemes2017",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "rapelaEntrainmentTravelingWaves2016",
+      "citekey": "rapelaEntrainmentTravelingWaves2016",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "rasmussenCortexwideChangesExtracellular2019",
+      "citekey": "rasmussenCortexwideChangesExtracellular2019",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "rautGlobalWavesSynchronize2021",
+      "citekey": "rautGlobalWavesSynchronize2021",
+      "artifact_id": "e938ef9d80c7bdfbe05812c0e8871fdb314daa81179bb7d07a13e1a3c4818e48",
+      "pdf_path": "data/01_bronze/objects/e938ef9d80c7bdfbe05812c0e8871fdb314daa81179bb7d07a13e1a3c4818e48.pdf"
+    },
+    {
+      "work_id": "rayLocalizingValueScalp2007",
+      "citekey": "rayLocalizingValueScalp2007",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "redaSearchSleepBiomarkers2017",
+      "citekey": "redaSearchSleepBiomarkers2017",
+      "artifact_id": "382004fb4a903f0a8a5ede102a901602e7e3955dd5462cba043068319088411c",
+      "pdf_path": "data/01_bronze/objects/382004fb4a903f0a8a5ede102a901602e7e3955dd5462cba043068319088411c.pdf"
+    },
+    {
+      "work_id": "reyes-puertaPropagationSpontaneousSlowwave2016",
+      "citekey": "reyes-puertaPropagationSpontaneousSlowwave2016",
+      "artifact_id": "aa237b0aa06bdf0b3fee19e1af18a700fdd0c87d03a69253e06866490bc6d9cc",
+      "pdf_path": "data/01_bronze/objects/aa237b0aa06bdf0b3fee19e1af18a700fdd0c87d03a69253e06866490bc6d9cc.pdf"
+    },
+    {
+      "work_id": "ribaryMagneticFieldTomography1991",
+      "citekey": "ribaryMagneticFieldTomography1991",
+      "artifact_id": "e47a6df1ac95a62363f02a0dc13310b67732ecc10c1d57c0bd1c753ae8ff73fa",
+      "pdf_path": "data/01_bronze/objects/e47a6df1ac95a62363f02a0dc13310b67732ecc10c1d57c0bd1c753ae8ff73fa.pdf"
+    },
+    {
+      "work_id": "ribeiroNovelExperienceInduces2007",
+      "citekey": "ribeiroNovelExperienceInduces2007",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "richardsonElectrophysiologicalStudiesFunctions1991",
+      "citekey": "richardsonElectrophysiologicalStudiesFunctions1991",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "riednerTemporalDynamicsCortical2011",
+      "citekey": "riednerTemporalDynamicsCortical2011",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "riehleMappingSpatiotemporalStructure2013",
+      "citekey": "riehleMappingSpatiotemporalStructure2013",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "rinaldiFlexibleUseAllocentric2020",
+      "citekey": "rinaldiFlexibleUseAllocentric2020",
+      "artifact_id": "8c2a3470d00fe09021255ad692724ac4cece8ca310126967f5f4a803c7ce8c6a",
+      "pdf_path": "data/01_bronze/objects/8c2a3470d00fe09021255ad692724ac4cece8ca310126967f5f4a803c7ce8c6a.pdf"
+    },
+    {
+      "work_id": "robbinsChemicalNeuromodulationFrontalexecutive2000",
+      "citekey": "robbinsChemicalNeuromodulationFrontalexecutive2000",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "rockstromTumorNecrosisFactor2018",
+      "citekey": "rockstromTumorNecrosisFactor2018",
+      "artifact_id": "3531750008f54c054625cb874419a3c14135aeda50808c6ef7e3cd1dbc61105d",
+      "pdf_path": "data/01_bronze/objects/3531750008f54c054625cb874419a3c14135aeda50808c6ef7e3cd1dbc61105d.pdf"
+    },
+    {
+      "work_id": "rodriguez-labradaSleepSpindlesKcomplex2019",
+      "citekey": "rodriguez-labradaSleepSpindlesKcomplex2019",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "roelfsemaVisuomotorIntegrationAssociated1997",
+      "citekey": "roelfsemaVisuomotorIntegrationAssociated1997",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "rogersCholinergicModulationHippocampus2004",
+      "citekey": "rogersCholinergicModulationHippocampus2004",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "rossiAnalysisRelationshipsSelfstimulation1992",
+      "citekey": "rossiAnalysisRelationshipsSelfstimulation1992",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "rossiFocalCorticalSeizures2017",
+      "citekey": "rossiFocalCorticalSeizures2017",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "royAnteriorThalamicCircuits2022",
+      "citekey": "royAnteriorThalamicCircuits2022",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "royAnteriorThalamicCircuits2022a",
+      "citekey": "royAnteriorThalamicCircuits2022a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "rubinoPropagatingWavesMediate2006",
+      "citekey": "rubinoPropagatingWavesMediate2006",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "rubinoPropagatingWavesMediate2006a",
+      "citekey": "rubinoPropagatingWavesMediate2006a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "rubinoPropagatingWavesMediate2006b",
+      "citekey": "rubinoPropagatingWavesMediate2006b",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "rubinoPropagatingWavesMediate2006c",
+      "citekey": "rubinoPropagatingWavesMediate2006c",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "ruchWordEncodingSleep2014",
+      "citekey": "ruchWordEncodingSleep2014",
+      "artifact_id": "206f4e4e24e1b1a99fe579f07b4438dc0cc81f9175688b6feb3fa7aa4e5bff09",
+      "pdf_path": "data/01_bronze/objects/206f4e4e24e1b1a99fe579f07b4438dc0cc81f9175688b6feb3fa7aa4e5bff09.pdf"
+    },
+    {
+      "work_id": "ruedigerGoalorientedSearchingMediated2012",
+      "citekey": "ruedigerGoalorientedSearchingMediated2012",
+      "artifact_id": "b72c1f4e767d1257701aa4ae13ae95159aa176ca80ce2a6172a5c3793c7842de",
+      "pdf_path": "data/01_bronze/objects/b72c1f4e767d1257701aa4ae13ae95159aa176ca80ce2a6172a5c3793c7842de.pdf"
+    },
+    {
+      "work_id": "ruizDetectingStablePhase2009",
+      "citekey": "ruizDetectingStablePhase2009",
+      "artifact_id": "9bcb3e72e1676f76c0fc8ef7869e4f674acb04b495d69a729b5ac65afa83583e",
+      "pdf_path": "data/01_bronze/objects/9bcb3e72e1676f76c0fc8ef7869e4f674acb04b495d69a729b5ac65afa83583e.pdf"
+    },
+    {
+      "work_id": "ruizDetectingStablePhase2009a",
+      "citekey": "ruizDetectingStablePhase2009a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "ruizMethodStudyGlobal2010",
+      "citekey": "ruizMethodStudyGlobal2010",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "safaviAnalyzingLockingSpikes2013",
+      "citekey": "safaviAnalyzingLockingSpikes2013",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "sakuraiGeneralizedSpikewaveDischarges2010",
+      "citekey": "sakuraiGeneralizedSpikewaveDischarges2010",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "salminenSleepDisturbancePramipexole2017",
+      "citekey": "salminenSleepDisturbancePramipexole2017",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "samahaSpeedAlphabandOscillations2015",
+      "citekey": "samahaSpeedAlphabandOscillations2015",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "samsonovichPathIntegrationCognitive1997",
+      "citekey": "samsonovichPathIntegrationCognitive1997",
+      "artifact_id": "ccc614523a1ede0d994ee44dfa446973cce5916da8bc6a5f222b7946884c4cf0",
+      "pdf_path": "data/01_bronze/objects/ccc614523a1ede0d994ee44dfa446973cce5916da8bc6a5f222b7946884c4cf0.pdf"
+    },
+    {
+      "work_id": "santostasiPhaselockedLoopPrecisely2016",
+      "citekey": "santostasiPhaselockedLoopPrecisely2016",
+      "artifact_id": "57a997af0fa53361ca5d6cfac2546f74db380505025a849c0e308bc16c8c6a2e",
+      "pdf_path": "data/01_bronze/objects/57a997af0fa53361ca5d6cfac2546f74db380505025a849c0e308bc16c8c6a2e.pdf"
+    },
+    {
+      "work_id": "sarassoLocalSleeplikeCortical2020",
+      "citekey": "sarassoLocalSleeplikeCortical2020",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "satoTravelingWavesVisual2012",
+      "citekey": "satoTravelingWavesVisual2012",
+      "artifact_id": "2a5bee8864df83d51d92d14a9626ec19a3e6888dc1c0126c95447442af125805",
+      "pdf_path": "data/01_bronze/objects/2a5bee8864df83d51d92d14a9626ec19a3e6888dc1c0126c95447442af125805.pdf"
+    },
+    {
+      "work_id": "satoTravelingWavesVisual2012a",
+      "citekey": "satoTravelingWavesVisual2012a",
+      "artifact_id": "19b5948b5c8eabf623d2cc6d2f5bd9c239717a410b5ffe7a66a304dbc66d6ec8",
+      "pdf_path": "data/01_bronze/objects/19b5948b5c8eabf623d2cc6d2f5bd9c239717a410b5ffe7a66a304dbc66d6ec8.pdf"
+    },
+    {
+      "work_id": "savelliOriginRolePath2019",
+      "citekey": "savelliOriginRolePath2019",
+      "artifact_id": "c4867f76b38762035b0bf7612772685afe75a67cb98cd2a90156949fcb1f6ae1",
+      "pdf_path": "data/01_bronze/objects/c4867f76b38762035b0bf7612772685afe75a67cb98cd2a90156949fcb1f6ae1.pdf"
+    },
+    {
+      "work_id": "savelliOriginRolePath2019a",
+      "citekey": "savelliOriginRolePath2019a",
+      "artifact_id": "c4867f76b38762035b0bf7612772685afe75a67cb98cd2a90156949fcb1f6ae1",
+      "pdf_path": "data/01_bronze/objects/c4867f76b38762035b0bf7612772685afe75a67cb98cd2a90156949fcb1f6ae1.pdf"
+    },
+    {
+      "work_id": "schabusFateIncomingStimuli2012",
+      "citekey": "schabusFateIncomingStimuli2012",
+      "artifact_id": "ef96b9cf60e4df44763e99de3f891d5f6f46893e495826e6188f4570725c5e46",
+      "pdf_path": "data/01_bronze/objects/ef96b9cf60e4df44763e99de3f891d5f6f46893e495826e6188f4570725c5e46.pdf"
+    },
+    {
+      "work_id": "schaefferSwitchingMarkovDecoders2016",
+      "citekey": "schaefferSwitchingMarkovDecoders2016",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "schonauerDecodingMaterialspecificMemory2017",
+      "citekey": "schonauerDecodingMaterialspecificMemory2017",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "schreinerHumanThalamusOrchestrates2022",
+      "citekey": "schreinerHumanThalamusOrchestrates2022",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "schultzDopamineSignalsReward2010",
+      "citekey": "schultzDopamineSignalsReward2010",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "schwalmCortexwideBOLDFMRI2017",
+      "citekey": "schwalmCortexwideBOLDFMRI2017",
+      "artifact_id": "ac5f752c5eef87c458ea8d7bd6a3032937a9b1b4b339230bc5803b76f4306533",
+      "pdf_path": "data/01_bronze/objects/ac5f752c5eef87c458ea8d7bd6a3032937a9b1b4b339230bc5803b76f4306533.pdf"
+    },
+    {
+      "work_id": "seichepineDielectrophoresisAssistedIntegration10242017",
+      "citekey": "seichepineDielectrophoresisAssistedIntegration10242017",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "serkovLongtermPotentiationOscillation2014",
+      "citekey": "serkovLongtermPotentiationOscillation2014",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "sevelingesOlfactoryFearConditioning2004",
+      "citekey": "sevelingesOlfactoryFearConditioning2004",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "shahsavaraniCortexwideNeuralDynamics2023",
+      "citekey": "shahsavaraniCortexwideNeuralDynamics2023",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "shahsavaraniCortexwideNeuralDynamics2023a",
+      "citekey": "shahsavaraniCortexwideNeuralDynamics2023a",
+      "artifact_id": "c776503e6f40b6b7e9a4f34c16f71f633196b832aea7405edf742465a3daeffe",
+      "pdf_path": "data/01_bronze/objects/c776503e6f40b6b7e9a4f34c16f71f633196b832aea7405edf742465a3daeffe.pdf"
+    },
+    {
+      "work_id": "shaoPlasticityRecurrentL22013",
+      "citekey": "shaoPlasticityRecurrentL22013",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "sharpAnatomicalComputationalBasis2001",
+      "citekey": "sharpAnatomicalComputationalBasis2001",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "sharpAnatomicalComputationalBasis2001a",
+      "citekey": "sharpAnatomicalComputationalBasis2001a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "shawSpontaneousHighvoltageRhythmic2004",
+      "citekey": "shawSpontaneousHighvoltageRhythmic2004",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "shiCorticalStateDynamics2022",
+      "citekey": "shiCorticalStateDynamics2022",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "shinderThreedimensionalTuningHead2019",
+      "citekey": "shinderThreedimensionalTuningHead2019",
+      "artifact_id": "8bb9a6534c9bee36bb2795a64de7f4ec6332746625317f47284fb6d772674cd3",
+      "pdf_path": "data/01_bronze/objects/8bb9a6534c9bee36bb2795a64de7f4ec6332746625317f47284fb6d772674cd3.pdf"
+    },
+    {
+      "work_id": "shoupRejuvenatingSiliconProbes2024",
+      "citekey": "shoupRejuvenatingSiliconProbes2024",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "siclariLocalAspectsSleep2017",
+      "citekey": "siclariLocalAspectsSleep2017",
+      "artifact_id": "4b2f4bf3b39f66aca7088233f0e89a4da7118599820e49c2db43c122ca96bf81",
+      "pdf_path": "data/01_bronze/objects/4b2f4bf3b39f66aca7088233f0e89a4da7118599820e49c2db43c122ca96bf81.pdf"
+    },
+    {
+      "work_id": "siclariTwoDistinctSynchronization2014",
+      "citekey": "siclariTwoDistinctSynchronization2014",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "siegristHomingPathIntegration2003",
+      "citekey": "siegristHomingPathIntegration2003",
+      "artifact_id": "fdc388ac9cdf56869b404a8136eb2cf192b18ebd344277b5e9f102ee7615cf93",
+      "pdf_path": "data/01_bronze/objects/fdc388ac9cdf56869b404a8136eb2cf192b18ebd344277b5e9f102ee7615cf93.pdf"
+    },
+    {
+      "work_id": "sillitoAlwaysReturningFeedback2006",
+      "citekey": "sillitoAlwaysReturningFeedback2006",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "sillitoAlwaysReturningFeedback2006a",
+      "citekey": "sillitoAlwaysReturningFeedback2006a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "simorLateralizedRhythmicAcoustic2018",
+      "citekey": "simorLateralizedRhythmicAcoustic2018",
+      "artifact_id": "bb9b810e7ca06fc01eec5eeacd8fc84b7e7bf905cdd7c79d01421a9b028cfe3f",
+      "pdf_path": "data/01_bronze/objects/bb9b810e7ca06fc01eec5eeacd8fc84b7e7bf905cdd7c79d01421a9b028cfe3f.pdf"
+    },
+    {
+      "work_id": "singerRewardedOutcomesEnhance2009",
+      "citekey": "singerRewardedOutcomesEnhance2009",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "sitCoregistrationHeadingVisual2023",
+      "citekey": "sitCoregistrationHeadingVisual2023",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "sitCoregistrationHeadingVisual2023a",
+      "citekey": "sitCoregistrationHeadingVisual2023a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "smithIctalWavefrontSpatiotemporal2016",
+      "citekey": "smithIctalWavefrontSpatiotemporal2016",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "smithSleepStatesLearning1985",
+      "citekey": "smithSleepStatesLearning1985",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "songBehavioralOscillationsAttention2014",
+      "citekey": "songBehavioralOscillationsAttention2014",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "songStabilitySwitchesOscillatory2009",
+      "citekey": "songStabilitySwitchesOscillatory2009",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "sorokinAbsenceSeizureSusceptibility2016",
+      "citekey": "sorokinAbsenceSeizureSusceptibility2016",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "spanoIncreaseNREMSleep2022",
+      "citekey": "spanoIncreaseNREMSleep2022",
+      "artifact_id": "fc2ba22ef57cb5665c5590bf530f8a3b9a3382a3f620806b196b49d54067c833",
+      "pdf_path": "data/01_bronze/objects/fc2ba22ef57cb5665c5590bf530f8a3b9a3382a3f620806b196b49d54067c833.pdf"
+    },
+    {
+      "work_id": "steriadeSynchronizationFast30401996",
+      "citekey": "steriadeSynchronizationFast30401996",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "studerSensoryCodingImpaired2019",
+      "citekey": "studerSensoryCodingImpaired2019",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "suessExploratoryBehaviorFunction1978",
+      "citekey": "suessExploratoryBehaviorFunction1978",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "swansonConnectionsSeptalRegion1979",
+      "citekey": "swansonConnectionsSeptalRegion1979",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "taishiTNFaSiRNAReduces2007",
+      "citekey": "taishiTNFaSiRNAReduces2007",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "takahashiLargescaleSpatiotemporalSpike2015",
+      "citekey": "takahashiLargescaleSpatiotemporalSpike2015",
+      "artifact_id": "68f8fc68ba234e3bf24d373ccba729ac6a79aeae4ff81e3ee4b850cd6cf7cd9b",
+      "pdf_path": "data/01_bronze/objects/68f8fc68ba234e3bf24d373ccba729ac6a79aeae4ff81e3ee4b850cd6cf7cd9b.pdf"
+    },
+    {
+      "work_id": "talakoubReconstructionReachingMovement2017",
+      "citekey": "talakoubReconstructionReachingMovement2017",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "tamimSpreadingDepressionInnate2021",
+      "citekey": "tamimSpreadingDepressionInnate2021",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "tanakaClinicalValueMagnetoencephalographic2014",
+      "citekey": "tanakaClinicalValueMagnetoencephalographic2014",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "taubeAbsencePresence3D2020",
+      "citekey": "taubeAbsencePresence3D2020",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "taubeAbsencePresence3D2020a",
+      "citekey": "taubeAbsencePresence3D2020a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "taubeComparisonsHeadDirection1998",
+      "citekey": "taubeComparisonsHeadDirection1998",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "taubeComparisonsHeadDirection1998a",
+      "citekey": "taubeComparisonsHeadDirection1998a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "taubeHeadDirectionCell1995",
+      "citekey": "taubeHeadDirectionCell1995",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "taubeHeadDirectionCell1995a",
+      "citekey": "taubeHeadDirectionCell1995a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "taubeHeaddirectionCellsRecorded1990",
+      "citekey": "taubeHeaddirectionCellsRecorded1990",
+      "artifact_id": "86890387743a873374a50785a8dc11128a3c2c86b5e104b5df9884cb8a82cafa",
+      "pdf_path": "data/01_bronze/objects/86890387743a873374a50785a8dc11128a3c2c86b5e104b5df9884cb8a82cafa.pdf"
+    },
+    {
+      "work_id": "taubeProcessingHeadDirection1996",
+      "citekey": "taubeProcessingHeadDirection1996",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "taubeProcessingHeadDirection1996a",
+      "citekey": "taubeProcessingHeadDirection1996a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "taylorPersistenceLongtermPotentiation2016",
+      "citekey": "taylorPersistenceLongtermPotentiation2016",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "taylorSpikewaveDischargesSprague2022",
+      "citekey": "taylorSpikewaveDischargesSprague2022",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "taylorSpontaneousRecurrentAbsence2019",
+      "citekey": "taylorSpontaneousRecurrentAbsence2019",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "taylorVoluntaryControlEpileptiform2017",
+      "citekey": "taylorVoluntaryControlEpileptiform2017",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "tchoeHumanBrainMapping2022",
+      "citekey": "tchoeHumanBrainMapping2022",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "tchoeHumanBrainMapping2022a",
+      "citekey": "tchoeHumanBrainMapping2022a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "tenoeverAbsenceBehaviouralRhythms2022",
+      "citekey": "tenoeverAbsenceBehaviouralRhythms2022",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "tenoeverAbsenceBehaviouralRhythms2022a",
+      "citekey": "tenoeverAbsenceBehaviouralRhythms2022a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "terrierStudyCorticalSpindles1978",
+      "citekey": "terrierStudyCorticalSpindles1978",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "thiagarajanCoherencePotentialsLossless2010",
+      "citekey": "thiagarajanCoherencePotentialsLossless2010",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "timofeevGlobalControlSleep2020",
+      "citekey": "timofeevGlobalControlSleep2020",
+      "artifact_id": "5a8856dbf7d194843101ab9ade05521eebad550e3f33336ab1882e243f245191",
+      "pdf_path": "data/01_bronze/objects/5a8856dbf7d194843101ab9ade05521eebad550e3f33336ab1882e243f245191.pdf"
+    },
+    {
+      "work_id": "timofeevSpatiotemporalPropertiesSleep2020",
+      "citekey": "timofeevSpatiotemporalPropertiesSleep2020",
+      "artifact_id": "9b337efed6a1b5b4d84d581e536d84c5033486ecc62fecf7b9d13f064b1aada2",
+      "pdf_path": "data/01_bronze/objects/9b337efed6a1b5b4d84d581e536d84c5033486ecc62fecf7b9d13f064b1aada2.pdf"
+    },
+    {
+      "work_id": "tinbergenAimsMethodsEthology1963",
+      "citekey": "tinbergenAimsMethodsEthology1963",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "toddSystematicExplorationUnsupervised2017",
+      "citekey": "toddSystematicExplorationUnsupervised2017",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "todorovaIsolatedCorticalComputations2019",
+      "citekey": "todorovaIsolatedCorticalComputations2019",
+      "artifact_id": "d431e3d8308949227f93064c34e503dbfebd9058748df7062cca0f1b32f44afa",
+      "pdf_path": "data/01_bronze/objects/d431e3d8308949227f93064c34e503dbfebd9058748df7062cca0f1b32f44afa.pdf"
+    },
+    {
+      "work_id": "tolmanStudiesLearningMotivation1949",
+      "citekey": "tolmanStudiesLearningMotivation1949",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "townsendDetectionAnalysisSpatiotemporal2018a",
+      "citekey": "townsendDetectionAnalysisSpatiotemporal2018a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "treismanFeatureintegrationTheoryAttention1980",
+      "citekey": "treismanFeatureintegrationTheoryAttention1980",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "tuckerDischargesVentromedialFrontal2007",
+      "citekey": "tuckerDischargesVentromedialFrontal2007",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "udellGeneralizedLowRank2016",
+      "citekey": "udellGeneralizedLowRank2016",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "ulyanovaMultichannelSiliconProbes2019",
+      "citekey": "ulyanovaMultichannelSiliconProbes2019",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "usterEffectsMazeGeometry1976",
+      "citekey": "usterEffectsMazeGeometry1976",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "uvaOlfactoryBulbNetworks2006",
+      "citekey": "uvaOlfactoryBulbNetworks2006",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "uvaPolysynapticOlfactoryPathway2005",
+      "citekey": "uvaPolysynapticOlfactoryPathway2005",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "vanderlindenCarbacholInducesFast1999",
+      "citekey": "vanderlindenCarbacholInducesFast1999",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "vandermeerAnticipationRodentHead2007",
+      "citekey": "vandermeerAnticipationRodentHead2007",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "vandermeerAnticipationRodentHead2007a",
+      "citekey": "vandermeerAnticipationRodentHead2007a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "vanleerMillimeterscaleEpileptiformSpike2016",
+      "citekey": "vanleerMillimeterscaleEpileptiformSpike2016",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "vanluijtelaarSpikeWaveDischarges2011",
+      "citekey": "vanluijtelaarSpikeWaveDischarges2011",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "vanniMesoscaleMappingMouse2017",
+      "citekey": "vanniMesoscaleMappingMouse2017",
+      "artifact_id": "21d6fb92a23889bb45258ceb1190e4cf294ec065165bdf07b0a00670d167c5da",
+      "pdf_path": "data/01_bronze/objects/21d6fb92a23889bb45258ceb1190e4cf294ec065165bdf07b0a00670d167c5da.pdf"
+    },
+    {
+      "work_id": "vantommeThalamicReticularCircuit2020",
+      "citekey": "vantommeThalamicReticularCircuit2020",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "vantommeThalamicReticularCircuit2020a",
+      "citekey": "vantommeThalamicReticularCircuit2020a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "varleyNetworkAnalysisTime2022",
+      "citekey": "varleyNetworkAnalysisTime2022",
+      "artifact_id": "6fd74c8bc7c8d56ae45ea57a18ed7e4234d97ce01dfb04a6e0eda57406eeef93",
+      "pdf_path": "data/01_bronze/objects/6fd74c8bc7c8d56ae45ea57a18ed7e4234d97ce01dfb04a6e0eda57406eeef93.pdf"
+    },
+    {
+      "work_id": "vergnesAreRatsGenetic1991",
+      "citekey": "vergnesAreRatsGenetic1991",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "verhagenSniffingControlsAdaptive2007",
+      "citekey": "verhagenSniffingControlsAdaptive2007",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "veutheySingletrialCrossareaNeural2020",
+      "citekey": "veutheySingletrialCrossareaNeural2020",
+      "artifact_id": "c8cfa82f54eecd3d9c09f85f01ae7ba03508d2844f499cad7e196892687b5487",
+      "pdf_path": "data/01_bronze/objects/c8cfa82f54eecd3d9c09f85f01ae7ba03508d2844f499cad7e196892687b5487.pdf"
+    },
+    {
+      "work_id": "viejoBrainstateInvariantThalamocortical2018",
+      "citekey": "viejoBrainstateInvariantThalamocortical2018",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "viejoBrainstateInvariantThalamocortical2018a",
+      "citekey": "viejoBrainstateInvariantThalamocortical2018a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "vijayabaskaranNavigationTaskAction2022",
+      "citekey": "vijayabaskaranNavigationTaskAction2022",
+      "artifact_id": "bd8ea13b8fe88464ddf737df313ba8ff538bb6b1573da5b0e564a9f06b616c89",
+      "pdf_path": "data/01_bronze/objects/bd8ea13b8fe88464ddf737df313ba8ff538bb6b1573da5b0e564a9f06b616c89.pdf"
+    },
+    {
+      "work_id": "vinckPairwisePhaseConsistency2010",
+      "citekey": "vinckPairwisePhaseConsistency2010",
+      "artifact_id": "628e4ba70fe81b1b2049c39f0f872130de0831e2e628cab032bf2b9f57a39e22",
+      "pdf_path": "/home/arash/snap/zotero-snap/common/Zotero/storage/27MW899T/S1053811910000959.html"
+    },
+    {
+      "work_id": "voloCorticalPropagatingWaves2021",
+      "citekey": "voloCorticalPropagatingWaves2021",
+      "artifact_id": "58c3eba65adde01f1ae02218a95e594e7cab2e248be5f497a568c8f359d42e4c",
+      "pdf_path": "data/01_bronze/objects/58c3eba65adde01f1ae02218a95e594e7cab2e248be5f497a568c8f359d42e4c.pdf"
+    },
+    {
+      "work_id": "volpertCharacterizationSpatiotemporalDynamics2022",
+      "citekey": "volpertCharacterizationSpatiotemporalDynamics2022",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "vorheesAssessingSpatialLearning2014",
+      "citekey": "vorheesAssessingSpatialLearning2014",
+      "artifact_id": "6d096812cd0217e1731c76cae4fa3bec17ce3936c7138e144562186b5fee112f",
+      "pdf_path": "data/01_bronze/objects/6d096812cd0217e1731c76cae4fa3bec17ce3936c7138e144562186b5fee112f.pdf"
+    },
+    {
+      "work_id": "vorheesCincinnatiWaterMaze2016",
+      "citekey": "vorheesCincinnatiWaterMaze2016",
+      "artifact_id": "20a81bac51353ef6b21e50a32e2524fc732601a1f4df40dd003ea374d4788804",
+      "pdf_path": "data/01_bronze/objects/20a81bac51353ef6b21e50a32e2524fc732601a1f4df40dd003ea374d4788804.pdf"
+    },
+    {
+      "work_id": "vorheesMorrisWaterMaze2006",
+      "citekey": "vorheesMorrisWaterMaze2006",
+      "artifact_id": "99eb9d99a1491069e2f21adb0f41b83bc9a5de6249cbfd82e6cea6ae0c225474",
+      "pdf_path": "data/01_bronze/objects/99eb9d99a1491069e2f21adb0f41b83bc9a5de6249cbfd82e6cea6ae0c225474.pdf"
+    },
+    {
+      "work_id": "vorheesMorrisWaterMaze2006a",
+      "citekey": "vorheesMorrisWaterMaze2006a",
+      "artifact_id": "99eb9d99a1491069e2f21adb0f41b83bc9a5de6249cbfd82e6cea6ae0c225474",
+      "pdf_path": "data/01_bronze/objects/99eb9d99a1491069e2f21adb0f41b83bc9a5de6249cbfd82e6cea6ae0c225474.pdf"
+    },
+    {
+      "work_id": "vorheesMorrisWaterMaze2006b",
+      "citekey": "vorheesMorrisWaterMaze2006b",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "vyasNeuralPopulationDynamics2018",
+      "citekey": "vyasNeuralPopulationDynamics2018",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "vyazovskiyLocalSleepAwake2011",
+      "citekey": "vyazovskiyLocalSleepAwake2011",
+      "artifact_id": "39e5e4f42548df441f0a580a9c860ee07000b735002efcd7b283a5a74f12c3de",
+      "pdf_path": "data/01_bronze/objects/39e5e4f42548df441f0a580a9c860ee07000b735002efcd7b283a5a74f12c3de.pdf"
+    },
+    {
+      "work_id": "waagaGridcellModulesRemain2022",
+      "citekey": "waagaGridcellModulesRemain2022",
+      "artifact_id": "a1ad664d9f4c0735ad8af2eb7e3531c20651c928132dcab8fa5116f6f846c674",
+      "pdf_path": "data/01_bronze/objects/a1ad664d9f4c0735ad8af2eb7e3531c20651c928132dcab8fa5116f6f846c674.pdf"
+    },
+    {
+      "work_id": "walkStudyVisualDepth1965",
+      "citekey": "walkStudyVisualDepth1965",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "wallachTimestampMechanismMay2018",
+      "citekey": "wallachTimestampMechanismMay2018",
+      "artifact_id": "c357ca064f8820d869daff2018a2497d1b7295b483dd302fe458eaecb781378c",
+      "pdf_path": "data/01_bronze/objects/c357ca064f8820d869daff2018a2497d1b7295b483dd302fe458eaecb781378c.pdf"
+    },
+    {
+      "work_id": "walshNaturallySecretedOligomers2002",
+      "citekey": "walshNaturallySecretedOligomers2002",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "walshReversibleInactivationMedial1998",
+      "citekey": "walshReversibleInactivationMedial1998",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "wangHumanSpatialRepresentation2002",
+      "citekey": "wangHumanSpatialRepresentation2002",
+      "artifact_id": "61c13e365bccac9a897238430408cad599e760731274ff1e16835f2f53497341",
+      "pdf_path": "data/01_bronze/objects/61c13e365bccac9a897238430408cad599e760731274ff1e16835f2f53497341.pdf"
+    },
+    {
+      "work_id": "watanabePhaseMagnitudeSpatiotemporal2014",
+      "citekey": "watanabePhaseMagnitudeSpatiotemporal2014",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "WaybackMachine2010",
+      "citekey": "WaybackMachine2010",
+      "artifact_id": "fceb998a99420c9640e60ce70439f179f07a503c673024075cc3924d6d2945a1",
+      "pdf_path": "data/01_bronze/objects/fceb998a99420c9640e60ce70439f179f07a503c673024075cc3924d6d2945a1.pdf"
+    },
+    {
+      "work_id": "weeseAttentionalOrientingImpaired1999",
+      "citekey": "weeseAttentionalOrientingImpaired1999",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "weeseAttentionalOrientingImpaired1999a",
+      "citekey": "weeseAttentionalOrientingImpaired1999a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "weeseAttentionalOrientingImpaired1999b",
+      "citekey": "weeseAttentionalOrientingImpaired1999b",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "weeseAttentionalOrientingImpaired1999c",
+      "citekey": "weeseAttentionalOrientingImpaired1999c",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "weichhartImmunolLett2010",
+      "citekey": "weichhartImmunolLett2010",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "weigenandTimingMattersOpenloop2016",
+      "citekey": "weigenandTimingMattersOpenloop2016",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "wenOneshotEntorhinalMaps2024",
+      "citekey": "wenOneshotEntorhinalMaps2024",
+      "artifact_id": "e0a617d58fbb81e5cf4c644a9cda7a806aa670616af3dac12bfad67c5f5d55d7",
+      "pdf_path": "data/01_bronze/objects/e0a617d58fbb81e5cf4c644a9cda7a806aa670616af3dac12bfad67c5f5d55d7.pdf"
+    },
+    {
+      "work_id": "wijnenRodentMazeStudies2024",
+      "citekey": "wijnenRodentMazeStudies2024",
+      "artifact_id": "f00c167e6aee267571272fbecfd2c888b45ad0f963e1585ce52dc74ba0e14553",
+      "pdf_path": "data/01_bronze/objects/f00c167e6aee267571272fbecfd2c888b45ad0f963e1585ce52dc74ba0e14553.pdf"
+    },
+    {
+      "work_id": "wijnenRodentMazeStudies2024a",
+      "citekey": "wijnenRodentMazeStudies2024a",
+      "artifact_id": "f00c167e6aee267571272fbecfd2c888b45ad0f963e1585ce52dc74ba0e14553",
+      "pdf_path": "data/01_bronze/objects/f00c167e6aee267571272fbecfd2c888b45ad0f963e1585ce52dc74ba0e14553.pdf"
+    },
+    {
+      "work_id": "wilsonKcomplexSlowOscillation2006",
+      "citekey": "wilsonKcomplexSlowOscillation2006",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "wilsonLearningMemoryReflected1990",
+      "citekey": "wilsonLearningMemoryReflected1990",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "wilsonNeuronalResponsesRelated1990",
+      "citekey": "wilsonNeuronalResponsesRelated1990",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "wintersDistributedCorticalRepresentation2010",
+      "citekey": "wintersDistributedCorticalRepresentation2010",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "wittmannBehavioralSpecificationsRewardassociated2011",
+      "citekey": "wittmannBehavioralSpecificationsRewardassociated2011",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "wittonDisruptedHippocampalSharpwave2014",
+      "citekey": "wittonDisruptedHippocampalSharpwave2014",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "wolosinRewardModulationHippocampal2012",
+      "citekey": "wolosinRewardModulationHippocampal2012",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "woolnoughEventrelatedPhaseSynchronization2022",
+      "citekey": "woolnoughEventrelatedPhaseSynchronization2022",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "wuCholinergicExcitationSeptohippocampal2000",
+      "citekey": "wuCholinergicExcitationSeptohippocampal2000",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "wuPropagatingWavesActivity2008",
+      "citekey": "wuPropagatingWavesActivity2008",
+      "artifact_id": "74dfb2705b13862b2b237a7cfff33e974e3174eaaff224b9a29aed7bf04917ce",
+      "pdf_path": "data/01_bronze/objects/74dfb2705b13862b2b237a7cfff33e974e3174eaaff224b9a29aed7bf04917ce.pdf"
+    },
+    {
+      "work_id": "xiaoMappingCorticalMesoscopic2017",
+      "citekey": "xiaoMappingCorticalMesoscopic2017",
+      "artifact_id": "97e0cfcd4537b7e98638cdb5fb8d845f306b3a8949016db1b640abb60f1a4858",
+      "pdf_path": "data/01_bronze/objects/97e0cfcd4537b7e98638cdb5fb8d845f306b3a8949016db1b640abb60f1a4858.pdf"
+    },
+    {
+      "work_id": "xuCompressionReflectionVisually2007",
+      "citekey": "xuCompressionReflectionVisually2007",
+      "artifact_id": "3e59b8fa717ebc32bd8be65bb08acaa6abdb024ec25abb2a2a4255c3302662d6",
+      "pdf_path": "data/01_bronze/objects/3e59b8fa717ebc32bd8be65bb08acaa6abdb024ec25abb2a2a4255c3302662d6.pdf"
+    },
+    {
+      "work_id": "xuHippocampalThetaRhythm2004",
+      "citekey": "xuHippocampalThetaRhythm2004",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "xuInteractingSpiralWave2023",
+      "citekey": "xuInteractingSpiralWave2023",
+      "artifact_id": "13f5e2f2bee177cfe46bff054e974affdb2f4658229ce497102a9b5b7fcd2a5a",
+      "pdf_path": "data/01_bronze/objects/13f5e2f2bee177cfe46bff054e974affdb2f4658229ce497102a9b5b7fcd2a5a.pdf"
+    },
+    {
+      "work_id": "xuShortcuttingSelfmotionSignals2024",
+      "citekey": "xuShortcuttingSelfmotionSignals2024",
+      "artifact_id": "c132e36f417cd2cd7b1975a7541b8bdadfffbd9cd7e615e22ec753bda3c62e9f",
+      "pdf_path": "data/01_bronze/objects/c132e36f417cd2cd7b1975a7541b8bdadfffbd9cd7e615e22ec753bda3c62e9f.pdf"
+    },
+    {
+      "work_id": "yasudaInterleukin1vHasRole2005",
+      "citekey": "yasudaInterleukin1vHasRole2005",
+      "artifact_id": "730cfa5f2289917e8d9c4da316e9f1254be8a9d4a907617f383c0e29d94a3d83",
+      "pdf_path": "data/01_bronze/objects/730cfa5f2289917e8d9c4da316e9f1254be8a9d4a907617f383c0e29d94a3d83.pdf"
+    },
+    {
+      "work_id": "yoderBothVisualIdiothetic2011",
+      "citekey": "yoderBothVisualIdiothetic2011",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "yoderBothVisualIdiothetic2011a",
+      "citekey": "yoderBothVisualIdiothetic2011a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "yoderOriginsLandmarkEncoding2011",
+      "citekey": "yoderOriginsLandmarkEncoding2011",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "yoderOriginsLandmarkEncoding2011a",
+      "citekey": "yoderOriginsLandmarkEncoding2011a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "yoderProjectionsAnterodorsalThalamus2011",
+      "citekey": "yoderProjectionsAnterodorsalThalamus2011",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "yoderProjectionsAnterodorsalThalamus2011a",
+      "citekey": "yoderProjectionsAnterodorsalThalamus2011a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "yooFunctionalDoubleDissociation2017",
+      "citekey": "yooFunctionalDoubleDissociation2017",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "yoshidaTopographicalDistributionSeptohippocampal1990",
+      "citekey": "yoshidaTopographicalDistributionSeptohippocampal1990",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "youngentobQuantitativeAnalysisSniffing1987",
+      "citekey": "youngentobQuantitativeAnalysisSniffing1987",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "yuGaussianProcessFactorAnalysis2009",
+      "citekey": "yuGaussianProcessFactorAnalysis2009",
+      "artifact_id": "5216a9157aff1c5571327f1a401e1cf6c9b9ef5aa0967b28781693f8c9bfcd9d",
+      "pdf_path": "data/01_bronze/objects/5216a9157aff1c5571327f1a401e1cf6c9b9ef5aa0967b28781693f8c9bfcd9d.pdf"
+    },
+    {
+      "work_id": "zambottiKcomplexesInteractionCentral2016",
+      "citekey": "zambottiKcomplexesInteractionCentral2016",
+      "artifact_id": "64aec20035ed293bd4953616028bd72429090dfba26670f2628b1f82936bd6c3",
+      "pdf_path": "data/01_bronze/objects/64aec20035ed293bd4953616028bd72429090dfba26670f2628b1f82936bd6c3.pdf"
+    },
+    {
+      "work_id": "zanosSensorimotorRoleTraveling2015",
+      "citekey": "zanosSensorimotorRoleTraveling2015",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "zengTheoryGeometryRepresentations2022",
+      "citekey": "zengTheoryGeometryRepresentations2022",
+      "artifact_id": "1fe0ed71e2f4b85c3333cdf0edc4dfbd9834c4cfbfdac9d7a39865d4bdb00041",
+      "pdf_path": "data/01_bronze/objects/1fe0ed71e2f4b85c3333cdf0edc4dfbd9834c4cfbfdac9d7a39865d4bdb00041.pdf"
+    },
+    {
+      "work_id": "zhangComparisonSimilarityMeasures2006",
+      "citekey": "zhangComparisonSimilarityMeasures2006",
+      "artifact_id": "45141455d97409d0b9c9e1c5835ef29b0231a2c1a59d5777905764f9e1062186",
+      "pdf_path": "data/01_bronze/objects/45141455d97409d0b9c9e1c5835ef29b0231a2c1a59d5777905764f9e1062186.pdf"
+    },
+    {
+      "work_id": "zhangFrontWavesChemical2022",
+      "citekey": "zhangFrontWavesChemical2022",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "zhangSpatialRepresentationsPlace2014",
+      "citekey": "zhangSpatialRepresentationsPlace2014",
+      "artifact_id": "9cea8003f7ecec0e5e9d30a42df1796256c80c42281b577d6c1b5b0e5c8fccf0",
+      "pdf_path": "data/01_bronze/objects/9cea8003f7ecec0e5e9d30a42df1796256c80c42281b577d6c1b5b0e5c8fccf0.pdf"
+    },
+    {
+      "work_id": "zhangThetaAlphaOscillations2018",
+      "citekey": "zhangThetaAlphaOscillations2018",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "zhigalovTravellingWavesObserved2022",
+      "citekey": "zhigalovTravellingWavesObserved2022",
+      "artifact_id": "0a02e4de780524359de2f7a4aa9bf5db9d7464d0b8738b411781875e4d047d22",
+      "pdf_path": "data/01_bronze/objects/0a02e4de780524359de2f7a4aa9bf5db9d7464d0b8738b411781875e4d047d22.pdf"
+    },
+    {
+      "work_id": "zhongSelectiveEntrainmentGamma2017",
+      "citekey": "zhongSelectiveEntrainmentGamma2017",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "zirkelbachAnticipatoryNeuralActivity2019",
+      "citekey": "zirkelbachAnticipatoryNeuralActivity2019",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "zirkelbachAnticipatoryNeuralActivity2019a",
+      "citekey": "zirkelbachAnticipatoryNeuralActivity2019a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "zotero-1266",
+      "citekey": "zotero-1266",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "zubairHeadMovementWalking2016",
+      "citekey": "zubairHeadMovementWalking2016",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "zuccaThalamicDriveCortical2019",
+      "citekey": "zuccaThalamicDriveCortical2019",
+      "artifact_id": "8e4f130466d8d9deb6460f34f806c8592a0c733de41d0c61037ce90c3e3b56d4",
+      "pdf_path": "data/01_bronze/objects/8e4f130466d8d9deb6460f34f806c8592a0c733de41d0c61037ce90c3e3b56d4.pdf"
+    },
+    {
+      "work_id": "zuccaThalamicDriveCortical2019a",
+      "citekey": "zuccaThalamicDriveCortical2019a",
+      "artifact_id": null,
+      "pdf_path": null
+    },
+    {
+      "work_id": "zuendArousalinducedCorticalActivity2020",
+      "citekey": "zuendArousalinducedCorticalActivity2020",
+      "artifact_id": null,
+      "pdf_path": null
+    }
+  ]
+}

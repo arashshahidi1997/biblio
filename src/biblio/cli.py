@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 from typing import Iterable
 
-from .citekeys import add_citekeys_md, load_citekeys_md, remove_citekeys_md
+from .citekeys import load_active_citekeys
 from .config import default_config_path, load_biblio_config
 from .bibtex import merge_srcbib
 from .bibtex_export import export_bibtex
@@ -98,23 +98,10 @@ def _build_parser() -> argparse.ArgumentParser:
     p_init.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
     p_init.add_argument("--force", action="store_true", help="Overwrite existing scaffold files.")
 
-    p_ck = sub.add_parser("citekeys", help="Manage bib/config/citekeys.md")
-    ck_sub = p_ck.add_subparsers(dest="citekeys_cmd", required=True)
-    ck_list = ck_sub.add_parser("list", help="List configured citekeys.")
-    ck_list.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
-    ck_list.add_argument("--path", type=Path, help="Path to citekeys.md (overrides config).")
-    ck_add = ck_sub.add_parser("add", help="Add one or more citekeys.")
-    ck_add.add_argument("keys", nargs="+", help="Keys like @foo_2020_Bar or foo_2020_Bar.")
-    ck_add.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
-    ck_add.add_argument("--path", type=Path, help="Path to citekeys.md (overrides config).")
-    ck_rm = ck_sub.add_parser("remove", help="Remove one or more citekeys.")
-    ck_rm.add_argument("keys", nargs="+", help="Keys like @foo_2020_Bar or foo_2020_Bar.")
-    ck_rm.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
-    ck_rm.add_argument("--path", type=Path, help="Path to citekeys.md (overrides config).")
-    ck_status = ck_sub.add_parser("status", help="Show discovered papers and whether they are in citekeys.md.")
-    ck_status.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
-    ck_status.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
-    ck_status.add_argument("--json", action="store_true", help="Emit JSON instead of plain text.")
+    p_ck = sub.add_parser("citekeys", help="List active citekeys (from merged bibliography)")
+    p_ck.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    p_ck.add_argument("--config", type=Path, help="Path to biblio.yml.")
+    p_ck.add_argument("--json", action="store_true", help="Emit JSON instead of plain text.")
 
     p_ingest = sub.add_parser("ingest", help="Import non-BibTeX inputs into bib/srcbib/imported.bib.")
     ingest_sub = p_ingest.add_subparsers(dest="ingest_cmd", required=True)
@@ -155,7 +142,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p_run.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
     group = p_run.add_mutually_exclusive_group(required=True)
     group.add_argument("--key", help="Single citekey (with or without leading @).")
-    group.add_argument("--all", action="store_true", help="Run for all citekeys in citekeys.md.")
+    group.add_argument("--all", action="store_true", help="Run for all citekeys in the merged bibliography.")
     p_run.add_argument("--force", action="store_true", help="Re-run Docling even if outputs exist.")
     p_run.add_argument(
         "--screen",
@@ -350,7 +337,7 @@ def _build_parser() -> argparse.ArgumentParser:
     grobid_run.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
     grobid_run_group = grobid_run.add_mutually_exclusive_group(required=True)
     grobid_run_group.add_argument("--key", help="Single citekey (with or without leading @).")
-    grobid_run_group.add_argument("--all", action="store_true", help="Run for all citekeys in citekeys.md.")
+    grobid_run_group.add_argument("--all", action="store_true", help="Run for all citekeys in the merged bibliography.")
     grobid_run.add_argument("--force", action="store_true", help="Re-run even if outputs already exist.")
 
     grobid_match = grobid_sub.add_parser("match", help="Match GROBID references against the local corpus.")
@@ -450,7 +437,7 @@ def _build_parser() -> argparse.ArgumentParser:
     ref_md_run.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
     ref_md_run_group = ref_md_run.add_mutually_exclusive_group(required=True)
     ref_md_run_group.add_argument("--key", help="Single citekey (with or without leading @).")
-    ref_md_run_group.add_argument("--all", action="store_true", help="Run for all citekeys in citekeys.md.")
+    ref_md_run_group.add_argument("--all", action="store_true", help="Run for all citekeys in the merged bibliography.")
     ref_md_run.add_argument("--force", action="store_true", help="Re-run even if outputs already exist.")
 
     p_q = sub.add_parser("queue", help="Manage the needs-PDF queue.")
@@ -805,68 +792,15 @@ def main(argv: Iterable[str] | None = None) -> None:
     if args.command == "citekeys":
         repo_root = (args.root.expanduser().resolve() if getattr(args, "root", None) else find_repo_root())
         # Resolve citekeys.md path: explicit --path wins; else try config; else default.
-        if getattr(args, "path", None) is not None:
-            citekeys_path = (repo_root / args.path).resolve() if not args.path.is_absolute() else args.path
+        cfg_path = (repo_root / args.config).resolve() if getattr(args, "config", None) else default_config_path(root=repo_root)
+        cfg = load_biblio_config(cfg_path, root=repo_root)
+        keys = load_active_citekeys(cfg)
+        if getattr(args, "json", False):
+            print(json.dumps(keys))
         else:
-            cfg_file = default_config_path(root=repo_root)
-            try:
-                cfg = load_biblio_config(cfg_file, root=repo_root)
-                citekeys_path = cfg.citekeys_path
-            except Exception:
-                citekeys_path = (repo_root / "bib" / "config" / "citekeys.md").resolve()
-
-        if args.citekeys_cmd == "list":
-            keys = load_citekeys_md(citekeys_path) if citekeys_path.exists() else []
             for k in keys:
                 print(f"@{k}")
-            return
-        if args.citekeys_cmd == "add":
-            keys = add_citekeys_md(citekeys_path, args.keys)
-            print(f"[OK] citekeys={len(keys)} path={citekeys_path}")
-            return
-        if args.citekeys_cmd == "remove":
-            keys = remove_citekeys_md(citekeys_path, args.keys)
-            print(f"[OK] citekeys={len(keys)} path={citekeys_path}")
-            return
-        if args.citekeys_cmd == "status":
-            cfg_path = (repo_root / args.config).resolve() if getattr(args, "config", None) else (repo_root / "bib" / "config" / "biblio.yml")
-            cfg = load_biblio_config(cfg_path, root=repo_root)
-            model = _build_site_model(
-                cfg,
-                BiblioSiteOptions(
-                    out_dir=default_site_out_dir(root=repo_root),
-                    include_graphs=True,
-                    include_docling=True,
-                    include_openalex=True,
-                ),
-            )
-            manifest = [
-                {
-                    "citekey": paper["citekey"],
-                    "title": paper["title"],
-                    "configured": bool(paper["configured"]),
-                    "source_bibs": list(paper["source_bibs"]),
-                    "pdf": bool(paper["artifacts"]["pdf"]["exists"]),
-                    "docling": bool(paper["artifacts"]["docling_md"]["exists"]),
-                    "openalex": bool(paper["artifacts"]["openalex"]["exists"]),
-                    "suggest_add": not bool(paper["configured"]),
-                }
-                for paper in model["papers"]
-            ]
-            if args.json:
-                print(json.dumps(manifest, indent=2, sort_keys=True))
-            else:
-                for item in manifest:
-                    flags = []
-                    flags.append("configured" if item["configured"] else "candidate")
-                    if item["pdf"]:
-                        flags.append("pdf")
-                    if item["docling"]:
-                        flags.append("docling")
-                    if item["openalex"]:
-                        flags.append("openalex")
-                    print(f"{item['citekey']}\t{','.join(flags)}\t{item['title']}")
-            return
+        return
 
     if args.command == "ingest":
         repo_root = (args.root.expanduser().resolve() if getattr(args, "root", None) else find_repo_root())
@@ -1018,13 +952,9 @@ def main(argv: Iterable[str] | None = None) -> None:
             return
 
         if args.all:
-            try:
-                keys = load_citekeys_md(cfg.citekeys_path)
-            except FileNotFoundError:
-                print(f"Missing citekeys file: {cfg.citekeys_path}", file=sys.stderr)
-                raise SystemExit(2)
+            keys = load_active_citekeys(cfg)
             if not keys:
-                print(f"No citekeys found in {cfg.citekeys_path}", file=sys.stderr)
+                print("No citekeys found in merged bibliography", file=sys.stderr)
                 raise SystemExit(2)
             cmd_preview = " ".join(cfg.docling_cmd)
             print(
@@ -1279,7 +1209,7 @@ def main(argv: Iterable[str] | None = None) -> None:
             raise SystemExit(2)
         print(
             f"[OK] citekey={result.citekey} openalex_id={result.openalex_id or '-'} doi={result.doi or '-'} "
-            f"srcbib={result.output_path} citekeys={result.citekeys_path}"
+            f"srcbib={result.output_path}"
         )
         return
 
@@ -1330,13 +1260,9 @@ def main(argv: Iterable[str] | None = None) -> None:
                 raise SystemExit(1)
         elif args.grobid_cmd == "run":
             if args.all:
-                try:
-                    keys = load_citekeys_md(cfg.citekeys_path)
-                except FileNotFoundError:
-                    print(f"Missing citekeys file: {cfg.citekeys_path}", file=sys.stderr)
-                    raise SystemExit(2)
+                keys = load_active_citekeys(cfg)
                 if not keys:
-                    print(f"No citekeys found in {cfg.citekeys_path}", file=sys.stderr)
+                    print("No citekeys found in merged bibliography", file=sys.stderr)
                     raise SystemExit(2)
                 print(
                     f"[INFO] repo_root={repo_root} keys={len(keys)} grobid_url={cfg.grobid.url}",
@@ -1698,13 +1624,9 @@ def main(argv: Iterable[str] | None = None) -> None:
         cfg = load_biblio_config(cfg_path, root=repo_root)
         if args.ref_md_cmd == "run":
             if args.all:
-                try:
-                    keys = load_citekeys_md(cfg.citekeys_path)
-                except FileNotFoundError:
-                    print(f"Missing citekeys file: {cfg.citekeys_path}", file=sys.stderr)
-                    raise SystemExit(2)
+                keys = load_active_citekeys(cfg)
                 if not keys:
-                    print(f"No citekeys found in {cfg.citekeys_path}", file=sys.stderr)
+                    print("No citekeys found in merged bibliography", file=sys.stderr)
                     raise SystemExit(2)
                 print(f"[INFO] repo_root={repo_root} keys={len(keys)}", file=sys.stderr, flush=True)
                 failures = 0

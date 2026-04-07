@@ -1,0 +1,22 @@
+name: bib
+channels:
+  - conda-forge
+  - pytorch
+  - defaults
+dependencies:
+  - python=3.10           # Pin Python 3.10 for ML stability
+  - pip
+  - libgl                 # System lib required by Docling/OpenCV
+  - poppler               # PDF rendering utils
+  - pulp<2.8
+  - pip:
+    - docling             # Main PDF extraction engine
+    - torch               # Deep learning backend
+    - torchvision
+    - bibtexparser>=1.4.0 # For parsing .bib files
+    - pydantic            # Configuration management
+    - requests            # For API calls to GROBID/OpenAlex
+    - pyalex              # OpenAlex API client
+    - beautifulsoup4      # For web scraping
+    - lxml                # Faster XML/HTML parser
+    - snakemake           # Workflow orchestrator

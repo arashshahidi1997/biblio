@@ -2,10 +2,46 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .config import BiblioConfig
 
 _KEY = r"([A-Za-z0-9][A-Za-z0-9_:.+-]*)"
 _LIST_ITEM_RE = re.compile(rf"^\s*[-*]\s+@{_KEY}\b")
 _BARE_RE = re.compile(rf"^\s*@{_KEY}\b")
+
+
+def load_active_citekeys(cfg: BiblioConfig) -> list[str]:
+    """Return all citekeys from the merged bibliography.
+
+    This is the canonical source of "active" citekeys — every entry in the
+    merged bib is considered active.  Falls back to parsing srcbib directly
+    if the merge output does not exist yet.
+    """
+    from ._pybtex_utils import parse_bibtex_file, require_pybtex
+
+    merged = cfg.bibtex_merge.out_bib
+    if merged.exists():
+        require_pybtex("citekey listing")
+        db = parse_bibtex_file(merged)
+        return sorted(db.entries.keys())
+
+    # Fallback: read srcbib directly
+    src_dir = cfg.bibtex_merge.src_dir
+    if src_dir.exists():
+        require_pybtex("citekey listing")
+        keys: list[str] = []
+        seen: set[str] = set()
+        for bib_path in sorted(src_dir.glob(cfg.bibtex_merge.src_glob)):
+            db = parse_bibtex_file(bib_path)
+            for k in sorted(db.entries.keys()):
+                if k not in seen:
+                    keys.append(k)
+                    seen.add(k)
+        return keys
+
+    return []
 
 
 def parse_citekeys_from_markdown(markdown_text: str) -> list[str]:

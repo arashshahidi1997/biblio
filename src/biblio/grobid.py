@@ -86,10 +86,10 @@ def find_pending_grobid(cfg: BiblioConfig) -> list[str]:
 
     Papers with valid outputs in the shared pool are treated as already done.
     """
-    from .citekeys import load_citekeys_md
+    from .citekeys import load_active_citekeys
     from .docling import pdf_path_for_key
 
-    all_keys = load_citekeys_md(cfg.citekeys_path)
+    all_keys = load_active_citekeys(cfg)
     pending = []
     for key in all_keys:
         pdf = pdf_path_for_key(cfg, key)
@@ -487,8 +487,8 @@ def build_corpus_for_match(cfg: BiblioConfig) -> list[dict[str, Any]]:
             for r in records
         ]
     # Fallback: citekeys only — GROBID headers will fill in DOI/title via match index
-    from .citekeys import load_citekeys_md
-    keys = load_citekeys_md(cfg.citekeys_path) if cfg.citekeys_path.exists() else []
+    from .citekeys import load_active_citekeys
+    keys = load_active_citekeys(cfg)
     return [{"citekey": k, "doi": None, "title": None} for k in keys]
 
 

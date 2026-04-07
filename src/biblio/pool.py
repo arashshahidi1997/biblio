@@ -7,7 +7,7 @@ from typing import Any
 
 import yaml
 
-from .citekeys import parse_citekeys_from_markdown
+from .citekeys import load_active_citekeys
 from .config import BiblioConfig, load_biblio_config
 from .grobid import parse_tei_header, process_pdf_header
 from .ingest import IngestRecord, canonical_citekey, render_bibtex, write_import_bib
@@ -569,10 +569,9 @@ def sync_pool_symlinks(project_cfg: BiblioConfig) -> dict[str, str]:
     if not pool_locs:
         raise ValueError("No reachable pool found in pool_search.")
 
-    if not project_cfg.citekeys_path.exists():
+    keys = load_active_citekeys(project_cfg)
+    if not keys:
         return {}
-
-    keys = parse_citekeys_from_markdown(project_cfg.citekeys_path.read_text(encoding="utf-8"))
     result: dict[str, str] = {}
 
     for key in keys:

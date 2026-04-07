@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from ._pybtex_utils import parse_bibtex_file, require_pybtex
-from .citekeys import load_citekeys_md
+from .citekeys import load_active_citekeys
 from .config import BiblioConfig
 
 SITE_OUT_REL = Path("bib/site")
@@ -566,7 +566,7 @@ def classify_entry_type(entry_type: str, doi: str | None = None) -> bool:
 
 def _build_site_model(cfg: BiblioConfig, options: BiblioSiteOptions) -> dict[str, Any]:
     repo_root = cfg.repo_root.resolve()
-    citekeys = load_citekeys_md(cfg.citekeys_path) if cfg.citekeys_path.exists() else []
+    citekeys = load_active_citekeys(cfg)
     source_records = _iter_srcbib_records(cfg)
     source_by_key: dict[str, list[dict[str, Any]]] = {}
     for record in source_records:

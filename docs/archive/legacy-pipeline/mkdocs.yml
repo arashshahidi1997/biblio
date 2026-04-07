@@ -1,0 +1,90 @@
+site_name: Bibliography Intelligence for Scientific RAG
+site_description: Project-scoped, document-grounded literature infrastructure with citation-aware retrieval.
+docs_dir: docs
+site_dir: _site
+
+theme:
+  name: material
+  language: en
+  features:
+    # Navigation / UX
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.indexes
+
+    # Content
+    - toc.integrate
+    - content.code.copy
+    - content.tabs.link
+
+  palette:
+    - scheme: default
+      primary: blue
+      accent: teal
+
+  # Optional logo if you add one later
+  # logo: assets/figures/logo.svg
+  # favicon: assets/figures/favicon.png
+
+nav:
+  - Home: index.md
+
+  - Pitch:
+      - The Problem: pitch/01-problem.md
+      - The Solution: pitch/02-solution.md
+      - Differentiation: pitch/03-differentiation.md
+      - Demo Walkthrough: pitch/04-demo-walkthrough.md
+      - Roadmap: pitch/05-roadmap.md
+
+  - Design:
+      - Goals & Non-Goals: design/01-goals-and-nongoals.md
+
+  - Concepts:
+      - Modern Bibliography Framework: concepts/01-modern-bibliography-framework.md
+
+  - User Perspective:
+      - User Demands: user/01-user-demands.md
+
+  - Pipeline:
+      - Overview: pipeline/01-overview.md
+      - Zotero Ingestion: pipeline/02-zotero-ingestion.md
+      - Docling Extraction: pipeline/03-docling-extraction.md
+      - GROBID Extraction: pipeline/04-grobid-extraction.md
+      - OpenAlex Linking: pipeline/05-openalex-linking.md
+      - Alignment & Reconciliation: pipeline/06-alignment-and-reconciliation.md
+      - Vectorization & Indexing: pipeline/07-vectorization-and-indexing.md
+      - Build Manifest: pipeline/08-build-manifest.md
+
+  - Reference:
+      - Schemas & Identifiers: reference/01-schemas.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - footnotes
+  - tables
+  - def_list
+
+  - toc:
+      permalink: true
+
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.inlinehilite
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.snippets
+
+plugins:
+  - search
+
+# Optional social / repo links
+# extra:
+#   social:
+#     - icon: fontawesome/brands/github
+#       link: https://github.com/your-org/your-repo
