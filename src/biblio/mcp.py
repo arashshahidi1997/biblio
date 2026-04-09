@@ -322,6 +322,116 @@ def library_set_bulk(
     return {"updated": updated, "count": len(updated)}
 
 
+def openalex_resolve(
+    *,
+    root: Path,
+    limit: int | None = None,
+    force: bool = False,
+) -> dict[str, Any]:
+    """Resolve all srcbib entries against OpenAlex.
+
+    Writes ``bib/derivatives/openalex/resolved.jsonl``.  This step is
+    required before ``enrich``, ``pdf_fetch_oa``, ``graph_expand``, and
+    ``enrich_topic_tags`` can operate.
+
+    Returns ``{"total": N, "resolved": R, "unresolved": U, "errors": E,
+               "output_path": str}``.
+    """
+    cfg = _load_cfg(root)
+    from .openalex.openalex_resolve import ResolveOptions, resolve_srcbib_to_openalex
+
+    src_dir = cfg.repo_root / "bib" / "srcbib"
+    out_path = cfg.repo_root / "bib" / "derivatives" / "openalex" / "resolved.jsonl"
+
+    opts = ResolveOptions(
+        prefer_doi=True,
+        fallback_title_search=True,
+        per_page=int(cfg.openalex_client.per_page),
+        strict=False,
+        force=force,
+    )
+
+    counts = resolve_srcbib_to_openalex(
+        cfg=cfg.openalex_client,
+        cache=cfg.openalex_cache,
+        src_dir=src_dir,
+        src_glob="*.bib",
+        out_path=out_path,
+        out_format="jsonl",
+        limit=limit,
+        opts=opts,
+    )
+    counts["output_path"] = str(out_path)
+    return counts
+
+
+def pipeline_status(
+    *,
+    root: Path,
+    citekeys: list[str] | None = None,
+) -> dict[str, Any]:
+    """Per-citekey pipeline completeness matrix."""
+    cfg = _load_cfg(root)
+    from .status import pipeline_status as _pipeline_status
+
+    return _pipeline_status(cfg, citekeys=citekeys)
+
+
+def crossref_resolve(
+    *,
+    root: Path,
+    dois: list[str],
+) -> dict[str, Any]:
+    """Resolve DOIs via Crossref API.
+
+    Returns ``{"resolved": N, "unresolved": N, "results": [...]}``.
+    """
+    from .crossref import resolve_dois_batch
+
+    return resolve_dois_batch(dois)
+
+
+def graph_promote(
+    *,
+    root: Path,
+    top_n: int | None = None,
+    min_citations: int | None = None,
+    min_year: int | None = None,
+    max_year: int | None = None,
+    keyword_filter: str | None = None,
+    tags: list[str] | None = None,
+    dry_run: bool = False,
+) -> dict[str, Any]:
+    """Promote graph expansion candidates into the bibliography."""
+    cfg = _load_cfg(root)
+    from .graph_promote import promote_graph_candidates
+
+    return promote_graph_candidates(
+        cfg,
+        top_n=top_n,
+        min_citations=min_citations,
+        min_year=min_year,
+        max_year=max_year,
+        keyword_filter=keyword_filter,
+        tags=tags,
+        dry_run=dry_run,
+    )
+
+
+def extract(
+    *,
+    root: Path,
+    citekey: str,
+    force: bool = False,
+    model: str = "sonnet",
+) -> dict[str, Any]:
+    """LLM-driven extraction of paper relevance against research questions."""
+    cfg = _load_cfg(root)
+    from .extract import extract_for_citekey
+
+    return extract_for_citekey(cfg, citekey, force=force, model=model)
+
+
 def graph_expand(
     *,
     root: Path,

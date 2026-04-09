@@ -212,6 +212,34 @@ def resolve_srcbib_to_openalex(
                         rec["resolution_method"] = "title_search"
                         rec["resolution_confidence"] = score
 
+                # Crossref DOI fallback for entries OpenAlex missed
+                if work is None and doi:
+                    try:
+                        from ..crossref import resolve_doi as _crossref_resolve
+
+                        cr = _crossref_resolve(doi)
+                        if cr.get("ok") and cr.get("title"):
+                            rec["resolution_method"] = "crossref_doi"
+                            rec["resolution_confidence"] = 0.95
+                            rec["title"] = cr["title"]
+                            rec["authors_display"] = cr.get("authors", [])
+                            rec["year"] = cr.get("year")
+                            rec["journal"] = cr.get("journal")
+                            rec["type"] = cr.get("type")
+                            rec["cited_by_count"] = cr.get("is_referenced_by_count")
+                            resolved += 1
+                            records.append(rec)
+                            if progress_cb is not None:
+                                progress_cb({
+                                    "phase": "resolve", "completed": index,
+                                    "total": total, "citekey": citekey,
+                                    "resolved": resolved, "unresolved": unresolved,
+                                    "errors": errors,
+                                })
+                            continue
+                    except Exception:
+                        pass  # Fall through to unresolved
+
                 if work is None:
                     unresolved += 1
                 else:

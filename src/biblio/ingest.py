@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 import shutil
+import unicodedata
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
@@ -109,16 +110,24 @@ def _normalize_doi(value: Any) -> str | None:
     return text or None
 
 
+def _transliterate(text: str) -> str:
+    """Transliterate Unicode to ASCII equivalents (e.g. Mölle → Molle)."""
+    nfkd = unicodedata.normalize("NFKD", text)
+    return "".join(c for c in nfkd if not unicodedata.combining(c))
+
+
 def _slug_token(value: str | None, *, fallback: str) -> str:
     if not value:
         return fallback
-    token = re.sub(r"[^A-Za-z0-9]+", "", value).lower()
+    ascii_approx = _transliterate(value)
+    token = re.sub(r"[^A-Za-z0-9]+", "", ascii_approx).lower()
     return token or fallback
 
 
 def _title_token(title: str | None, doi: str | None) -> str:
     if title:
-        for raw in re.split(r"[^A-Za-z0-9]+", title.lower()):
+        ascii_title = _transliterate(title)
+        for raw in re.split(r"[^A-Za-z0-9]+", ascii_title.lower()):
             if raw and raw not in _STOPWORDS:
                 return raw[:20]
     if doi:
@@ -132,8 +141,9 @@ def _title_token(title: str | None, doi: str | None) -> str:
 def _title_camel_token(title: str | None, doi: str | None, n_words: int = 2) -> str:
     """Return first N significant words of title, each capitalized, concatenated."""
     if title:
+        ascii_title = _transliterate(title)
         words = []
-        for raw in re.split(r"[^A-Za-z0-9]+", title):
+        for raw in re.split(r"[^A-Za-z0-9]+", ascii_title):
             if raw and raw.lower() not in _STOPWORDS and len(words) < n_words:
                 words.append(raw.capitalize())
         if words:
