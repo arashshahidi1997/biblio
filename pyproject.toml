@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
 license-files = ["LICENSE"]
-authors = [{name = "Arash Shahidi"}]
+authors = [{name = "Arash Shahidi", email = "A.Shahidi@campus.lmu.de"}]
 keywords = ["bibliography", "bibtex", "docling", "openalex", "rag"]
 classifiers = [
   "Development Status :: 3 - Alpha",
@@ -33,6 +33,7 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://github.com/arashshahidi1997/biblio"
+Documentation = "https://arashshahidi1997.github.io/biblio/"
 Repository = "https://github.com/arashshahidi1997/biblio"
 Issues = "https://github.com/arashshahidi1997/biblio/issues"
 
