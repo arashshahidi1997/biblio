@@ -103,6 +103,9 @@ def _work_to_minimal(work: dict[str, Any]) -> dict[str, Any]:
         "is_retracted": work.get("is_retracted"),
         "counts_by_year": work.get("counts_by_year") if isinstance(work.get("counts_by_year"), list) else None,
         "referenced_works_count": len(work.get("referenced_works") or []) if isinstance(work.get("referenced_works"), list) else None,
+        "open_access": work.get("open_access") if isinstance(work.get("open_access"), dict) else None,
+        "best_oa_location": work.get("best_oa_location") if isinstance(work.get("best_oa_location"), dict) else None,
+        "primary_location": work.get("primary_location") if isinstance(work.get("primary_location"), dict) else None,
     }
 
 

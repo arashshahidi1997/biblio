@@ -63,7 +63,7 @@ def _call_claude_cli(
 
     full_prompt = f"{system}\n\n---\n\n{prompt}"
 
-    cmd = [claude_bin, "-p", "--model", model, "--max-tokens", str(max_tokens)]
+    cmd = [claude_bin, "-p", "--model", model]
 
     try:
         result = subprocess.run(
