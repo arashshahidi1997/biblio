@@ -21,7 +21,15 @@ class _JobCancelledError(Exception):
 
 from .bibtex import merge_srcbib
 from .bibtex_export import export_bibtex
-from .ingest import IngestRecord, canonical_citekey, enrich_record, enrich_and_cache, EnrichCacheResult
+from .ingest import IngestRecord, enrich_record, enrich_and_cache, EnrichCacheResult
+from .normalize import (
+    NormalizePlan,
+    RenameEntry,
+    SkippedEntry,
+    EnrichedEntry,
+    apply_normalize_plan,
+    build_normalize_plan,
+)
 from .config import BiblioConfig, load_biblio_config
 from .docling import outputs_for_key as docling_outputs_for_key, resolve_docling_outputs, run_docling_for_key
 from .graph import add_openalex_work_to_bib, expand_openalex_reference_graph, load_openalex_seed_records
@@ -1595,14 +1603,17 @@ def create_ui_app(cfg: BiblioConfig):
         "current": "",
         "renames": [],
         "enriched": [],
+        "skipped": [],
         "error": None,
         "cancelled": False,
+        "_plan": None,  # NormalizePlan held for apply step; stripped from snapshots
     }
     normalize_lock = threading.Lock()
 
     def _normalize_snapshot() -> dict[str, Any]:
         with normalize_lock:
-            return dict(normalize_job)
+            snap = {k: v for k, v in normalize_job.items() if not k.startswith("_")}
+            return snap
 
     @app.post("/api/actions/normalize-citekeys", response_class=responses.JSONResponse)
     def action_normalize_citekeys(payload: dict[str, Any]):
@@ -1639,94 +1650,53 @@ def create_ui_app(cfg: BiblioConfig):
                 "current": "scanning...",
                 "renames": [],
                 "enriched": [],
+                "skipped": [],
                 "error": None,
                 "cancelled": False,
+                "_plan": None,
             })
 
         def _run_normalize_preview() -> None:
             try:
-                from ._pybtex_utils import parse_bibtex_file, require_pybtex
-                from .docling import pdf_path_for_key
-                require_pybtex("normalize-citekeys")
-
-                src_dir = active_cfg.bibtex_merge.src_dir
-                src_glob = active_cfg.bibtex_merge.src_glob
-                bib_files = sorted(p for p in src_dir.glob(src_glob) if p.is_file())
-
-                # Count total entries that need checking
-                all_entries: list[tuple[Path, str, Any]] = []
-                _STANDARD = re.compile(r"^[a-z]+_\d{4}_[A-Za-z]")
-                for bib_path in bib_files:
-                    db = parse_bibtex_file(bib_path)
-                    for old_key, entry in sorted(db.entries.items()):
-                        if not _STANDARD.match(old_key):
-                            all_entries.append((bib_path, old_key, entry))
-
-                with normalize_lock:
-                    normalize_job["total"] = len(all_entries)
-
-                seen_new: dict[str, str] = {}  # new_key -> old_key (dedup)
-
-                for i, (bib_path, old_key, entry) in enumerate(all_entries):
+                def _progress(done: int, total: int, current: str) -> None:
                     with normalize_lock:
-                        if normalize_job["cancelled"]:
-                            normalize_job["running"] = False
-                            normalize_job["current"] = ""
-                            normalize_job["error"] = "Cancelled by user."
-                            return
-                        normalize_job["current"] = old_key
-                        normalize_job["done"] = i
+                        normalize_job["done"] = done
+                        normalize_job["total"] = total
+                        normalize_job["current"] = current
 
-                    fields = entry.fields
-                    authors_raw = str(fields.get("author") or "")
-                    authors = [a.strip() for a in authors_raw.split(" and ") if a.strip()]
-                    year = str(fields.get("year") or "")
-                    title = str(fields.get("title") or "")
-                    rec = IngestRecord(
-                        source_type="bibtex", source_ref=str(bib_path),
-                        entry_type=entry.type, title=title or None,
-                        authors=tuple(authors), year=year or None,
-                        doi=str(fields.get("doi") or "") or None,
-                        url=None, journal=None, booktitle=None, raw_id=old_key,
-                    )
-                    # Cascade-enrich if authors are missing (with caching)
-                    enrich_source = ""
-                    if enrich and not authors:
-                        pdf = pdf_path_for_key(active_cfg, old_key)
-                        cache_result = enrich_and_cache(
-                            rec,
-                            pdf_path=pdf,
-                            grobid_cfg=active_cfg.grobid,
-                            repo_root=active_cfg.repo_root,
-                        )
-                        rec = cache_result.record
-                        enrich_source = cache_result.source
-                        if rec.authors and enrich_source:
-                            entry_info = {
-                                "citekey": old_key,
-                                "source": enrich_source,
-                                "authors": ", ".join(rec.authors[:3]),
-                            }
-                            with normalize_lock:
-                                normalize_job["enriched"].append(entry_info)
-
-                    new_key = canonical_citekey(rec)
-                    if new_key == old_key:
-                        continue
-                    # dedup suffix
-                    base = new_key
-                    idx = 2
-                    while new_key in seen_new and seen_new[new_key] != old_key:
-                        new_key = f"{base}{idx}"
-                        idx += 1
-                    seen_new[new_key] = old_key
-                    rename_entry = {"old": old_key, "new": new_key, "source_bib": str(bib_path), "_rec": rec}
+                def _cancelled() -> bool:
                     with normalize_lock:
-                        normalize_job["renames"].append(rename_entry)
+                        return bool(normalize_job["cancelled"])
 
+                plan = build_normalize_plan(
+                    active_cfg,
+                    enrich=enrich,
+                    progress=_progress,
+                    cancel=_cancelled,
+                )
                 with normalize_lock:
+                    if normalize_job["cancelled"]:
+                        normalize_job["running"] = False
+                        normalize_job["current"] = ""
+                        normalize_job["error"] = "Cancelled by user."
+                        return
+                    normalize_job["_plan"] = plan
+                    normalize_job["renames"] = [
+                        {"old": r.old, "new": r.new, "source_bib": r.source_bib,
+                         "enrich_source": r.enrich_source}
+                        for r in plan.renames
+                    ]
+                    normalize_job["enriched"] = [
+                        {"citekey": e.citekey, "source": e.source, "authors": e.authors}
+                        for e in plan.enriched
+                    ]
+                    normalize_job["skipped"] = [
+                        {"citekey": s.citekey, "source_bib": s.source_bib, "reason": s.reason}
+                        for s in plan.skipped
+                    ]
                     normalize_job["running"] = False
-                    normalize_job["done"] = len(all_entries)
+                    normalize_job["done"] = plan.total_scanned
+                    normalize_job["total"] = plan.total_scanned
                     normalize_job["current"] = ""
 
             except Exception as exc:
@@ -1740,98 +1710,34 @@ def create_ui_app(cfg: BiblioConfig):
 
     def _apply_normalize_renames() -> dict[str, Any]:
         """Apply renames from the last completed preview."""
-        from ._pybtex_utils import parse_bibtex_file, require_pybtex
-        require_pybtex("normalize-citekeys")
-        import copy as _copy
-
         with normalize_lock:
             if normalize_job["running"]:
                 return {"ok": False, "error": "Preview still running, wait for completion."}
-            renames = list(normalize_job["renames"])
+            plan = normalize_job.get("_plan")
             enriched_info = list(normalize_job["enriched"])
+            skipped_info = list(normalize_job["skipped"])
 
-        if not renames:
-            return {"ok": True, "applied": False, "renames": [], "enriched": enriched_info}
+        if plan is None or not plan.renames:
+            return {
+                "ok": True, "applied": False, "renames": [],
+                "enriched": enriched_info, "skipped": skipped_info,
+            }
 
         active_cfg = current_cfg()
-
-        from pybtex.database.output.bibtex import Writer as BibWriter
-        from pybtex.database import BibliographyData
-        from .ledger import append_jsonl, new_run_id, utc_now_iso
-
-        run_id = new_run_id("normalize")
-        backup_dir = active_cfg.ledger.root / "normalize_backups" / run_id
-        backup_dir.mkdir(parents=True, exist_ok=True)
-
-        rename_map = {r["old"]: r["new"] for r in renames}
-        enrich_map: dict[str, IngestRecord] = {r["old"]: r["_rec"] for r in renames}
-        affected_bibs = sorted({r["source_bib"] for r in renames})
-
-        # Back up affected bib files and citekeys.md before mutation
-        backup_manifest: dict[str, str] = {}
-        for bib_path_str in affected_bibs:
-            bib_path = Path(bib_path_str)
-            dst = backup_dir / bib_path.name
-            shutil.copy2(bib_path, dst)
-            backup_manifest[bib_path_str] = str(dst)
-        ck_path = active_cfg.citekeys_path
-        if ck_path and Path(ck_path).exists():
-            dst = backup_dir / Path(ck_path).name
-            shutil.copy2(ck_path, dst)
-            backup_manifest[str(ck_path)] = str(dst)
-
-        # Apply renames and enrichment to bib files
-        for bib_path_str in affected_bibs:
-            bib_path = Path(bib_path_str)
-            db = parse_bibtex_file(bib_path)
-            new_entries = {}
-            for k, e in db.entries.items():
-                new_k = rename_map.get(k, k)
-                new_e = _copy.deepcopy(e)
-                # Back-fill bib fields from enriched metadata
-                rec = enrich_map.get(k)
-                if rec:
-                    if rec.authors and not e.fields.get("author"):
-                        new_e.fields["author"] = " and ".join(rec.authors)
-                    if rec.year and not e.fields.get("year"):
-                        new_e.fields["year"] = str(rec.year)
-                    if rec.title and not e.fields.get("title"):
-                        new_e.fields["title"] = rec.title
-                    if rec.doi and not e.fields.get("doi"):
-                        new_e.fields["doi"] = rec.doi
-                new_entries[new_k] = new_e
-            new_db = BibliographyData(entries=new_entries)
-            buf = io.StringIO()
-            BibWriter().write_stream(new_db, buf)
-            bib_path.write_text(buf.getvalue(), encoding="utf-8")
-
-        # Update citekeys.md
-        from .citekeys import load_citekeys_md, _render_citekeys_md
-        if ck_path and Path(ck_path).exists():
-            existing = load_citekeys_md(ck_path)
-            updated = [rename_map.get(k, k) for k in existing]
-            Path(ck_path).write_text(_render_citekeys_md(updated), encoding="utf-8")
-
-        # Log the operation for revert
-        normalize_log = active_cfg.ledger.root / "normalize.jsonl"
-        append_jsonl(normalize_log, {
-            "run_id": run_id,
-            "timestamp": utc_now_iso(),
-            "renames": {r["old"]: r["new"] for r in renames},
-            "backup_dir": str(backup_dir),
-            "backup_manifest": backup_manifest,
-        })
-
-        clean_renames = [{k: v for k, v in r.items() if not k.startswith("_")} for r in renames]
-        return {"ok": True, "renames": clean_renames, "applied": True, "enriched": enriched_info}
+        result = apply_normalize_plan(active_cfg, plan)
+        return {
+            "ok": True,
+            "applied": True,
+            "renames": result.renames,
+            "enriched": enriched_info,
+            "skipped": skipped_info,
+            "run_id": result.run_id,
+        }
 
     @app.get("/api/actions/normalize-citekeys/status", response_class=responses.JSONResponse)
     def action_normalize_status():
         """Return current normalize-citekeys job status."""
-        snap = _normalize_snapshot()
-        # Clean _rec from renames before sending
-        snap["renames"] = [{k: v for k, v in r.items() if not k.startswith("_")} for r in snap["renames"]]
-        return snap
+        return _normalize_snapshot()
 
     @app.post("/api/actions/normalize-citekeys/cancel", response_class=responses.JSONResponse)
     def action_normalize_cancel():

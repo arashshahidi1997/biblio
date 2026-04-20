@@ -103,6 +103,22 @@ def _build_parser() -> argparse.ArgumentParser:
     p_ck.add_argument("--config", type=Path, help="Path to biblio.yml.")
     p_ck.add_argument("--json", action="store_true", help="Emit JSON instead of plain text.")
 
+    p_citekey = sub.add_parser("citekey", help="Citekey maintenance (normalize, inspect).")
+    citekey_sub = p_citekey.add_subparsers(dest="citekey_cmd", required=True)
+    p_citekey_norm = citekey_sub.add_parser(
+        "normalize",
+        help="Preview or apply rename of bib entries to canonical author_year_Title keys.",
+    )
+    p_citekey_norm.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    p_citekey_norm.add_argument("--config", type=Path, help="Path to biblio.yml.")
+    p_citekey_norm.add_argument("--apply", action="store_true", help="Apply the plan (default: preview only).")
+    p_citekey_norm.add_argument(
+        "--enrich",
+        action="store_true",
+        help="Attempt metadata resolution (OpenAlex/GROBID/CrossRef) for entries missing authors.",
+    )
+    p_citekey_norm.add_argument("--json", action="store_true", help="Emit plan as JSON.")
+
     p_ingest = sub.add_parser("ingest", help="Import non-BibTeX inputs into bib/srcbib/imported.bib.")
     ingest_sub = p_ingest.add_subparsers(dest="ingest_cmd", required=True)
     for name, help_text in (
@@ -800,6 +816,53 @@ def main(argv: Iterable[str] | None = None) -> None:
         else:
             for k in keys:
                 print(f"@{k}")
+        return
+
+    if args.command == "citekey":
+        if args.citekey_cmd != "normalize":
+            raise SystemExit(2)
+        from .normalize import build_normalize_plan, apply_normalize_plan
+
+        repo_root = (args.root.expanduser().resolve() if getattr(args, "root", None) else find_repo_root())
+        cfg_path = (repo_root / args.config).resolve() if getattr(args, "config", None) else default_config_path(root=repo_root)
+        cfg = load_biblio_config(cfg_path, root=repo_root)
+
+        def _cli_progress(done: int, total: int, current: str) -> None:
+            if total and current:
+                print(f"[{done}/{total}] {current}", file=sys.stderr, flush=True)
+
+        plan = build_normalize_plan(cfg, enrich=bool(args.enrich), progress=_cli_progress)
+
+        if args.json:
+            print(json.dumps(plan.to_dict(), indent=2))
+        else:
+            print(
+                f"[PLAN] scanned={plan.total_scanned} "
+                f"renames={len(plan.renames)} "
+                f"already_standard={len(plan.already_standard)} "
+                f"skipped={len(plan.skipped)} "
+                f"enriched={len(plan.enriched)}",
+                file=sys.stderr,
+            )
+            for r in plan.renames:
+                tag = f" ({r.enrich_source})" if r.enrich_source else ""
+                print(f"  RENAME  @{r.old}  →  @{r.new}{tag}")
+            if plan.skipped:
+                print(f"[SKIPPED] {len(plan.skipped)} entries (insufficient metadata):", file=sys.stderr)
+                for s in plan.skipped:
+                    print(f"  SKIP    @{s.citekey}  [{s.reason}]", file=sys.stderr)
+
+        if args.apply and plan.renames:
+            result = apply_normalize_plan(cfg, plan)
+            print(
+                f"[APPLIED] run_id={result.run_id} renames={len(result.renames)} "
+                f"affected_bibs={len(result.affected_bibs)}",
+                file=sys.stderr,
+            )
+        elif args.apply:
+            print("[APPLIED] nothing to do (no renames in plan).", file=sys.stderr)
+        else:
+            print("[OK] preview only — re-run with --apply to write changes.", file=sys.stderr)
         return
 
     if args.command == "ingest":

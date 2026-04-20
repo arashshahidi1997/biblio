@@ -173,6 +173,47 @@ def absent_refs(citekey: str, *, root: Path) -> dict[str, Any]:
     return {"citekey": key, "absent": absent, "count": len(absent)}
 
 
+def citekey_normalize(
+    *,
+    root: Path,
+    apply: bool = False,
+    enrich: bool = False,
+) -> dict[str, Any]:
+    """Preview or apply citekey normalization (rename to canonical author_year_Title).
+
+    Entries with incomplete metadata (missing author, year, or title) are
+    reported in ``skipped`` and never renamed to ``anon_nd_Record``.
+
+    Args:
+        root: Repository root.
+        apply: If True, rewrite bib files and log. If False (default),
+            returns the plan without modifying anything.
+        enrich: If True, attempt network metadata resolution
+            (OpenAlex / GROBID / CrossRef) for entries missing authors.
+            Default False so MCP agents stay offline-cheap.
+
+    Returns dict with ``plan`` (renames, already_standard, skipped,
+    enriched, total_scanned) and, when applied, ``run_id``.
+    """
+    from .normalize import apply_normalize_plan, build_normalize_plan
+
+    cfg = _load_cfg(root)
+    plan = build_normalize_plan(cfg, enrich=bool(enrich))
+    result: dict[str, Any] = {
+        "applied": False,
+        "plan": plan.to_dict(),
+    }
+    if apply and plan.renames:
+        applied = apply_normalize_plan(cfg, plan)
+        result["applied"] = True
+        result["run_id"] = applied.run_id
+        result["affected_bibs"] = applied.affected_bibs
+    elif apply:
+        result["applied"] = True  # idempotent no-op
+        result["run_id"] = ""
+    return result
+
+
 def library_get(citekey: str, *, root: Path) -> dict[str, Any]:
     """Return library ledger entry (status/tags/priority) for a citekey.
 
