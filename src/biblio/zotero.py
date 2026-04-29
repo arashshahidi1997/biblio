@@ -154,12 +154,13 @@ class ZoteroClient:
 
     def item_versions(self, since: int = 0) -> dict[str, int]:
         """Return {item_key: version} for items changed since *since*."""
-        kwargs: dict[str, Any] = {"since": since}
         if self.cfg.collection:
-            return self._zot.collection_item_versions(
-                self.cfg.collection, **kwargs,
+            # Zotero filters collections via URL path, not query param;
+            # /items?collection=KEY is silently ignored. Use the path form.
+            return self._zot.collection_items(
+                self.cfg.collection, format="versions", since=since,
             )
-        return self._zot.item_versions(**kwargs)
+        return self._zot.item_versions(since=since)
 
     def fetch_items(self, keys: list[str]) -> list[dict[str, Any]]:
         """Fetch full JSON items for the given keys."""
