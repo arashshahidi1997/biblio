@@ -1,0 +1,7 @@
+# Raw run outputs stay local; scored summaries go in eval/scoreboard.md
+runs/
+# Researcher photos and other cached personal data
+people/
+# Local environment
+.pixi/
+.env

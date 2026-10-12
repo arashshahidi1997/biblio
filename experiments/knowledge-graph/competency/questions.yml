@@ -1,0 +1,133 @@
+# Competency questions: what the knowledge graph must be able to answer.
+#
+# Each approach is scored per question (eval/criteria.md, section 1).
+# `level` uses the zoom levels of schema/reference-schema.yml.
+# `needs` lists node and edge types a graph would have to hold to answer it.
+# `project_link` points to the test project's hypotheses (plan/questions.yml).
+
+version: 1
+
+questions:
+  CQ01:
+    kind: theory
+    level: 1
+    text: >
+      Which theories or models explain hippocampal-cortical coupling during
+      NREM sleep, and which papers in the corpus support or challenge each one?
+    needs: [Theory, Paper, supports, opposes]
+
+  CQ02:
+    kind: claim
+    level: 3
+    text: >
+      What claims exist about the temporal order of slow oscillations / up-states,
+      spindles and sharp-wave ripples, and what evidence backs each claim?
+    needs: [Claim, Evidence, supports, Concept]
+    project_link: [H6]
+
+  CQ03:
+    kind: contradiction
+    level: 3
+    text: >
+      Where do papers disagree about the direction of influence: does the cortex
+      drive ripples, or do ripples drive cortical state changes?
+    needs: [Claim, opposes, Hypothesis]
+    project_link: [H1, H4]
+
+  CQ04:
+    kind: method
+    level: 5
+    text: >
+      Which methods are used to detect sharp-wave ripples, and with which
+      parameters (frequency band, threshold, minimum duration), species and
+      recording preparation?
+    needs: [Method, Parameter, Experiment, has_parameter, uses_method]
+
+  CQ05:
+    kind: method-lineage
+    level: 4
+    text: >
+      Which spindle detection methods build on which earlier methods, and which
+      papers compared them?
+    needs: [Method, derived_from, cites]
+
+  CQ06:
+    kind: experiment
+    level: 4
+    text: >
+      Which experiments recorded hippocampus together with prefrontal or
+      retrosplenial cortex, and with what recording technology
+      (e.g. silicon probes, Neuropixels, ECoG, tetrodes)?
+    needs: [Experiment, Concept, about, Parameter]
+    project_link: [H4, H5]
+
+  CQ07:
+    kind: dataset
+    level: 4
+    text: >
+      Which datasets in the corpus are public and could be reused to test a
+      project hypothesis?
+    needs: [Dataset, uses_dataset, Hypothesis]
+
+  CQ08:
+    kind: open-question
+    level: 2
+    text: >
+      What open questions or limitations do papers state about where
+      ripple-associated spindles originate in cortex?
+    needs: [Question, addresses, Concept]
+    project_link: [H2]
+
+  CQ09:
+    kind: implicit-gap
+    level: 2
+    text: >
+      Which combinations of region, event type and modulating state are not
+      studied in the corpus (e.g. infra-slow modulation of hippocampus-to-cortex
+      coupling)?
+    needs: [Experiment, Concept, about]
+    project_link: [H8]
+    note: Needs structure-level reasoning over the graph, not retrieval alone.
+
+  CQ10:
+    kind: project-link
+    level: 2
+    text: >
+      For each project hypothesis H1-H8, which literature claims support or
+      contradict its prediction?
+    needs: [Hypothesis, Claim, supports, opposes]
+    project_link: [H1, H2, H3, H4, H5, H6, H7, H8]
+
+  CQ11:
+    kind: people
+    level: null
+    text: >
+      Who are the main contributors to research on spindle-ripple coupling in
+      this corpus, what did each contribute (claims, methods, datasets), and who
+      works with whom?
+    needs: [Person, authored_by, coauthor, contributed]
+
+  CQ12:
+    kind: people
+    level: null
+    text: >
+      Which research groups and institutions does the corpus come from, and how
+      has that changed over time?
+    needs: [Person, Institution, affiliated_with, Paper]
+
+  CQ13:
+    kind: drill-down
+    level: [1, 5]
+    text: >
+      Starting from one theory, follow the graph down to the hypotheses, claims,
+      experiments and parameters that support it.
+    needs: [Theory, Hypothesis, Claim, Experiment, Parameter, part_of, supports, tests, has_parameter]
+    note: Tests whether levels connect. Scored on path completeness.
+
+  CQ14:
+    kind: citation-stance
+    level: 3
+    text: >
+      Which later papers cite sirota_2003_CommunicationNeocortex in support,
+      which dispute it, and which only use its methods?
+    needs: [cites, intent, sentence]

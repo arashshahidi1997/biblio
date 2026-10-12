@@ -1,0 +1,72 @@
+# Reference schema: the node and edge types we score approaches against.
+#
+# This is a yardstick for the comparison. It mixes ideas from Discourse Graphs
+# (Question / Claim / Evidence / Source), SEPIO and micropublications
+# (evidence lines with direction), ORKG (contributions with typed properties),
+# CiTO (typed citations) and Scholia (people).
+#
+# `level` gives the zoom level, from broad (0) to detailed (5). An approach
+# scores on hierarchy when it can connect nodes across levels.
+
+version: 1
+
+levels:
+  0: domain / topic
+  1: theory or model
+  2: hypothesis
+  3: claim or finding
+  4: evidence, experiment, method
+  5: parameters and measurements
+
+node_types:
+  Paper:        {level: null, from: biblio,  desc: "A work in the library, keyed by citekey"}
+  Person:       {level: null, from: openalex, desc: "Author, keyed by OpenAlex ID, with ORCID when known"}
+  Institution:  {level: null, from: openalex, desc: "Keyed by ROR when known"}
+  Topic:        {level: 0, desc: "Field or topic, e.g. an OpenAlex topic or a curated domain label"}
+  Concept:      {level: 0, desc: "Phenomenon, brain region, cell type, signal (e.g. sharp-wave ripple, mPFC)"}
+  Theory:       {level: 1, desc: "Explanatory framework spanning many papers (e.g. active systems consolidation)"}
+  Hypothesis:   {level: 2, desc: "Testable proposition; includes the project's own H1-H8"}
+  Claim:        {level: 3, desc: "Finding or assertion stated by a paper"}
+  Evidence:     {level: 4, desc: "Result that bears on a claim: figure, statistic, observation"}
+  Experiment:   {level: 4, desc: "Study design: species, preparation, recording, regions, conditions"}
+  Method:       {level: 4, desc: "Technique or algorithm (e.g. ripple detection by band-pass + threshold)"}
+  Dataset:      {level: 4, desc: "Named or reusable dataset"}
+  Question:     {level: 2, desc: "Open question, limitation or future-work statement"}
+  Parameter:    {level: 5, desc: "Typed value attached to Experiment/Method (band, threshold, n, duration)"}
+
+edge_types:
+  # bibliographic and people
+  authored_by:      {src: Paper,       dst: Person}
+  affiliated_with:  {src: Person,      dst: Institution}
+  coauthor:         {src: Person,      dst: Person,       derived: true}
+  cites:            {src: Paper,       dst: Paper,        attrs: [intent, sentence]}   # intent: CiTO subset below
+  # discourse
+  states:           {src: Paper,       dst: [Claim, Hypothesis, Theory, Question]}
+  supports:         {src: [Claim, Evidence, Paper], dst: [Claim, Hypothesis, Theory], attrs: [strength]}
+  opposes:          {src: [Claim, Evidence, Paper], dst: [Claim, Hypothesis, Theory], attrs: [strength]}
+  informs:          {src: any,         dst: any}
+  derived_from:     {src: [Claim, Method], dst: [Claim, Method]}   # lineage, builds-on
+  addresses:        {src: [Paper, Claim, Hypothesis], dst: Question}
+  # hierarchy
+  part_of:          {src: [Hypothesis, Claim], dst: [Theory, Hypothesis]}
+  about:            {src: any,         dst: [Concept, Topic]}
+  # empirical
+  tests:            {src: Experiment,  dst: [Hypothesis, Claim]}
+  produces:         {src: Experiment,  dst: Evidence}
+  uses_method:      {src: [Experiment, Paper], dst: Method}
+  uses_dataset:     {src: [Experiment, Paper], dst: Dataset}
+  has_parameter:    {src: [Experiment, Method], dst: Parameter}
+  # people to content
+  contributed:      {src: Person,      dst: [Claim, Method, Dataset, Theory], derived: true}
+
+citation_intents:   # CiTO subset, in the spirit of Scite's three classes
+  - supports        # cito:supports, cito:confirms
+  - disputes        # cito:disputes, cito:disagreesWith
+  - uses_method_in  # cito:usesMethodIn
+  - uses_data_from  # cito:usesDataFrom
+  - extends         # cito:extends
+  - mentions        # cito:citesForInformation (default)
+
+# Required on every extracted node (see interchange.md)
+provenance_fields: [citekey, section, quote, method, model, run_id, status]
+statuses: [candidate, accepted, rejected]

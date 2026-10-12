@@ -1,0 +1,78 @@
+# Fixed paper sets for the knowledge-graph comparison.
+#
+# Only citekeys live here. Paper content is read from $KG_CORPUS_ROOT
+# (a projio project with bib/derivatives/). See common/corpus.py.
+#
+# Test project: a sleep study of hippocampal-cortical coupling
+# (sharp-wave ripples, spindles, slow oscillations / up-down states,
+# infra-slow modulation). Its hypotheses H1-H8 live in the project's
+# plan/questions.yml; the competency questions refer to them.
+
+version: 1
+
+sets:
+  # Papers cited by the project's hypotheses. Small enough to hand-annotate.
+  core:
+    - sirota_2003_CommunicationNeocortex          # H1
+    - isomura_2006_IntegrationSegregation         # H1
+    - siapas_1998_CoordinatedInteractions         # H2
+    - pedrosa_2024_HippocampalRipples             # H2, H4, H6
+    - swanson_2025_TopographyPutative             # H3
+    - robinson_2025_LargeSharpwave                # H3
+    - battaglia_2004_HippocampalSharp             # H4
+    - peyrache_2011_InhibitionRecruitment         # H4
+    - pedrosa_2022_HippocampalGamma               # H5
+    - maingret_2016_HippocampocorticalCoupling    # H6, H7
+    - osorioforero_2021_NoradrenergicCircuit      # H8 (docling only: no GROBID / OpenAlex yet)
+    - garcia-cortadella_2024_LargescaleInfraslow  # H8
+
+  # Every paper with docling + OpenAlex derivatives and a GROBID folder (snapshot 2026-10-12).
+  # 34 of 38 have TEI; the GROBID folders of beest_2024, jain_2025, laquitaine_2024
+  # and pachitariu_2024 are empty. Battaglia_2004_Hippocampal is left out: same DOI
+  # as battaglia_2004_HippocampalSharp.
+  extended:
+    - battaglia_2004_HippocampalSharp
+    - battaglia_2011_HippocampusHub
+    - beest_2024_TrackingNeurons
+    - brankack_1993_CurrentSource
+    - cairney_2018_MemoryConsolidation
+    - chen_2025_IndividualizedTemporal
+    - dimitrov_2021_SleepSpindles
+    - dvorak_2021_DentateSpikes
+    - felicianoramos_2023_HippocampalMemory
+    - garcia-cortadella_2024_LargescaleInfraslow
+    - isomura_2006_IntegrationSegregation
+    - jain_2025_UnitrefineCommunity
+    - kajikawa_2022_StatesRipples
+    - laquitaine_2024_SpikeSorting
+    - levenstein_2019_NremSleep
+    - maingret_2016_HippocampocorticalCoupling
+    - meijer_2025_PowerPixels
+    - meyerolbersleben_2025_AnatomicallyResolved
+    - nitzan_2020_PropagationHippocampal
+    - pachitariu_2024_SpikeSorting
+    - pedrosa_2022_HippocampalGamma
+    - pedrosa_2024_HippocampalRipples
+    - peyrache_2011_InhibitionRecruitment
+    - prerau_2017_SleepNeurophysiological
+    - robinson_2025_LargeSharpwave
+    - siapas_1998_CoordinatedInteractions
+    - sirota_2003_CommunicationNeocortex
+    - sirota_2008_EntrainmentNeocortical
+    - steinmetz_2021_Neuropixels2
+    - stokes_2020_EstimationTimeVarying
+    - swanson_2025_TopographyPutative
+    - takigawa_2026_InterplaySleep
+    - tuyisenge_2018_AutomaticBad
+    - vincent_2024_AssessingCross
+    - warby_2014_SleepspindleDetection
+    - wierzynski_2009_StateDependentSpikeTiming
+    - ye_2026_BrainWide
+    - yuan_2023_MultiDay
+
+# Hand-annotated subset of core (see gold/). Pick papers that differ in kind:
+# a classic finding, a methods-heavy paper, a recent large-scale study.
+gold:
+  - sirota_2003_CommunicationNeocortex
+  - maingret_2016_HippocampocorticalCoupling
+  - pedrosa_2024_HippocampalRipples

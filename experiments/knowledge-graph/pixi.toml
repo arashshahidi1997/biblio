@@ -1,0 +1,52 @@
+# Isolated environments for the knowledge-graph experiments.
+# Kept apart from biblio's own pixi.toml so heavy tools never become biblio deps.
+#
+#   pixi run check-core                       # corpus availability
+#   pixi run -e graphrag python approaches/a04-graphrag/run.py
+#
+# Not locked yet: each feature is solved the first time its env is used.
+
+[workspace]
+name = "biblio-kg-experiments"
+channels = ["conda-forge"]
+platforms = ["linux-64", "osx-arm64"]
+
+[dependencies]
+python = "3.11.*"
+pyyaml = "*"
+lxml = "*"          # GROBID TEI parsing
+httpx = "*"         # OpenAlex, Wikidata, Commons APIs
+
+[pypi-dependencies]
+biblio-tools = { path = "../..", editable = true }
+anthropic = "*"     # a01, a03, a06 extraction and classification
+
+[tasks]
+check-core     = "python common/corpus.py --set core"
+check-extended = "python common/corpus.py --set extended"
+validate       = "python common/interchange.py"
+
+# One feature per heavy third-party tool --------------------------------------
+
+[feature.graphrag.pypi-dependencies]     # a04
+graphrag = "*"
+
+[feature.lightrag.pypi-dependencies]     # a04
+lightrag-hku = "*"
+
+[feature.kggen.pypi-dependencies]        # a05
+kg-gen = "*"
+
+[feature.paperqa.pypi-dependencies]      # a08
+paper-qa = "*"
+
+[feature.orkg.pypi-dependencies]         # a03 (optional export)
+orkg = "*"
+
+[environments]
+default  = { features = [] }
+graphrag = { features = ["graphrag"] }
+lightrag = { features = ["lightrag"] }
+kggen    = { features = ["kggen"] }
+paperqa  = { features = ["paperqa"] }
+orkg     = { features = ["orkg"] }

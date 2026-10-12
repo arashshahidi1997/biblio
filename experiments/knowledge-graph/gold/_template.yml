@@ -1,0 +1,50 @@
+citekey: <citekey>
+annotator: <name>
+date: YYYY-MM-DD
+minutes_spent: null
+
+theories:
+  - label: ""
+    stance: supports        # supports | opposes | neutral
+    quote: ""
+
+claims:
+  - id: c01
+    label: ""
+    section: Results
+    quote: ""
+    supports_theory: null   # theory label, if any
+    project_link: []        # e.g. [H6]
+
+experiments:
+  - id: e01
+    species: ""
+    preparation: ""         # e.g. head-fixed, freely moving, anesthetized
+    regions: []
+    recording: ""           # e.g. silicon probe, Neuropixels, ECoG
+    conditions: []          # e.g. NREM sleep, post-learning sleep
+    quote: ""
+
+methods:
+  - id: m01
+    label: ""
+    parameters: {}          # e.g. {band_hz: [100, 250], threshold_sd: 5, min_duration_ms: 30}
+    builds_on: []           # citekeys or method labels
+    quote: ""
+
+datasets:
+  - label: ""
+    public: null
+    url: null
+    quote: ""
+
+questions:
+  - id: q01
+    label: ""
+    kind: limitation        # open-question | limitation | future-work
+    quote: ""
+
+evidence_links:             # claim support inside the paper
+  - claim: c01
+    evidence: ""            # figure or statistic, e.g. "Fig. 3B, cross-correlogram peak at -50 ms"
+    quote: ""
