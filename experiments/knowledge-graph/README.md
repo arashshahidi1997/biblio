@@ -47,7 +47,7 @@ Nothing in `src/biblio/` changes until this comparison has a result.
 | [a04](approaches/a04-graphrag/) | Generic entity graph + community summaries | Microsoft GraphRAG, LightRAG | Does an off-the-shelf graph builder give useful structure for free? | planned |
 | [a05](approaches/a05-kggen/) | Generic text-to-KG extractor | KGGen | Same question, with a lighter tool and entity merging | planned |
 | [a06](approaches/a06-citation-statements/) | Citing sentences with intent labels | Scite, CiTO | What do typed citation edges add on top of the claim layer? | planned |
-| [a07](approaches/a07-people-view/) | Author index, co-author graph, photos | Scholia, OpenAlex | How complete a people view can open data give us? | planned |
+| [a07](approaches/a07-people-view/) | Author index, co-author graph, photos | Scholia, OpenAlex | How complete a people view can open data give us? | scored (first pass) |
 | [a08](approaches/a08-paperqa-baseline/) | Query-time RAG, no persistent graph | PaperQA2 | Control: which competency questions need a graph at all? | planned |
 
 New approaches start from [`approaches/_template/`](approaches/_template/).
