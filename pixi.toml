@@ -1,0 +1,36 @@
+[workspace]
+name = "biblio"
+channels = ["conda-forge"]
+platforms = ["linux-64", "osx-64", "osx-arm64", "win-64"]
+
+[dependencies]
+python = ">=3.11,<3.13"
+go-task = "*"          # the `task` binary (go-task)
+poppler = "*"          # pdfimages / pdftoppm for `biblio figures`
+
+[pypi-dependencies]
+biblio-tools = { path = ".", editable = true, extras = ["openalex", "zotero"] }
+
+# Dev feature — build/test tooling for this package. Run with `pixi run -e dev`.
+[feature.dev.pypi-dependencies]
+pytest = "*"
+build = "*"
+twine = "*"
+fastapi = ">=0.115"    # GUI tests (biblio-tools[ui])
+uvicorn = ">=0.30"
+python-multipart = "*"
+httpx = "*"
+pillow = "*"           # figures integration test
+
+[feature.dev.tasks]
+test  = "python -m pytest tests -q"
+build = "python -m build"
+check = "python -m twine check dist/*"
+
+[environments]
+default = { features = [] }
+dev     = { features = ["dev"] }
+
+[tasks]
+# The projio task menu lives in .projio/Taskfile.yml (go-task). Run:
+#   pixi run task --list         # then e.g.  pixi run task projio:sync

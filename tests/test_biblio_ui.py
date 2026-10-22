@@ -8,6 +8,8 @@ from pathlib import Path
 
 import pytest
 
+from biblio.rag import default_rag_config_path
+
 fastapi = pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient
 
@@ -269,7 +271,8 @@ def test_ui_setup_can_update_docling_command(tmp_path: Path) -> None:
     payload = resp.json()
     assert "pixi environment docling" in payload["message"]
 
-    updated = (tmp_path / "bib" / "config" / "biblio.yml").read_text(encoding="utf-8")
+    from biblio.config import default_config_path
+    updated = default_config_path(root=tmp_path).read_text(encoding="utf-8")
     assert 'cmd:' in updated
     assert '- pixi' in updated
     assert '- docling' in updated
@@ -338,7 +341,7 @@ def test_ui_setup_can_save_rag_config(tmp_path: Path) -> None:
         },
     )
     assert resp.status_code == 200
-    payload = load_raw_rag_config(tmp_path / "bib" / "config" / "rag.yaml")
+    payload = load_raw_rag_config(default_rag_config_path(tmp_path))
     assert payload["embedding_model"] == "sentence-transformers/test-model"
     assert payload["chunk_size_chars"] == 777
     assert payload["chunk_overlap_chars"] == 111
@@ -354,5 +357,5 @@ def test_ui_setup_can_sync_rag_config(tmp_path: Path) -> None:
     assert resp.status_code == 200
     data = resp.json()
     assert "Synchronized bibliography-owned RAG sources" in data["message"]
-    payload = load_raw_rag_config(tmp_path / "bib" / "config" / "rag.yaml")
+    payload = load_raw_rag_config(default_rag_config_path(tmp_path))
     assert any(item["id"] == "biblio_docling" for item in payload["sources"])

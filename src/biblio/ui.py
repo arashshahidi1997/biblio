@@ -770,6 +770,7 @@ def create_ui_app(cfg: BiblioConfig):
 
         def _run_docling() -> None:
             failures = 0
+            last_error = ""
             cancelled = False
             for idx, ck in enumerate(keys, start=1):
                 with docling_lock:
@@ -821,6 +822,8 @@ def create_ui_app(cfg: BiblioConfig):
                             break
                     failures += 1
                     logs = "\n".join(filter(None, [e.stdout, e.stderr])).strip()
+                    cmd = " ".join(map(str, e.cmd)) if isinstance(e.cmd, (list, tuple)) else str(e.cmd)
+                    last_error = f"{ck}: exit code {e.returncode} from `{cmd}`"
                     with docling_lock:
                         docling_job["completed"] = idx
                         docling_job["citekey"] = ck
@@ -834,6 +837,7 @@ def create_ui_app(cfg: BiblioConfig):
                             cancelled = True
                             break
                     failures += 1
+                    last_error = f"{ck}: {e}"
                     with docling_lock:
                         docling_job["completed"] = idx
                         docling_job["citekey"] = ck
@@ -852,7 +856,7 @@ def create_ui_app(cfg: BiblioConfig):
                     docling_job["error"] = None
                     docling_job["message"] = f"Docling finished ({total} papers, {failures} failures)."
                 else:
-                    docling_job["error"] = f"{failures} papers failed."
+                    docling_job["error"] = f"{failures} papers failed. Last: {last_error}"
                     docling_job["message"] = f"Docling done with {failures} failures out of {total}."
 
         threading.Thread(target=_run_docling, daemon=True).start()

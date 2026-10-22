@@ -54,6 +54,12 @@ Requests from journal-club are tagged R01 to R06 below.
   backend while the default became the `claude` CLI, so test runs shelled out
   to the real CLI (tests now default to `BIBLIO_LLM_BACKEND=api` in
   `conftest.py`); a fake client and three message assertions were out of date.
+  Correction: those runs used the shared Anaconda Python, which lacks
+  `fastapi`, so the GUI tests were skipped. Tests now run in pixi
+  (`pixi run -e dev test`, extras and poppler declared in `pixi.toml`):
+  350 passed, none skipped, after fixing a lost docling error detail in the
+  GUI, three tests on legacy config paths, and `python-multipart` missing
+  from the `ui` extra.
 - [x] **H05 Conda out.** The GUI's docling setup offers a pixi environment
   (`pixi run [-e env] docling`) and rejects conda with a clear message;
   hints, the config template and docs show pixi and `uvx` commands. Bundle
