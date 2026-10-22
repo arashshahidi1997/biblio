@@ -63,8 +63,13 @@ Measured automatically where possible (`common/interchange.py --stats`):
 | Score | Meaning |
 |-------|---------|
 | 0 | Needs its own server or database with no file export |
-| 1 | Exports files, but mapping to biblio / notio / questio needs custom glue |
-| 2 | Maps directly onto biblio derivatives or notio notes and can be queried through MCP |
+| 1 | Exports files, but needs custom glue, its own store, or a non-pixi/uv runtime |
+| 2 | Maps directly onto biblio derivatives or wiki pages, runs from the CLI, needs no retrieval store |
+
+Biblio's proposed scope (`docs/explanation/scope.md`) sets the bar here: CLI
+first, few or no MCP tools, no dependency on RAG, pixi or uv environments. An
+approach that brings its own vector store or graph database (a04, a05, a08)
+scores at most 1, however well it answers the questions.
 
 ## Decision rule
 

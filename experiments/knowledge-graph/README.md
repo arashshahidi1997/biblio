@@ -16,6 +16,11 @@ parameters.
 
 Nothing in `src/biblio/` changes until this comparison has a result.
 
+The experiment informs the two core areas of biblio's proposed scope
+([`docs/explanation/scope.md`](../../docs/explanation/scope.md)): a01, a03, a06
+and a07 are candidate **digest modes**; a02 tests the **wiki** as the curated
+graph. a04, a05 and a08 bring their own retrieval and serve as comparisons.
+
 ## Protocol
 
 1. **Fixed corpus.** Every approach runs on the same papers
