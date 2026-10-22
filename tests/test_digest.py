@@ -1,0 +1,173 @@
+"""Reading by section (D01), the digest store (D02) and claims mode (D05, journal-club R06)."""
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import pytest
+
+from biblio import digest as dg
+from biblio.config import default_config_path, load_biblio_config
+from biblio.sections import read_sections, split_markdown, split_tei
+
+KEY = "aleman_2026_Deltas"
+PAPER = """# Deltas and spindles
+
+## Abstract
+
+Ripples come in three types.
+
+## Results
+
+<!-- image -->
+
+C2 ripples were less affected by the cortical plasticity manipulation and became more numerous.
+C3 ripples occurred within spindles in both the hippocampus and the prefrontal cortex (n = 3 rats).
+
+## Discussion
+
+Small ripples after deltas may reflect a cortical query of the hippocampus.
+
+## Author contr ibutions
+
+A wrote it.
+
+## References
+
+1. Someone 2020.
+"""
+
+
+@pytest.fixture(autouse=True)
+def _no_user_config(monkeypatch):
+    monkeypatch.setattr("biblio.profile.load_user_config", lambda: {})
+
+
+@pytest.fixture
+def cfg(tmp_path: Path):
+    d = tmp_path / "bib" / "derivatives" / "docling" / KEY
+    d.mkdir(parents=True)
+    (d / f"{KEY}.md").write_text(PAPER)
+    return load_biblio_config(default_config_path(root=tmp_path), root=tmp_path)
+
+
+def test_split_markdown_drops_references_and_admin():
+    secs = split_markdown(PAPER)
+    assert [s.title for s in secs] == ["Abstract", "Results", "Discussion"]   # the title heading has no body
+    results = next(s for s in secs if s.title == "Results")
+    assert results.id.startswith("S") and "<!-- image -->" not in results.text and results.line == 7
+
+
+def test_split_tei_and_fallback(cfg, tmp_path):
+    tei = """<TEI xmlns="http://www.tei-c.org/ns/1.0"><teiHeader><profileDesc><abstract><p>Short.</p></abstract>
+    </profileDesc></teiHeader><text><body><div><head>Results</head><p>C3 ripples sit in spindles.</p></div>
+    <div><head>Acknowledgements</head><p>Thanks.</p></div></body></text></TEI>"""
+    assert [s.title for s in split_tei(tei)] == ["Abstract", "Results"]
+    other = "other_2020_X"
+    g = tmp_path / "bib" / "derivatives" / "grobid" / other
+    g.mkdir(parents=True)
+    (g / f"{other}.tei.xml").write_text(tei)
+    secs, source, kind = read_sections(cfg, other)
+    assert kind == "grobid" and source.name.endswith(".tei.xml") and secs[1].title == "Results"
+    with pytest.raises(FileNotFoundError, match="docling"):
+        read_sections(cfg, "nobody_2000_Nothing")
+
+
+def _fake_llm(responses):
+    calls = []
+
+    def llm(*, system, prompt, model, max_tokens):
+        calls.append(prompt)
+        return {"text": responses[len(calls) - 1], "error": None}
+    llm.calls = calls
+    return llm
+
+
+def _secs(cfg):
+    return {s.title: s.id for s in read_sections(cfg, KEY)[0]}
+
+
+def test_claims_digest_verifies_and_repairs_quotes(cfg):
+    ids = _secs(cfg)
+    first = json.dumps({
+        "question": "Do ripple types differ?",
+        "setup": ["8 rats, tetrodes"],
+        "claims": [
+            {"id": "C1", "claim": "C3 ripples sit in spindles.", "kind": "finding", "evidence": "Fig 2, n = 3 rats",
+             "caveats": "reader: 3 animals", "section": ids["Results"],
+             "quote": "C3 ripples occurred within spindles in both the hippocampus and the prefrontal cortex"},
+            {"id": "C2", "claim": "C2 ripples are robust to plasticity.", "kind": "finding", "evidence": "Fig 6",
+             "caveats": "", "section": ids["Results"],
+             "quote": "C2 ripples were more affected by the cortical plasticity manipulation"},
+            {"id": "C3", "claim": "Cortex queries the hippocampus.", "kind": "interpretation", "evidence": "",
+             "caveats": "authors: speculative", "section": ids["Discussion"],
+             "quote": "the cortex sends a query to the hippocampus during deltas"},
+        ],
+        "one_line": "Ripple types map onto different cortical dialogues.",
+    })
+    repair = json.dumps({"quotes": {
+        "C2": "C2 ripples were less affected by the cortical plasticity manipulation",
+        "C3": "Small ripples after deltas may reflect a cortical querying",       # still not exact
+    }})
+    llm = _fake_llm([first, "```json\n" + repair + "\n```"])
+    d = dg.digest_claims(cfg, KEY, llm=llm, model="test-model")
+
+    claims = {c["id"]: c for c in d["claims"]}
+    assert claims["C1"]["quote_status"] == "exact"
+    assert claims["C2"]["quote_status"] == "exact" and "less affected" in claims["C2"]["quote"]   # repaired
+    assert claims["C3"]["quote_status"] in ("missing", "approximate")                            # stays flagged
+    assert d["meta"]["repaired"] == 1 and d["meta"]["quotes"]["exact"] == 2
+    assert claims["C1"]["section_title"] == "Results" and claims["C1"]["section_line"] == 7
+    assert "[S" in llm.calls[0] and "Author contr" not in llm.calls[0] and "Someone 2020" not in llm.calls[0]
+    assert "C1: C3 ripples" not in llm.calls[1] and "C2: C2 ripples" in llm.calls[1]           # repair: bad ones only
+
+    json_path, md_path = dg.digest_paths(cfg, KEY, "claims", "wiki")
+    assert json_path.is_file() and json.loads(json_path.read_text())["meta"]["prompt_version"] == dg.PROMPT_VERSION
+    md = md_path.read_text()
+    assert f'> "C3 ripples occurred within spindles in both the hippocampus and the prefrontal cortex" [@{KEY}]' in md
+    assert "quote exact" in md and "## In one line" in md and "Rigor notes" not in md
+
+    # stored digests are reused; --force redoes them
+    assert dg.digest_claims(cfg, KEY, llm=_fake_llm([])) == json.loads(json_path.read_text())
+    assert [r["context"] for r in dg.list_digests(cfg)] == ["wiki"]
+
+
+def test_talk_context_adds_rigor_and_figure_roles(cfg):
+    ids = _secs(cfg)
+    resp = json.dumps({
+        "question": "q", "setup": [], "one_line": "x",
+        "claims": [{"id": "C1", "claim": "c", "kind": "finding", "evidence": "e", "caveats": "",
+                    "section": ids["Results"], "quote": "C3 ripples occurred within spindles"}],
+        "rigor_notes": ["C1: events as samples inflate the df"],
+        "figure_roles": [{"figure": "Figure 1", "role": "the three ripple types"}],
+    })
+    llm = _fake_llm([resp])
+    d = dg.digest_claims(cfg, KEY, context="talk", llm=llm)
+    assert "rigor_notes" in llm.calls[0] and d["rigor_notes"] == ["C1: events as samples inflate the df"]
+    md = dg.digest_paths(cfg, KEY, "claims", "talk")[1].read_text()
+    assert "## Rigor notes for discussion" in md and "**Figure 1**: the three ripple types" in md
+
+
+def test_llm_errors_and_bad_json(cfg):
+    with pytest.raises(RuntimeError, match="LLM call failed"):
+        dg.digest_claims(cfg, KEY, llm=lambda **kw: {"text": None, "error": "quota"})
+    with pytest.raises(ValueError, match="no JSON"):
+        dg.digest_claims(cfg, KEY, llm=_fake_llm(["sorry, I cannot"]))
+    with pytest.raises(ValueError, match="unknown context"):
+        dg.digest_claims(cfg, KEY, context="poster")
+
+
+def test_claude_cli_errors_on_stdout_are_reported(monkeypatch):
+    """An expired login is printed on stdout; it must reach the user, with the fix."""
+    import subprocess
+    from biblio import llm
+    monkeypatch.setattr(llm, "_find_claude_cli", lambda: "/usr/bin/claude")
+    seen = {}
+
+    def run(cmd, **kw):
+        seen["cwd"] = kw.get("cwd")
+        return subprocess.CompletedProcess(cmd, 1, stdout="Failed to authenticate: OAuth session expired", stderr="")
+    monkeypatch.setattr(llm.subprocess, "run", run)
+    out = llm._call_claude_cli(system="s", prompt="p", model="sonnet", max_tokens=10)
+    assert "OAuth session expired" in out["error"] and "/login" in out["error"]
+    assert seen["cwd"] and "biblio-llm-" in seen["cwd"]          # never the user's project

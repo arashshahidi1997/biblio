@@ -67,22 +67,30 @@ def _call_claude_cli(
 
     cmd = [claude_bin, "-p", "--model", model]
 
+    import tempfile
+    timeout = int(os.environ.get("BIBLIO_LLM_TIMEOUT", "900"))   # a whole-paper digest can take minutes
     try:
-        result = subprocess.run(
-            cmd,
-            input=full_prompt,
-            capture_output=True,
-            text=True,
-            timeout=300,
-        )
+        # a neutral working directory: the CLI must not pick up the current project's settings,
+        # CLAUDE.md or trust prompt (it refuses untrusted folders that carry .claude/settings.json)
+        with tempfile.TemporaryDirectory(prefix="biblio-llm-") as cwd:
+            result = subprocess.run(
+                cmd,
+                input=full_prompt,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                cwd=cwd,
+            )
     except subprocess.TimeoutExpired:
-        return {"text": None, "error": "claude CLI timed out after 300s"}
+        return {"text": None, "error": f"claude CLI timed out after {timeout}s"}
     except FileNotFoundError:
         return {"text": None, "error": "claude CLI not found"}
 
     if result.returncode != 0:
-        stderr = (result.stderr or "").strip()
-        return {"text": None, "error": f"claude CLI failed (exit {result.returncode}): {stderr}"}
+        # the CLI prints some failures (e.g. an expired login) on stdout, not stderr
+        detail = (result.stderr or "").strip() or (result.stdout or "").strip()[:500]
+        hint = " (run `claude` once interactively and /login)" if "authenticat" in detail.lower() else ""
+        return {"text": None, "error": f"claude CLI failed (exit {result.returncode}): {detail}{hint}"}
 
     text = (result.stdout or "").strip()
     if not text:

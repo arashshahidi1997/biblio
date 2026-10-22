@@ -666,6 +666,18 @@ def _build_parser() -> argparse.ArgumentParser:
                          help="Which version the PDF is, recorded in the manifest.")
     fig_run.add_argument("--licence", default="unknown", help="Licence of the figures, recorded in the manifest (e.g. 'CC BY 4.0').")
 
+    p_dig = sub.add_parser("digest", help="Digests of one paper by mode and context (claims with verified quotes).")
+    dig_sub = p_dig.add_subparsers(dest="digest_cmd", required=True)
+    dig_claims = dig_sub.add_parser("claims", help="The paper's claims with evidence, caveats and a verbatim quote each.")
+    dig_claims.add_argument("citekey")
+    dig_claims.add_argument("--context", default="wiki", choices=["wiki", "talk"],
+                            help="wiki (default) or talk (adds rigor notes and figure roles).")
+    dig_claims.add_argument("--model", help="LLM model (default: BIBLIO_LLM_MODEL or sonnet).")
+    dig_claims.add_argument("--force", action="store_true", help="Redo an existing digest.")
+    dig_claims.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    dig_list = dig_sub.add_parser("list", help="Stored digests with their mode, context, model and quote checks.")
+    dig_list.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+
     # ── wiki + skills ─────────────────────────────────────────────────────
     from .wiki.cli import add_parsers as _add_wiki_parsers
     _add_wiki_parsers(sub)
@@ -1847,6 +1859,29 @@ def main(argv: Iterable[str] | None = None) -> None:
                 print(f"[RUN] {args.key.lstrip('@')}", file=sys.stderr, flush=True)
                 out = run_ref_md_for_key(cfg, args.key, force=args.force)
                 print(f"[OK] {args.key.lstrip('@')}: {out.md_path}")
+        return
+
+    if args.command == "digest":
+        from .digest import digest_claims, digest_paths, list_digests
+        repo_root = (args.root.expanduser().resolve() if args.root else find_repo_root())
+        cfg = load_biblio_config(default_config_path(root=repo_root), root=repo_root)
+        if args.digest_cmd == "list":
+            rows = list_digests(cfg)
+            for r in rows:
+                q = r["quotes"] or {}
+                print(f"{r['citekey']:45} {r['mode']}/{r['context']:5} {r['model'] or '':8} "
+                      f"quotes exact {q.get('exact', 0)}/{sum(q.values()) if q else 0}  {r['created']}")
+            if not rows:
+                print("no digests")
+            return
+        try:
+            d = digest_claims(cfg, args.citekey, context=args.context, model=args.model, force=bool(args.force))
+        except (FileNotFoundError, RuntimeError, ValueError) as exc:
+            raise SystemExit(f"[ERROR] {exc}")
+        q = d["meta"]["quotes"]
+        _, md = digest_paths(cfg, d["meta"]["citekey"], "claims", args.context)
+        print(f"[OK] {len(d['claims'])} claims; quotes exact {q['exact']}, approximate {q['approximate']}, "
+              f"changed {q['changed']}, missing {q['missing'] + q['none']} -> {md}")
         return
 
     if args.command == "figures":
