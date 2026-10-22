@@ -860,9 +860,11 @@ def _add_zotero(args: argparse.Namespace, cfg: Any, cfg_path: Path, repo_root: P
     except Exception as exc:  # noqa: BLE001  connection refused, 403, ...
         where = "the local API (is Zotero running, with local API access enabled?)" if zcfg.local else "the web API"
         raise SystemExit(f"[ERROR] Zotero request failed via {where}: {exc}")
-    verb = "found" if args.dry_run else ("already in project" if res.existing else "added")
+    verb = {"dry-run": "found", "found": "already in project", "refreshed": "entry refreshed"}.get(
+        res.action, res.action)
     print(f"[OK] {res.citekey} ({verb}) <- Zotero {res.zotero_key}: {res.title[:70]}")
-    print(f"  pdf: {res.pdf_status} -> {res.pdf_path}")
+    has_pdf = res.pdf_status in ("copied", "present")
+    print(f"  pdf: {res.pdf_status}" + (f" -> {res.pdf_path}" if has_pdf or args.dry_run else ""))
     for note in res.notes:
         print(f"  note: {note}")
     if args.dry_run:

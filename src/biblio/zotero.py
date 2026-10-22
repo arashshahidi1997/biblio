@@ -240,7 +240,7 @@ _ZOTERO_TO_BIBTEX_TYPE: dict[str, str] = {
     "thesis": "phdthesis",
     "report": "techreport",
     "webpage": "misc",
-    "preprint": "article",
+    "preprint": "misc",
     "manuscript": "unpublished",
     "presentation": "misc",
     "patent": "misc",
@@ -253,12 +253,12 @@ def _zotero_type_to_bibtex(item_type: str) -> str:
     return _ZOTERO_TO_BIBTEX_TYPE.get(item_type, "misc")
 
 
-def _extract_creators(item_data: dict[str, Any]) -> list[str]:
-    """Extract author names from Zotero JSON item data."""
+def _extract_creators(item_data: dict[str, Any], roles: tuple[str, ...] = ("author",)) -> list[str]:
+    """Names of the item's creators in ``roles``, as "Family, Given"."""
     creators = item_data.get("creators", [])
     names: list[str] = []
     for c in creators:
-        if c.get("creatorType") not in ("author", "editor"):
+        if c.get("creatorType") not in roles:
             continue
         first = c.get("firstName", "")
         last = c.get("lastName", "")
@@ -268,6 +268,17 @@ def _extract_creators(item_data: dict[str, Any]) -> list[str]:
         elif last:
             names.append(f"{last}, {first}".strip(", "))
     return names
+
+
+def authors_and_editors(item_data: dict[str, Any]) -> tuple[list[str], list[str]]:
+    """(authors, editors). An edited volume with no authors is keyed by its editors."""
+    return _extract_creators(item_data, ("author",)), _extract_creators(item_data, ("editor", "seriesEditor"))
+
+
+def _eprint(item_data: dict[str, Any]) -> tuple[str, str]:
+    """(archive prefix, id) from a preprint's Archive ID, e.g. "arXiv:2110.14599"."""
+    m = re.match(r"\s*([A-Za-z][\w.-]*):\s*(\S+)", item_data.get("archiveID") or "")
+    return (m.group(1), m.group(2)) if m else ("", "")
 
 
 def _extract_year(item_data: dict[str, Any]) -> str | None:
@@ -300,7 +311,8 @@ def item_to_bibtex(item: dict[str, Any]) -> str | None:
         return None
 
     bib_type = _zotero_type_to_bibtex(item_type)
-    authors = _extract_creators(data)
+    authors, editors = authors_and_editors(data)
+    key_names = authors or editors
     year = _extract_year(data)
     title = data.get("title", "")
     doi = data.get("DOI", "")
@@ -310,13 +322,14 @@ def item_to_bibtex(item: dict[str, Any]) -> str | None:
     volume = data.get("volume", "")
     issue = data.get("issue", "")
     pages = data.get("pages", "")
-    publisher = data.get("publisher", "")
+    publisher = data.get("publisher", "") or data.get("repository", "")
+    archive_prefix, eprint = _eprint(data)
     abstract_text = data.get("abstractNote", "")
 
     # Build citekey: first_author_year_TitleWord
     first_author = ""
-    if authors:
-        parts = authors[0].split(",")
+    if key_names:
+        parts = key_names[0].split(",")
         first_author = parts[0].strip().split()[-1] if parts else "Unknown"
     else:
         first_author = "Unknown"
@@ -337,10 +350,15 @@ def item_to_bibtex(item: dict[str, Any]) -> str | None:
         fields.append(f"  title = {{{_bibtex_escape(title)}}}")
     if authors:
         fields.append(f"  author = {{{' and '.join(authors)}}}")
+    if editors:
+        fields.append(f"  editor = {{{' and '.join(editors)}}}")
     if year:
         fields.append(f"  year = {{{year}}}")
     if doi:
         fields.append(f"  doi = {{{doi}}}")
+    if eprint:
+        fields.append(f"  eprint = {{{eprint}}}")
+        fields.append(f"  archiveprefix = {{{archive_prefix}}}")
     if url:
         fields.append(f"  url = {{{url}}}")
     if journal:

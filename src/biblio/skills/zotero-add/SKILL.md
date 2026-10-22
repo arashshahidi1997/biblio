@@ -56,7 +56,8 @@ PDFs stored in Zotero's cloud storage; linked files are never reachable.
    `biblio docling run --key <key>`. If one machine does everything, add
    `--extract` to step 2 instead.
 5. **For a talk's background**: `biblio refs triage <target> --zotero
-   <path to zotero.sqlite>` lists the references held in Zotero with a PDF;
+   <path to zotero.sqlite>` (usually `~/Zotero/zotero.sqlite`; a snap install
+   keeps it in `~/snap/zotero-snap/common/Zotero/`) lists the references held in Zotero with a PDF;
    add them one by one with steps 1 to 4, rerun the triage, and report what
    is still absent.
 

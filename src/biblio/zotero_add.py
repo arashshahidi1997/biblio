@@ -21,7 +21,8 @@ from .config import BiblioConfig
 from .ingest import IngestRecord
 from .ledger import append_jsonl, new_run_id, utc_now_iso
 from .refs import _bib_records, _project_bibs, normalize_doi
-from .zotero import ZoteroClient, ZoteroConfig, _extract_creators, _extract_year, _zotero_type_to_bibtex, item_to_bibtex
+from .zotero import (ZoteroClient, ZoteroConfig, _extract_year, _zotero_type_to_bibtex, authors_and_editors,
+                     item_to_bibtex)
 
 _ITEM_KEY = re.compile(r"^(?:\d+:)?([A-Z0-9]{8})$")
 _SKIP_TYPES = {"attachment", "note", "annotation"}
@@ -37,6 +38,7 @@ class AddResult:
     zotero_key: str
     title: str
     existing: bool = False
+    action: str = ""  # "added", "refreshed" (entry in zotero.bib rewritten), "found" (kept), "dry-run"
     bib_path: Path | None = None
     pdf_path: Path | None = None
     pdf_status: str = ""  # "copied", "present", "none", "not-pdf", "failed"
@@ -57,12 +59,13 @@ def item_citekey(data: dict[str, Any]) -> str:
 
 def record_from_item(item: dict[str, Any]) -> IngestRecord:
     data = item.get("data", item)
+    authors, editors = authors_and_editors(data)
     return IngestRecord(
         source_type="zotero",
         source_ref=str(data.get("key") or ""),
         entry_type=_zotero_type_to_bibtex(data.get("itemType", "")),
         title=data.get("title") or None,
-        authors=tuple(_extract_creators(data)),
+        authors=tuple(authors or editors),
         year=_extract_year(data),
         doi=normalize_doi(data.get("DOI") or _extra_doi(data)) or None,
         url=data.get("url") or None,
@@ -163,11 +166,21 @@ def upsert_entry(bib_path: Path, citekey: str, entry: str) -> None:
     bib_path.write_text("\n\n".join(blocks) + "\n", encoding="utf-8")
 
 
+_SUPPLEMENT = re.compile(r"\b(supp|supplement(ary)?|appendix|extended data|SI)\b", re.I)
+_NOT_FINAL = re.compile(r"\b(accepted|submitted|author)\b.*\bversion\b|\bpre-?print\b|\bmanuscript\b", re.I)
+
+
+def _pdf_rank(att: dict[str, Any]) -> tuple[int, int, int]:
+    """Lower is better: a stored file, the main text, the published version."""
+    d = att["data"]
+    title = f"{d.get('title') or ''} {d.get('filename') or ''}"
+    return (d.get("linkMode") != "imported_file", bool(_SUPPLEMENT.search(title)), bool(_NOT_FINAL.search(title)))
+
+
 def _pdf_attachments(children: list[dict[str, Any]]) -> list[dict[str, Any]]:
     pdfs = [c for c in children if c.get("data", {}).get("itemType") == "attachment"
             and c["data"].get("contentType") == "application/pdf"]
-    # stored files first: linked files and URLs often are not reachable
-    return sorted(pdfs, key=lambda c: c["data"].get("linkMode") != "imported_file")
+    return sorted(pdfs, key=_pdf_rank)  # stable: Zotero's order breaks ties
 
 
 def fetch_pdf(zot: Any, item_key: str, dest: Path) -> str:
@@ -221,10 +234,14 @@ def add_from_zotero(
     pdf_path = cfg.pdf_root / cfg.pdf_pattern.format(citekey=result.citekey)
     result.pdf_path = pdf_path
     if dry_run:
+        result.action = "dry-run"
         result.pdf_status = "present" if pdf_path.is_file() else "dry-run"
         return result
 
-    if not result.existing:
+    if result.existing:
+        result.action = "found"
+    else:
+        result.action = "refreshed" if own_key else "added"
         result.bib_path = zotero_bib
         upsert_entry(result.bib_path, citekey, entry_for(item, citekey))
     result.pdf_status = "present" if pdf_path.is_file() else fetch_pdf(zot, data["key"], pdf_path)
@@ -242,7 +259,7 @@ def add_from_zotero(
         "status": "success",
         "zotero_key": result.zotero_key,
         "citekey": result.citekey,
-        "existing": result.existing,
+        "action": result.action,
         "pdf": result.pdf_status,
         "local": zotero_cfg.local,
     })

@@ -191,3 +191,73 @@ def test_cli(cfg, monkeypatch, capsys):
 
     with pytest.raises(SystemExit, match="No zotero section"):
         main(["add", "zotero", "ABCD1234", "--root", str(cfg.repo_root)])
+
+
+# --- laptop findings, 2026-10-22 (docs/log/task/task-arash-20261022-laptop-zotero-obsidian.md) ---
+
+CHAPTER = {"key": "Z9KIF4G9", "data": {
+    "key": "Z9KIF4G9", "itemType": "bookSection", "title": "Historical aspects of transcranial electric stimulation",
+    "creators": [{"creatorType": "editor", "firstName": "André", "lastName": "Brunoni"},
+                 {"creatorType": "editor", "firstName": "Michael", "lastName": "Nitsche"},
+                 {"creatorType": "author", "firstName": "Stefano", "lastName": "Zago"},
+                 {"creatorType": "author", "firstName": "Alberto", "lastName": "Priori"}],
+    "date": "2016", "bookTitle": "Transcranial Direct Current Stimulation in Neuropsychiatric Disorders",
+    "publisher": "Springer",
+}}
+PREPRINT = {"key": "B3CN9RJE", "data": {
+    "key": "B3CN9RJE", "itemType": "preprint", "title": "Hodge-Laplacian of brain networks",
+    "creators": [{"creatorType": "author", "firstName": "D. Vijay", "lastName": "Anand"}],
+    "date": "2023", "repository": "arXiv", "archiveID": "arXiv:2110.14599", "url": "http://arxiv.org/abs/2110.14599",
+}}
+
+
+def test_book_chapter_keeps_authors_and_editors_apart(cfg):
+    res = add_from_zotero(cfg, ZCFG, "Z9KIF4G9", client=_client(FakeZot(items=(CHAPTER,), children=[])))
+    assert res.citekey == "zago_2016_HistoricalAspects"
+    bib = (cfg.repo_root / "bib" / "srcbib" / "zotero.bib").read_text()
+    assert bib.startswith("@incollection{zago_2016_HistoricalAspects,")
+    assert "author = {Zago, Stefano and Priori, Alberto}" in bib
+    assert "editor = {Brunoni, André and Nitsche, Michael}" in bib
+
+
+def test_edited_volume_is_keyed_by_editor():
+    from biblio.zotero_add import record_from_item
+    book = {"key": "BOOK0001", "data": {**CHAPTER["data"], "itemType": "book", "creators": CHAPTER["data"]["creators"][:2]}}
+    assert record_from_item(book).authors == ("Brunoni, André", "Nitsche, Michael")
+
+
+def test_preprint_keeps_its_archive_id(cfg):
+    add_from_zotero(cfg, ZCFG, "B3CN9RJE", client=_client(FakeZot(items=(PREPRINT,), children=[])))
+    bib = (cfg.repo_root / "bib" / "srcbib" / "zotero.bib").read_text()
+    assert bib.startswith("@misc{anand_2023_HodgeLaplacian,")
+    for field in ("eprint = {2110.14599}", "archiveprefix = {arXiv}", "publisher = {arXiv}"):
+        assert field in bib
+
+
+def test_rerun_reports_refreshed_and_pdf_none_has_no_path(cfg, monkeypatch, capsys):
+    first = add_from_zotero(cfg, ZCFG, "ABCD1234", client=_client(FakeZot()))
+    again = add_from_zotero(cfg, ZCFG, "ABCD1234", client=_client(FakeZot()))
+    assert (first.action, again.action, again.pdf_status) == ("added", "refreshed", "present")
+
+    from biblio.cli import main
+    monkeypatch.setattr(zotero_add, "ZoteroClient", lambda zcfg: _client(FakeZot(items=(PREPRINT,), children=[])))
+    main(["add", "zotero", "B3CN9RJE", "--local", "--root", str(cfg.repo_root)])
+    out = capsys.readouterr().out
+    assert "(added)" in out and "  pdf: none\n" in out
+
+
+def _att(key, title, link="imported_file"):
+    return {"key": key, "data": {"key": key, "itemType": "attachment", "linkMode": link,
+                                 "contentType": "application/pdf", "title": title}}
+
+
+@pytest.mark.parametrize("children,expected", [
+    # Buzsaki 2012 on the laptop: "Accepted Version" listed first, then two copies of the published PDF
+    ([_att("ACC00001", "Accepted Version"), _att("PUB00001", "Full Text PDF"), _att("PUB00002", "Full Text PDF")],
+     "PUB00001"),
+    ([_att("SUP00001", "Supplementary Information"), _att("MAIN0001", "Snapshot PDF")], "MAIN0001"),
+    ([_att("LINK0001", "Full Text", "linked_file"), _att("SUP00001", "Supplement")], "SUP00001"),
+])
+def test_pdf_preference(children, expected):
+    from biblio.zotero_add import _pdf_attachments
+    assert _pdf_attachments(children)[0]["key"] == expected
