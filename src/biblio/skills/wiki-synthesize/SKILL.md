@@ -33,17 +33,20 @@ cross-paper reasoning is kept visibly apart from what the papers say.
 
 ## Workflow
 
-1. **Scope.** Agree on the page's question and type: `concept` (what X is,
-   with the evidence), `method` (how studies measure X, compared), or
-   `question` (an open problem). One question per page.
+1. **Scope.** Agree on the page's question and type: `synthesis` (a question
+   answered across papers: definitions compared, agreement, disagreement, open
+   problems), `concept` (what X is, with the evidence), `method` (how studies
+   measure X, compared), or `question` (one open problem). One question per page.
 2. **Sources.** List the papers that bear on it: the hub's source pages,
    `biblio refs triage` of the key paper, the project bibliography. Only
    papers with full text can be used.
 3. **Digests.** `biblio digest list`; for each source paper without a claims
    digest, `biblio digest claims <citekey>` (context `wiki`; `talk` for talk
    preparation). Read each digest's quote counts: only claims whose quote is
-   `exact` can be used as they are. For the others, open the section named in
-   the digest and find the exact words yourself, or leave the claim out.
+   `exact` can be used as they are. For the others, and for anything a digest
+   only paraphrases (often the authors' own caveats), find the exact words with
+   `biblio fulltext <citekey> --grep "<words>"` or `--section <id>` (it reads the
+   same text the quote check uses, in the project or a pool), or leave it out.
 4. **Map.** Put the relevant claims side by side: which agree, which
    disagree, which use different definitions or methods for the same word
    (often the real story: two labs' "ripple types" may not be the same
@@ -56,16 +59,22 @@ cross-paper reasoning is kept visibly apart from what the papers say.
      citekey to `sources:`.
    - Agreement across papers: say how many and which, each with its quote.
    - Disagreement: both sides with their quotes in a `> **Contested.**`
-     block, and what would decide it.
+     block (quotes there are checked like any other), and what would decide it.
    - Your own cross-paper reasoning (a pattern no single paper states) goes
      in a paragraph that starts with **Synthesis:** and cites no paper as its
      source. It is a proposal for the reviewer, not a fact.
    - Definitions that differ between papers: a small table (paper, term,
      operational definition, quote).
    - Open problems: a `question` page each, linked.
-6. **Lint and review.** `biblio wiki lint <page>` until no errors (every
-   quote must be exact); `biblio wiki hubs`; then
-   `biblio wiki review packet <page>` and hand it to the person.
+6. **Lint and review.** `biblio wiki lint <page>` until it shows no errors and
+   no FID warnings: every quote exact (an approximate quote, FID003, is a
+   warning but not acceptable on a synthesis page). Long pages are fine when
+   the length is quoted evidence (quotes do not count toward the word limit).
+   `biblio wiki hubs`; then `biblio wiki review packet <page> --out <file>`
+   and hand the file to the person.
+   Papers held only in a pool show as CIT003 notes: list them for the person,
+   who adds them to the project bibliography (e.g. `biblio add doi <doi>`)
+   before anything is rendered.
 7. **Log.** Append to `log.md`: date, `synthesize`, the papers used, pages
    created and updated.
 

@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.1 (2026-10-23)
+
+From the first synthesis run (journal-club T14, "ripple heterogeneity", 7 claims digests).
+
+### Added
+- `biblio fulltext KEY [--grep PATTERN | --section ID]`: a held paper's sections, one section, or the lines matching a pattern, from the project's or a pool's docling text.
+- A `synthesis` wiki page type (Question, Definitions compared, Agreement, Disagreement, Open problems, Related).
+
+### Fixed
+- Quotes inside `> **Contested.**` and similar blocks are checked like any other (they were skipped).
+- The quote check decodes HTML entities (docling writes `p &gt; 0.05`); precede/follow/lead/lag count as meaning words.
+- Quoted evidence does not count toward a page's word limit.
+
 ## 0.3.0 (2026-10-23)
 
 ### Added

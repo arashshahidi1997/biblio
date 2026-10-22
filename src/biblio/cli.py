@@ -666,6 +666,12 @@ def _build_parser() -> argparse.ArgumentParser:
                          help="Which version the PDF is, recorded in the manifest.")
     fig_run.add_argument("--licence", default="unknown", help="Licence of the figures, recorded in the manifest (e.g. 'CC BY 4.0').")
 
+    p_ft = sub.add_parser("fulltext", help="A held paper's full text (project or pool): sections, one section, or a search.")
+    p_ft.add_argument("citekey")
+    p_ft.add_argument("--grep", help="Find exact wording (case-insensitive regex); prints section and line per hit.")
+    p_ft.add_argument("--section", help="Print one section by id (S12) or title.")
+    p_ft.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+
     p_dig = sub.add_parser("digest", help="Digests of one paper by mode and context (claims with verified quotes).")
     dig_sub = p_dig.add_subparsers(dest="digest_cmd", required=True)
     dig_claims = dig_sub.add_parser("claims", help="The paper's claims with evidence, caveats and a verbatim quote each.")
@@ -1859,6 +1865,40 @@ def main(argv: Iterable[str] | None = None) -> None:
                 print(f"[RUN] {args.key.lstrip('@')}", file=sys.stderr, flush=True)
                 out = run_ref_md_for_key(cfg, args.key, force=args.force)
                 print(f"[OK] {args.key.lstrip('@')}: {out.md_path}")
+        return
+
+    if args.command == "fulltext":
+        import re as _re
+        from .sections import read_sections
+        repo_root = (args.root.expanduser().resolve() if args.root else find_repo_root())
+        cfg = load_biblio_config(default_config_path(root=repo_root), root=repo_root)
+        try:
+            sections, source, kind = read_sections(cfg, args.citekey)
+        except FileNotFoundError as exc:
+            raise SystemExit(f"[ERROR] {exc}")
+        print(f"# {args.citekey}: {source} ({kind})")
+        if args.section:
+            want = args.section.strip().lower()
+            sec = next((x for x in sections if x.id.lower() == want or x.title.lower() == want), None) or next(
+                (x for x in sections if want in x.title.lower()), None)
+            if sec is None:
+                raise SystemExit(f"[ERROR] no section {args.section!r}; see `biblio fulltext {args.citekey}`")
+            print(f"## [{sec.id}] {sec.title} (line {sec.line})\n\n{sec.text}")
+        elif args.grep:
+            rx = _re.compile(args.grep, _re.I)
+            lines = source.read_text(encoding="utf-8", errors="replace").splitlines()
+            starts = sorted((x.line, x) for x in sections if x.line)
+            hits = 0
+            for no, line in enumerate(lines, 1):
+                if rx.search(line):
+                    sec = next((x for ln, x in reversed(starts) if ln <= no), None)
+                    where = f"[{sec.id}] {sec.title}" if sec else ""
+                    print(f"{no}: {where}\n    {line.strip()[:400]}")
+                    hits += 1
+            print(f"{hits} line(s)")
+        else:
+            for x in sections:
+                print(f"{x.id:5} line {x.line:<5} {x.words:5} words  {x.title}")
         return
 
     if args.command == "digest":

@@ -790,3 +790,31 @@ def test_quotes_match_docling_html_entities(tmp_path):
     f.write_text("No significant differences between blocks (n = 242, p &gt; 0.05; R&amp;D &lt; 1).")
     checker = QuoteChecker(lambda key: f)
     assert checker.check("k", "No significant differences between blocks (n = 242, p > 0.05; R&D < 1)") == "exact"
+
+
+# --- synthesis trial findings (2026-10-23) ------------------------------------------
+
+def test_quotes_inside_contested_blocks_are_checked_and_quotes_not_counted(repo):
+    cfg = load_wiki_config(repo)
+    body = REVIEW_BODY + ('\n> **Contested.** The order is disputed: "Neocortical up-states follow hippocampal '
+                          'sharp-wave ripples by about 50 ms" [@sirota_2003_CommunicationNeocortex] says one reading.\n')
+    page = _reviewable(cfg, body=body)
+    found = codes(lint(cfg, [page]), "concepts/coupling.md")
+    assert "FID004" in found or "FID001" in found                 # the altered quote inside the block is caught
+    plain = _reviewable(cfg, name="words", body="\n# W\n\nShort lede.\n\n> \"" + "word " * 900
+                        + "\" [@sirota_2003_CommunicationNeocortex]\n")
+    assert parse_page(plain, cfg.wiki_root).words < 20
+
+
+def test_synthesis_page_type(repo):
+    cfg = load_wiki_config(repo)
+    page = stub(cfg, "ripple-heterogeneity", "synthesis", tags=["event/ripple"])
+    assert page.parent.name == "syntheses" and "## Definitions compared" in page.read_text()
+
+
+def test_fulltext_command(repo, capsys):
+    main(["fulltext", "sirota_2003_CommunicationNeocortex", "--root", str(repo), "--grep", "up-state of the"])
+    out = capsys.readouterr().out
+    assert "Ripple probability increased" in out and "1 line(s)" in out and "Results" in out
+    main(["fulltext", "sirota_2003_CommunicationNeocortex", "--root", str(repo)])
+    assert "Results" in capsys.readouterr().out

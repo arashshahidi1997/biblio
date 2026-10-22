@@ -139,6 +139,11 @@ def _flush_blockquote(block: list[tuple[int, str]], quotes: list[Quote]) -> None
     first_line = block[0][0]
     joined = " ".join(t for _, t in block).strip()
     if STATUS_BLOCK_RE.match(joined):
+        # a Contested/Outdated block is prose, but the quotes it attributes are checked like any other
+        for m in INLINE_QUOTE_RE.finditer(joined):
+            keys = [c.key for c in _parse_citations(m.group(2), first_line)]
+            if keys and len(m.group(1).split()) >= 4:
+                quotes.append(Quote(text=m.group(1).strip(), keys=keys, line=first_line))
         return
     keys = [c.key for c in _parse_citations(joined, first_line)]
     if not keys:
@@ -230,7 +235,8 @@ def parse_page(path: Path, wiki_root: Path) -> Page:
                 page.quotes.append(Quote(text=m.group(1).strip(), keys=keys, line=lineno))
         figure = stripped.startswith("![") or prev_text.startswith("![") or bool(
             re.match(r"^\*+\s*(Figure|Fig\.)", stripped))
-        if not heading and not figure:           # embeds and their captions do not count toward the limit
+        quoted_evidence = stripped.startswith(">") and "[@" in stripped and re.search(r"[\"“]", stripped)
+        if not heading and not figure and not quoted_evidence:   # embeds, captions and quotes are not prose
             words += len(re.findall(r"\w+", _strip_citations(raw)))
         if stripped:
             prev_text = stripped

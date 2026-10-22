@@ -34,6 +34,7 @@ MUST_MATCH = re.compile(
     r"less|more|most|least|fewer|greater|smaller|larger|higher|lower|bigger|shorter|longer|"
     r"increas\w*|decreas\w*|rais\w*|ris\w*|rose|fell|fall\w*|reduc\w*|enhanc\w*|elevat\w*|"
     r"suppress\w*|abolish\w*|block\w*|before|after|above|below|deeper|shallower|earlier|later|"
+    r"preced\w*|follow\w*|lead\w*|led|lag\w*|precede|prior|subsequent\w*|"
     r"positive|negative|significant\w*|insignificant|absent|present)$")
 
 

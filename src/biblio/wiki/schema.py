@@ -31,6 +31,9 @@ PAGE_TYPES: dict[str, tuple[str, tuple[str, ...]]] = {
     "hub": ("hubs", ("Scope", "Reading order", "Pages")),
     "question": ("questions", ("Question", "Answer", "Fold into|Fold-into")),
     "case": ("cases", ("Data", "What it shows", "Figures", "Links")),
+    # a question answered across papers: built from claims digests by wiki-synthesize
+    "synthesis": ("syntheses", ("Question", "Definitions compared", "Agreement", "Disagreement|Contested",
+                                "Open problems", "Related")),
 }
 
 RELATION_KEYS = (

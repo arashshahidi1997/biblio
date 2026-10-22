@@ -158,8 +158,13 @@ Requests from journal-club are tagged R01 to R06 below.
   HTML. (P12)
 - [x] **W10 wiki-synthesize skill (M3).** Drafted 2026-10-23 on claims digests:
   statements from papers only with their exact quote, own reasoning marked
-  **Synthesis:**, contested blocks, definition tables. Untested on a real
-  subject (journal-club T14 is the first).
+  **Synthesis:**, contested blocks, definition tables. First run 2026-10-23
+  (journal-club T14 "ripple heterogeneity", scratch copy, 7 digests): 3 pages
+  + 3 edited, 37 quotes all exact, lint clean. Fixed from its report: quotes
+  inside Contested blocks are now checked (they were skipped), quotes do not
+  count toward the word limit, a `synthesis` page type, `biblio fulltext
+  --grep/--section` for exact wording in project or pool text, precede/follow
+  /lead/lag as meaning words. Open: D12, D13, W23.
 - [ ] **W11 wiki-query and wiki-review skills.** Review done 2026-10-22:
   `biblio wiki review packet|accept|flag|reopen` (accept needs `--by` a
   person, refuses lint errors and open flags; frontmatter edited in place)
@@ -222,6 +227,17 @@ Requests from journal-club are tagged R01 to R06 below.
   alemanzapata_2026 (ga + Figs 1-6 native, logos gone), maingret_2016 (4
   figures numbered and captioned, vector) and sebastian_2023 (Figs 1-7 and
   ED 1-10 from 24 pictures). Poppler only (no PyMuPDF, AGPL).
+
+- [ ] **D12 claims-2 prompt.** From the first synthesis run: give authors'
+  own caveats their own verified quote (a synthesis needs them most), and add
+  a `terms` section (the hand digest's measured / derived / interpreted
+  tables, R06). Bump `PROMPT_VERSION`.
+- [ ] **D13 Cross-digest view.** `biblio digest claims-table KEY... [--grep]`:
+  claims from several digests side by side, filtered by words, kind or
+  section; the "map" step of `wiki-synthesize` read 7 digests (120 KB) by hand.
+- [ ] **W23 Synthesis provenance.** A **Synthesis:** paragraph cites no paper;
+  give it a `rests_on:` pointer to the claims it combines (citekey:claim id),
+  checked by lint, so a reviewer can trace it.
 
 ## K. Knowledge-graph experiment
 
