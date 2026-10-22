@@ -9,6 +9,11 @@ import yaml
 BUNDLED = Path(__file__).resolve().parent / "skills"
 
 
+def skills_dir() -> Path:
+    """The bundled skills folder; projio finds it through the ``projio.skills`` entry point."""
+    return BUNDLED
+
+
 def list_skills() -> list[tuple[str, str]]:
     """Return (name, description) for each bundled skill."""
     from .wiki.pages import split_frontmatter

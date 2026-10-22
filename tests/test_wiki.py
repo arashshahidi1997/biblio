@@ -548,3 +548,12 @@ def test_flag_and_packet(repo, capsys):
     with pytest.raises(SystemExit):
         main(["wiki", "review", "accept", "coupling", "--by", "Arash", "--root", str(repo)])
     assert "2 open review flag" in capsys.readouterr().err
+
+
+def test_skills_dir_entry_point_target():
+    """projio finds biblio's skills through [project.entry-points."projio.skills"] (W15)."""
+    import tomllib
+    from biblio.skills_bundle import skills_dir
+    pyproject = tomllib.loads((Path(__file__).resolve().parents[1] / "pyproject.toml").read_text())
+    assert pyproject["project"]["entry-points"]["projio.skills"]["biblio"] == "biblio.skills_bundle:skills_dir"
+    assert {p.parent.name for p in skills_dir().glob("*/SKILL.md")} >= {"wiki-ingest", "wiki-review", "zotero-add"}

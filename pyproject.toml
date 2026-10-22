@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "biblio-tools"
-version = "0.1.5"
+version = "0.2.0"
 description = "Portable bibliography workspace tool"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -45,6 +45,9 @@ zotero = ["pyzotero>=1.6"]
 ui = ["fastapi>=0.115", "uvicorn>=0.30", "python-multipart"]
 rag = ["indexio"]
 dev = ["pytest", "build", "twine", "mkdocs>=1.6", "mkdocs-material>=9.5", "pybtex", "httpx", "tenacity", "tqdm", "pyzotero>=1.6", "fastapi>=0.115", "uvicorn>=0.30", "indexio", "python-multipart", "pillow"]
+
+[project.entry-points."projio.skills"]
+biblio = "biblio.skills_bundle:skills_dir"
 
 [project.scripts]
 biblio = "biblio.cli:main"
