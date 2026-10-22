@@ -81,27 +81,83 @@ def _last_commit(cfg: WikiConfig, path: Path) -> str:
     return out or "not committed"
 
 
+_NUMBER_RE = re.compile(r"(?<![\w.])\d+(?:[.,]\d+)?(?![\w])")
+_STRIP_FOR_NUMBERS = re.compile(
+    r"`[^`]*`"                                   # code spans and anchors
+    r"|\[[^\]]*@[^\]]*\]"                        # citation groups
+    r"|\]\([^)]*\)"                              # link targets
+    r"|https?://\S+"
+    r"|\b[A-Za-z]+(?:-[A-Za-z]*\d[\w]*)+"        # IDs: result-20260614-125644, DEN-R10, sub-03
+    r"|[\"“][^\"”]{20,}?[\"”]")                  # inline quotes (checked separately)
+_PROJECT_SECTIONS = ("our experience", "observed in")
+_REFERENCE_SECTIONS = ("citation", "links", "related", "sources")  # references, not claims
+
+
+_LIST_ITEM = re.compile(r"^\s*(?:[-*+]|\d+\.)\s")
+
+
+def _claim_for(page: Page, quote_line: int) -> tuple[list[int], str]:
+    """The sentence, paragraph or list item a quote backs, as (its lines, its text).
+
+    An inline quote backs its own line. A blockquote backs the nearest preceding paragraph or
+    list item (wrapped lines included) in the same section.
+    """
+    idx = quote_line - page.body_offset
+    lines = page.body_lines
+    if 0 <= idx < len(lines) and not lines[idx].lstrip().startswith(">"):
+        return [quote_line], lines[idx].strip()
+    section = page.section_of(quote_line)
+    j = idx - 1
+    while j >= 0 and (not lines[j].strip() or lines[j].lstrip().startswith(">")):
+        j -= 1                                   # skip blank lines and other quotes of the same claim
+    block: list[int] = []
+    while j >= 0:
+        raw = lines[j]
+        if not raw.strip() or raw.lstrip().startswith((">", "#")) \
+                or page.section_of(page.body_offset + j) != section:
+            break
+        block.insert(0, j)
+        if _LIST_ITEM.match(raw):
+            break                                # the start of this list item
+        j -= 1
+    if not block:
+        return [], ""
+    return [page.body_offset + k for k in block], " ".join(lines[k].strip() for k in block)
+
+
+def _is_figure_line(page: Page, idx: int) -> bool:
+    raw = page.body_lines[idx].strip()
+    prev = next((page.body_lines[k].strip() for k in range(idx - 1, -1, -1) if page.body_lines[k].strip()), "")
+    return raw.startswith("![") or prev.startswith("![") or bool(re.match(r"^\*+\s*(Figure|Fig\.)", raw))
+
+
+def _short(text: str, n: int = 220) -> str:
+    text = " ".join(text.split())
+    return text if len(text) <= n else text[: n - 3] + "..."
+
+
 def packet(cfg: WikiConfig, path: Path) -> str:
-    """Markdown review packet for one page."""
+    """Markdown review packet for one page (what a reviewer needs to judge it fast and safely)."""
+    from .embeds import find_embeds
+    from .fidelity import QuoteChecker
     from .lint import lint
+    from .pages import load_pages
     from .sources import SourceIndex
 
     page = parse_page(path, cfg.wiki_root)
     fm = page.frontmatter
     findings = lint(cfg, [path])
-    from .fidelity import QuoteChecker
-    checker = QuoteChecker(SourceIndex(cfg).fulltext)
+    sources = SourceIndex(cfg)
+    checker = QuoteChecker(sources.fulltext)
     label = {"exact": "verified exact", "approximate": "APPROXIMATE", "changed": "MEANING CHANGED",
              "missing": "NOT FOUND in source", "no-text": "no full text"}
     rank = {"exact": 0, "approximate": 1, "changed": 2, "missing": 3, "no-text": 4}
-    sources = SourceIndex(cfg)
     out = [f"## {page.title}  (`{page.rel}`)", ""]
     rev = fm.get("reviewed")
     out.append(f"- type **{page.type}**, status **{page.status}**, author **{fm.get('author')}**, "
                f"scope {fm.get('scope')}, updated {fm.get('updated')}")
     if isinstance(rev, dict):
         out.append(f"- reviewed by {rev.get('by')} on {rev.get('date')}")
-    out.append(f"- last commit: {_last_commit(cfg, path)}")
     if page.lede:
         out += ["", f"> {page.lede}"]
 
@@ -113,25 +169,109 @@ def packet(cfg: WikiConfig, path: Path) -> str:
     out += ["", f"### Lint ({len(shown)} errors or warnings)", ""]
     out += [f"- {f.severity} {f.code} line {f.line or '-'}: {f.message}" for f in shown] or ["clean"]
 
-    out += ["", f"### Quotes ({len(page.quotes)})", ""]
+    # 1-3: each claim beside its quote, where the quote is in the paper, exact or not
+    out += ["", f"### Claims and their quotes ({len(page.quotes)})", ""]
+    backed: set[int] = set()
     for q in page.quotes:
-        if q.keys:
-            m = min((checker.match(k, q.text) for k in q.keys), key=lambda m: rank[m.status])
-            mark = label[m.status] + (f" ({m.diff})" if m.diff else "")
-        else:
-            mark = "no citation"
-        text = q.text if len(q.text) <= 160 else q.text[:157] + "..."
-        out.append(f"- line {q.line}, {mark}: \"{text}\" " + " ".join(f"[@{k}]" for k in q.keys))
+        claim_lines, claim = _claim_for(page, q.line)
+        backed.update(claim_lines)
+        first = claim_lines[0] if claim_lines else q.line
+        out.append(f"- **line {first}** claim: {_short(claim, 400) if claim else '(no claim text found)'}")
+        if not q.keys:
+            out.append(f"  - quote (no citation): \"{_short(q.text)}\"")
+            continue
+        m = min(((k, checker.match(k, q.text)) for k in q.keys), key=lambda km: rank[km[1].status])
+        key, match = m
+        where = checker.locate(key, q.text) if match.status in ("exact", "approximate", "changed") else None
+        loc = ""
+        if where:
+            line_no, heading = where
+            ft = sources.fulltext(key)
+            try:
+                ft = ft.relative_to(cfg.repo_root)
+            except ValueError:
+                pass
+            loc = f" in {heading + ', ' if heading else ''}`{ft}:{line_no}`"
+        diff = f" ({match.diff})" if match.diff else ""
+        out.append(f"  - quote, {label[match.status]}{diff}{loc}: \"{_short(q.text)}\" [@{key}]")
     if not page.quotes:
         out.append("none")
 
-    keys = sorted({c.key for c in page.citations} | {s.lstrip("@") for s in page.list_field("sources")})
-    out += ["", f"### Citations ({len(keys)})", ""]
-    for key in keys:
-        where = sources.locate(key)
-        out.append(f"- @{key}: {'project' if where == 'project' else ('pool ' + where) if where else 'NOT FOUND'}")
-    if not keys:
+    # 4: sentences that cite a paper without a quote backing them
+    quote_lines = {q.line for q in page.quotes}
+    unbacked = sorted({c.line for c in page.citations} - backed - quote_lines)
+    unbacked = [ln for ln in unbacked
+                if not page.body_lines[ln - page.body_offset].lstrip().startswith(">")
+                and not _is_figure_line(page, ln - page.body_offset)
+                and (page.section_of(ln) or "").lower() not in _REFERENCE_SECTIONS]
+    out += ["", f"### Citations without a quote ({len(unbacked)})", ""]
+    out += [f"- line {ln}: {_short(page.body_lines[ln - page.body_offset].strip())}" for ln in unbacked] or ["none"]
+
+    # 5: numbers on the page and whether the cited papers contain them
+    cited = sorted({c.key for c in page.citations} | {s.lstrip("@") for s in page.list_field("sources")})
+    with_text = [k for k in cited if checker.has_text(k)]
+    missing_rows, project_rows, found_lines = [], [], []
+    for idx, raw in enumerate(page.body_lines):
+        line_no = page.body_offset + idx
+        stripped = raw.strip()
+        if not stripped or stripped.startswith(("#", ">", "<!--")) or _is_figure_line(page, idx):
+            continue
+        nums = [n for n in _NUMBER_RE.findall(_STRIP_FOR_NUMBERS.sub(" ", raw))
+                if not re.fullmatch(r"(19|20)\d\d", n)]          # years say little
+        if not nums:
+            continue
+        section = (page.section_of(line_no) or "").lower()
+        if section.startswith(_PROJECT_SECTIONS):
+            project_rows.append(f"- line {line_no}: {', '.join(nums)} (project result: check the evidence IDs)")
+            continue
+        absent = [n for n in nums if not any(checker.number_in(k, n) for k in with_text)]
+        if absent and with_text:
+            missing_rows.append(f"- line {line_no}: **{', '.join(absent)}** not in the cited papers: "
+                                f"{_short(stripped, 160)}")
+        elif absent:
+            missing_rows.append(f"- line {line_no}: {', '.join(absent)} unchecked (no full text cited)")
+        else:
+            found_lines.append(str(line_no))
+    out += ["", "### Numbers", ""]
+    out += missing_rows + project_rows
+    if found_lines:
+        out.append(f"- line{'s' if len(found_lines) > 1 else ''} {', '.join(found_lines)}: "
+                   "every number found in the cited papers")
+    if not (missing_rows or project_rows or found_lines):
         out.append("none")
+
+    # 9: where each citation resolves; pool-only keys must join the project bibliography
+    out += ["", f"### Citations ({len(cited)})", ""]
+    for key in cited:
+        where = sources.locate(key)
+        if where == "project":
+            state = "project"
+        elif where:
+            state = f"pool only ({where}): add to the project bibliography before rendering"
+        else:
+            state = "NOT FOUND"
+        out.append(f"- @{key}: {state}{'' if checker.has_text(key) else '; no full text'}")
+    if not cited:
+        out.append("none")
+
+    # 6: embedded figures
+    embeds = [e for e in find_embeds(cfg) if e.page.path.resolve() == path.resolve()]
+    if embeds:
+        out += ["", f"### Figures ({len(embeds)})", ""]
+        for e in embeds:
+            try:
+                shown_path = e.path.relative_to(cfg.repo_root)
+            except ValueError:
+                shown_path = e.path
+            out.append(f"- line {e.line}: `{shown_path}` ({e.state})")
+
+    # 7: placement: links out and the hubs that list the page
+    targets = sorted({ln.target for ln in page.links if not ln.embed})
+    tags = set(page.list_field("tags"))
+    hubs = [p.rel for p in load_pages(cfg.wiki_root) if p.type == "hub" and tags & set(p.list_field("tags"))]
+    out += ["", "### Placement", "",
+            f"- hubs: {', '.join(hubs) if hubs else 'none (no hub shares a tag with this page)'}",
+            f"- links out ({len(targets)}): {', '.join(targets) if targets else 'none'}"]
 
     evidence, code = page.list_field("evidence"), page.list_field("code")
     if evidence or code:
@@ -143,7 +283,15 @@ def packet(cfg: WikiConfig, path: Path) -> str:
               if re.match(r"^>\s*\*\*(Contested|Outdated|Disputed)\.?\*\*", ln.strip())]
     if marked:
         out += ["", "### Contested or outdated blocks", ""]
-        out += [f"- line {n}: {t[:160]}" for n, t in marked]
+        out += [f"- line {n}: {_short(t, 160)}" for n, t in marked]
+
+    # 8: history from the wiki log (more telling than a blanket commit message)
+    log = cfg.wiki_root / "log.md"
+    history = [ln.strip() for ln in log.read_text(encoding="utf-8").splitlines()
+               if page.rel in ln] if log.is_file() else []
+    out += ["", "### History", ""]
+    out += [f"- {h.lstrip('- ')}" for h in history[-6:]] or ["no log entries"]
+    out.append(f"- last commit: {_last_commit(cfg, path)}")
 
     out += ["", "### Decision", "",
             f"- accept: `biblio wiki review accept {page.rel} --by <your name>`",

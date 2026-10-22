@@ -33,9 +33,14 @@ judgment fast and well informed, and to record it exactly.
    `mixed`). Agree with the person on a batch: one hub's reading order is a
    good unit, about 5 to 10 pages per sitting.
 2. **Packets.** `biblio wiki review packet <pages...> --out <file>` writes one
-   packet per page: lede, open review flags, lint findings, every quote marked
-   verified or NOT FOUND against the paper's full text, where each citation
-   resolves, project evidence IDs and code anchors, contested blocks.
+   packet per page: lede, open flags, lint; each claim beside its quote, the
+   quote marked verified exact / APPROXIMATE / MEANING CHANGED / NOT FOUND
+   with its section and `path:line` in the paper; citations without a quote;
+   numbers not found in the cited papers (project numbers labeled); where
+   each citation resolves (pool-only keys must join the project
+   bibliography); figures; hubs and links; the page's log history.
+   Start the pre-check from "Citations without a quote" and "Numbers": that
+   is where drafts go wrong.
 3. **Pre-check (yours, before the person reads).** For each page, read the
    page and spot-check what lint cannot: does each claim say what its quote
    says, are numbers in the main sections general knowledge rather than

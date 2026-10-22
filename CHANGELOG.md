@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.2 (2026-10-22)
+
+### Changed
+- **Review packet** (journal-club R15): each claim beside its quote; the quote's section and `path:line` in the paper; citations without a quote; numbers not found in the cited papers; figures; hubs and links; log history; pool-only citations marked. The `wiki-review` skill starts its pre-check from those sections.
+
 ## 0.2.1 (2026-10-22)
 
 Fixes from journal-club's 0.2.0 trial (R09-R13).

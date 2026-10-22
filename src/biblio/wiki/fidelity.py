@@ -57,6 +57,7 @@ class Match:
 
 class _Text:
     def __init__(self, raw: str):
+        self.raw_lines = raw.splitlines()
         self.norm = normalize(raw)
         self.words = self.norm.split()
         self.index: dict[tuple[str, ...], list[int]] = {}
@@ -131,6 +132,39 @@ class QuoteChecker:
         if q in text.norm:
             return Match("exact")
         return align(q.split(), text)
+
+    def locate(self, citekey: str, quote: str) -> tuple[int, str] | None:
+        """(1-based line in the full text, nearest heading above it) for a quote, or None."""
+        text = self._text(citekey)
+        if text is None:
+            return None
+        if not hasattr(text, "_lines_joined"):
+            norms = [normalize(line) for line in text.raw_lines]
+            starts, pos = [], 0
+            for n in norms:
+                starts.append(pos)
+                pos += len(n) + 1
+            text._lines_joined, text._line_starts = " ".join(norms), starts
+        m = self.match(citekey, quote)
+        words = (m.passage or normalize(quote)).split()
+        if not words:
+            return None
+        import bisect
+        for i in range(0, max(1, len(words) - 4), 2):     # try anchors along the quote (line breaks split words)
+            hit = (" " + text._lines_joined + " ").find(" " + " ".join(words[i:i + 5]) + " ")
+            if hit >= 0:
+                idx = bisect.bisect_right(text._line_starts, hit) - 1
+                heading = next((ln.lstrip("#").strip() for ln in reversed(text.raw_lines[:idx + 1])
+                                if re.match(r"^#{1,6}\s", ln)), "")
+                return idx + 1, heading
+        return None
+
+    def number_in(self, citekey: str, number: str) -> bool | None:
+        """Whether a number (as written on the page) occurs in the full text; None without a text."""
+        text = self._text(citekey)
+        if text is None:
+            return None
+        return f" {normalize(number)} " in f" {text.norm} "
 
     def check(self, citekey: str, quote: str) -> str:
         """The status alone: 'exact', 'approximate', 'changed', 'missing' or 'no-text'."""

@@ -662,3 +662,70 @@ def test_lint_reads_srcbib_without_merged_bib(tmp_path):
           body="\n# C\n\nCites [@aleman_2026_Deltas].\n")
     found = lint(cfg)
     assert "CIT001" not in codes(found, "concepts/c.md") and "CIT005" not in codes(found)
+
+
+# --- R15: what a reviewer needs in the packet ------------------------------------
+
+PACKET_BODY = """
+# Ripple coupling
+
+Sharp-wave ripples are coupled to cortical up-states during sleep.
+
+## Why it matters
+
+It links memory replay to cortical state.
+
+## Key facts
+
+- **Order**: cortical up-states come first, by about 50 ms, in
+  sleeping rats.
+
+> "Neocortical up-states precede hippocampal sharp-wave ripples by about 50 ms" [@sirota_2003_CommunicationNeocortex]
+
+- The coupling holds in 80 % of sessions [@sirota_2003_CommunicationNeocortex].
+
+## Our experience
+
+We saw a 120 ms lag (result-20260611-163058).
+
+## Related
+
+None yet.
+"""
+
+
+def test_packet_has_claims_locations_unbacked_and_numbers(repo):
+    cfg = load_wiki_config(repo)
+    stub(cfg, "ripples", "hub", tags=["event/ripple"])
+    page = _reviewable(cfg, body=PACKET_BODY)
+    text = rv.packet(cfg, page)
+    claims = text.split("### Claims and their quotes")[1].split("###")[0]
+    # 1: the whole wrapped bullet is the claim; 2: section and line of the quote in the paper
+    assert "claim: - **Order**: cortical up-states come first, by about 50 ms, in sleeping rats." in claims
+    assert "verified exact in Results, `bib/derivatives/docling/sirota_2003_CommunicationNeocortex/" \
+           "sirota_2003_CommunicationNeocortex.md:5`" in claims
+    # 4: a citation with no quote behind it
+    unbacked = text.split("### Citations without a quote")[1].split("###")[0]
+    assert "(1)" in unbacked and "80 % of sessions" in unbacked
+    # 5: numbers: 80 is not in the paper; 50 is; project numbers are labeled
+    numbers = text.split("### Numbers")[1].split("###")[0]
+    assert "**80** not in the cited papers" in numbers
+    assert "120 (project result" in numbers and "every number found" in numbers
+    # 7, 8: placement and history
+    assert "hubs: hubs/hub-ripples.md" in text and "### History" in text
+
+
+def test_packet_pool_only_citation_and_figure(repo, tmp_path):
+    cfg = load_wiki_config(repo)
+    pool_project = tmp_path / "poolproject"
+    (pool_project / "bib" / "articles").mkdir(parents=True)
+    (pool_project / "bib" / "main.bib").write_text("@article{pool_2025_X,\n  title = {X},\n  doi = {10.1/x}\n}\n")
+    cfg_file = repo / ".projio" / "biblio" / "biblio.yml"
+    cfg_file.parent.mkdir(parents=True)
+    cfg_file.write_text(f"pool:\n  search:\n    - {pool_project / 'bib' / 'articles'}\n")
+    _figures(repo)
+    page = _reviewable(cfg, body=REVIEW_BODY + "\nAlso [@pool_2025_X].\n\n"
+                       + figure_embed(cfg, FIG_KEY, "2", cfg.wiki_root / "concepts" / "coupling.md"))
+    text = rv.packet(cfg, page)
+    assert "@pool_2025_X: pool only (" in text and "add to the project bibliography" in text
+    assert "### Figures (1)" in text and "fig-2.png` (file)" in text
