@@ -208,17 +208,20 @@ Requests from journal-club are tagged R01 to R06 below.
   from docling, page, bbox, embedded or rendered, pixel size). Needs poppler.
   On journal-club's target paper: Figures 1-6 as the original 300-ppi JPEGs
   (1900 px wide; docling's crops are 144 dpi), 1.8 s. Panel splitting later.
-- [ ] **D11 Figures, round 2 (R04 reopened by journal-club).** Gaps from a
-  real run, most important first: captions and figure numbers when docling
-  links captions to margin icons (skip pictures under ~1% of the page; else
-  nearest unused "Figure N" text on the page); names for Extended Data and
-  Supplementary figures; the graphical abstract as `ga`; page-relative size
-  threshold for logos and cover sheets; a one-page cropped PDF for vector art;
-  manifest provenance (project-relative `pdf`, `pdf_sha256`, `pdf_version`,
-  credit, licence, per-file sha256, `ref` like `<key>:fig1`, `art`). Reference:
-  journal-club's PyMuPDF prototype `code/figures.py` and its
-  `figures/<key>/manifest.yml` field names. Details in
-  [the issue](log/issue/issue-arash-20261022-154443-625358.md). *Depends* D10.
+- [x] **D11 Figures, round 2 (R04 reopened by journal-club).** 2026-10-23:
+  names from captions (`fig-3`, `fig-S2`, `ed-4`, `ga`), the nearest unused
+  "Figure N" text when docling links a caption to a margin icon, pictures
+  under 1% of the page and uncaptioned ones under 5% skipped, split panels
+  merged (touching pieces; every piece on Extended Data and supplementary
+  pages), every figure also as a one-page PDF cropped to its box
+  (`pdftocairo`, vector art kept), `art` raster/vector/mixed from image
+  positions (`pdftohtml -xml`) plus a render-vs-image check (Pillow, extra
+  `figures`) that catches labels drawn as outlines over an image, and a v2
+  manifest: project-relative `pdf`, `pdf_sha256`, `pdf_version`, `credit`,
+  `licence`, per-figure `ref`, `kind`, `art`, sha256 per file. Checked on
+  alemanzapata_2026 (ga + Figs 1-6 native, logos gone), maingret_2016 (4
+  figures numbered and captioned, vector) and sebastian_2023 (Figs 1-7 and
+  ED 1-10 from 24 pictures). Poppler only (no PyMuPDF, AGPL).
 
 ## K. Knowledge-graph experiment
 

@@ -127,6 +127,16 @@ def _caption_title(caption: str, label: str) -> str:
     return (m.group(1) if m else body).strip() or label
 
 
+def _figure_label(entry: dict) -> str:
+    """'Figure 3', 'Figure S2', 'Extended Data Fig. 4', 'Graphical abstract', or the file stem."""
+    kind, number = entry.get("kind"), str(entry.get("number") or "")
+    if kind == "graphical-abstract" or number.upper() == "GA":
+        return "Graphical abstract"
+    if kind == "extended-data" or number.upper().startswith("ED"):
+        return f"Extended Data Fig. {number[2:] if number.upper().startswith('ED') else number}"
+    return f"Figure {number}" if number else Path(str(entry.get("file", ""))).stem
+
+
 def figure_embed(cfg: WikiConfig, citekey: str, number: str, page: Path | None = None,
                  caption: str = "title") -> tuple[str, list[str]]:
     """Markdown that embeds figure ``number`` of ``citekey`` with its caption and citation.
@@ -141,14 +151,15 @@ def figure_embed(cfg: WikiConfig, citekey: str, number: str, page: Path | None =
         raise FileNotFoundError(f"no figures for {citekey}: run `biblio figures run --key {citekey}`")
     manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8")) or {}
     figures = manifest.get("figures") or []
-    entry = next((f for f in figures if str(f.get("number")) == str(number)), None) or next(
-        (f for f in figures if Path(str(f.get("file", ""))).stem == str(number)), None)
+    want = str(number).strip()
+    entry = next((f for f in figures if str(f.get("number") or "").lower() == want.lower()), None) or next(
+        (f for f in figures if Path(str(f.get("file", ""))).stem.lower() == want.lower()), None)
     if entry is None:
         known = ", ".join(str(f.get("number") or Path(str(f.get("file", ""))).stem) for f in figures)
         raise LookupError(f"{citekey} has no figure {number}; known: {known}")
     base = page.parent if page is not None else cfg.wiki_root / "sources"
     rel = os.path.relpath(fig_dir / entry["file"], base).replace(os.sep, "/")
-    label = f"Figure {entry['number']}" if entry.get("number") else Path(entry["file"]).stem
+    label = _figure_label(entry)
     full, warnings = clean_caption(entry.get("caption") or "")
     if caption == "full":
         text = full or label

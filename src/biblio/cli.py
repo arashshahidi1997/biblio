@@ -660,6 +660,11 @@ def _build_parser() -> argparse.ArgumentParser:
     fig_run.add_argument("--dpi", type=int, default=300, help="Resolution for re-rendered figures (default: 300).")
     fig_run.add_argument("--min-pt", type=float, default=36.0, help="Skip pictures smaller than this in both dimensions (default: 36 pt).")
     fig_run.add_argument("--force", action="store_true", help="Rewrite existing figure folders.")
+    fig_run.add_argument("--min-frac", type=float, default=0.05,
+                         help="Skip uncaptioned pictures under this share of the page: logos, cover marks (default: 0.05).")
+    fig_run.add_argument("--pdf-version", default="unknown", choices=["publisher", "accepted", "submitted", "preprint", "unknown"],
+                         help="Which version the PDF is, recorded in the manifest.")
+    fig_run.add_argument("--licence", default="unknown", help="Licence of the figures, recorded in the manifest (e.g. 'CC BY 4.0').")
 
     # ── wiki + skills ─────────────────────────────────────────────────────
     from .wiki.cli import add_parsers as _add_wiki_parsers
@@ -1856,7 +1861,8 @@ def main(argv: Iterable[str] | None = None) -> None:
         failed = 0
         for key in keys:
             try:
-                res = extract_figures(cfg, key, dpi=int(args.dpi), min_pt=float(args.min_pt), force=bool(args.force))
+                res = extract_figures(cfg, key, dpi=int(args.dpi), min_pt=float(args.min_pt), force=bool(args.force),
+                                      min_frac=float(args.min_frac), pdf_version=args.pdf_version, licence=args.licence)
             except (FileNotFoundError, RuntimeError, subprocess.CalledProcessError) as exc:
                 failed += 1
                 print(f"[ERR] {key}: {exc}", file=sys.stderr)
@@ -1865,7 +1871,8 @@ def main(argv: Iterable[str] | None = None) -> None:
                 print(f"[SKIP] {key}: {res['manifest']} exists (use --force)")
             else:
                 print(f"[OK] {key}: {res['figures']} figures ({res['embedded']} embedded, "
-                      f"{res['figures'] - res['embedded']} rendered, {res['skipped_small']} small skipped) -> {res['manifest']}")
+                      f"{res['figures'] - res['embedded']} rendered, {res['vector_pdfs']} vector PDFs, "
+                      f"{res['skipped_small']} small skipped) -> {res['manifest']}")
         raise SystemExit(1 if failed else 0)
 
     if args.command in ("wiki", "skills"):

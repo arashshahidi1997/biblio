@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.4 (2026-10-23)
+
+### Changed
+- **`biblio figures run`, round 2 (D11)**: figures named from captions (`fig-3`, `fig-S2`, `ed-4`, `ga`), wrong docling caption links repaired, logos and cover marks skipped, split panels merged, every figure also as a cropped one-page PDF (vector art kept), `art` raster/vector/mixed with an overlay check, and a v2 manifest with provenance (project-relative PDF, sha256, version, credit, licence, per-file sha256, `ref`). New options `--pdf-version`, `--licence`, `--min-frac`; new extra `figures` (Pillow).
+
 ## 0.2.3 (2026-10-22)
 
 From journal-club's trial (R03 follow-ups, R14, R16).
