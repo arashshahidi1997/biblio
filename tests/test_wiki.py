@@ -782,3 +782,11 @@ def test_version_and_task_facet_and_hub_hint(repo, capsys, tmp_path):
     write(cfg.wiki_root / "methods" / "ost.md", type="method", tags="", body="\n# OST\n\nLede.\n")
     found = [f for f in lint(cfg) if f.code == "SUG004"]
     assert len(found) == 1 and found[0].page == "methods/ost.md" and "concepts/in-hub.md" in found[0].message
+
+
+def test_quotes_match_docling_html_entities(tmp_path):
+    """docling escapes < > & in its markdown; a quote with the plain characters is exact."""
+    f = tmp_path / "p.md"
+    f.write_text("No significant differences between blocks (n = 242, p &gt; 0.05; R&amp;D &lt; 1).")
+    checker = QuoteChecker(lambda key: f)
+    assert checker.check("k", "No significant differences between blocks (n = 242, p > 0.05; R&D < 1)") == "exact"

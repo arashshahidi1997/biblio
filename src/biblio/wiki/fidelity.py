@@ -16,6 +16,7 @@ Only ``exact`` counts as verified.
 from __future__ import annotations
 
 import difflib
+import html
 import re
 import unicodedata
 from collections import Counter
@@ -37,6 +38,7 @@ MUST_MATCH = re.compile(
 
 
 def normalize(text: str) -> str:
+    text = html.unescape(text)                      # docling writes "p &gt; 0.05" for "p > 0.05"
     text = unicodedata.normalize("NFKC", text).replace("­", "")
     text = re.sub(r"-\s*\n\s*", "", text)          # hyphenation at line breaks
     text = re.sub(r"[^\w\s]|_", " ", text)          # punctuation and markdown markup
