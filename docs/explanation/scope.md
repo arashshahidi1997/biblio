@@ -122,7 +122,7 @@ spec; biblio follows it rather than defining its own.
 
 | Module | Reason | Proposal |
 |--------|--------|----------|
-| `ui.py` + `frontend/` (3,210 lines; 49 MB) | heavy, and overlaps with wiki views in Obsidian and mkdocs | freeze; later remove or move to its own package |
+| `ui.py` + `frontend/` (3,210 lines, 111 endpoints; 22 frontend source files plus a Node build) | about half the endpoints run or configure pipelines, duplicating the CLI | see decision 1 |
 | `site.py` | static paper site | fold into the wiki's generated views |
 | `present.py` | slides belong to projio's `present_*` | remove |
 | `cite_draft.py`, `lit_review.py`, `review` | writing with the literature; two of them depend on RAG | move to notio manuscript, consuming digests |
