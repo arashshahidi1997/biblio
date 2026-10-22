@@ -5,7 +5,8 @@
 Metadata comes from Crossref / DataCite content negotiation, not from
 OpenAlex: OpenAlex mis-resolves several arXiv DOIs and drops book authors.
 Citekeys use biblio's own ``canonical_citekey`` on structured family names,
-so particles (de Waard, La Barre) and suffixes (Shipman III) come out right.
+so multi-word family names (La Barre), lowercase particles (de Waard -> waard)
+and suffixes (Shipman III) follow one rule.
 Responses are cached in .cache/ (gitignored).
 """
 from __future__ import annotations
@@ -25,9 +26,6 @@ from biblio.citekey import canonical_citekey  # noqa: E402
 
 CACHE = HERE / ".cache"
 USER_AGENT = "biblio-kg-experiments/0.1 (https://github.com/arashshahidi1997/biblio)"
-
-# Letters that NFKD does not decompose (biblio's _transliterate drops them)
-TRANSLIT = str.maketrans({"ø": "o", "Ø": "O", "æ": "ae", "Æ": "Ae", "ß": "ss", "ł": "l", "Ł": "L", "đ": "d", "Đ": "D"})
 
 CSL_TO_BIBTEX = {
     "article-journal": "article", "article": "article", "article-magazine": "article",
@@ -110,7 +108,7 @@ def to_bibtex(doi: str, csl: dict, theme: str) -> tuple[str, str]:
     year = year_of(csl)
     # "Family," keeps multi-word family names whole in canonical_citekey
     record = SimpleNamespace(
-        authors=[family(p).translate(TRANSLIT) + "," for p in people], year=year, title=title, doi=doi)
+        authors=[family(p) + "," for p in people], year=year, title=title, doi=doi)
     key = canonical_citekey(record, strict=False).key
     etype = CSL_TO_BIBTEX.get(csl.get("type"), "misc")
     fields = {

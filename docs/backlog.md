@@ -32,11 +32,15 @@ Requests from journal-club are tagged R01 to R06 below.
   ([issue 2026-10-22](log/issue/issue-arash-20261022-154246-616402.md), R01).
   *Done when* every command uses `default_config_path`, help texts say so, and
   a test runs `docling run` in a `.projio/biblio` workspace.
-- [ ] **H02 Citekey generator.** Multi-word family names (`de Waard`,
-  `La Barre`, `Buckingham Shum`), suffixes (`Shipman III`) and `ø` produce
-  wrong keys (`citekey.py:44-61`). Hyphenated names need one rule too:
-  Better BibTeX writes `aleman-zapata_2026_...`, the pools `alemanzapata_2026_...`
-  (R02). *Done when* tests cover each case. (B8)
+- [x] **H02 Citekey generator.** One rule in `citekey.py`, which `ingest.py`
+  now delegates to: generational suffixes dropped (`Shipman III` → `shipman`);
+  lowercase particles dropped, as biblatex's `useprefix=false`
+  (`de Waard` → `waard`, `van Beest` → `beest`, matching existing keys);
+  capitalized multi-word family names kept whole (`La Barre` → `labarre`,
+  `Buckingham Shum, Simon` → `buckinghamshum`); letters NFKD cannot decompose
+  transliterated (`ø` → `o`); hyphens removed (`Aleman-Zapata` →
+  `alemanzapata`, R02). Same key for "Given Family" and "Family, Given".
+  Limit: "Simon Buckingham Shum" without a comma still gives `shum`.
 - [ ] **H03 DOI ingest metadata.** Take bibliographic metadata from the DOI
   registry (CSL-JSON by content negotiation); use OpenAlex for enrichment only
   after a DOI-checked match; map entry types. Today arXiv DOIs resolve to the

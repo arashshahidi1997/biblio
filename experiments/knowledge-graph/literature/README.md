@@ -71,7 +71,7 @@ arXiv DOIs, dropped book authors, and typed every entry as `@article`.
 - `ciccarese_2008_SwanBiomedical`: hypothesis, claim and research question as
   discourse elements, from the Alzheimer's research community.
 - `brush_2016_SepioSemantic`: the evidence line between a claim and its data.
-- `dewaard_2009_HypothesesEvidence`, `dewaard_2010_ProteinsFairytales`,
+- `waard_2009_HypothesesEvidence`, `waard_2010_ProteinsFairytales`,
   `shotton_2009_SemanticPublishing`: papers as networks of hypotheses and
   evidence; claims hedged into facts over time.
 - `lebo_2013_ProvO`, `wilkinson_2016_FairGuiding`: provenance vocabulary and

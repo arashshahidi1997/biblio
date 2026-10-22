@@ -41,19 +41,65 @@ class CitekeyResult:
     reason: str | None  # one of SkipReason.* when key is None
 
 
+# Letters NFKD does not decompose into a base letter plus a combining mark
+_TRANSLIT = str.maketrans({
+    "ø": "o", "Ø": "O", "æ": "ae", "Æ": "Ae", "œ": "oe", "Œ": "Oe", "ß": "ss",
+    "ł": "l", "Ł": "L", "đ": "d", "Đ": "D", "ð": "d", "Ð": "D", "þ": "th", "Þ": "Th", "ı": "i",
+})
+
+# Generational suffixes, dropped from the family name
+_SUFFIXES = {"jr", "sr", "ii", "iii", "iv"}
+
+# Name particles. Lowercase particles are dropped from the key (de Waard -> waard,
+# van Beest -> beest), following biblatex's useprefix=false. Capitalized ones are
+# part of the family name (La Barre -> labarre).
+_PARTICLES = {
+    "da", "das", "de", "del", "della", "den", "der", "di", "do", "dos", "du",
+    "la", "le", "op", "te", "ten", "ter", "van", "von", "zu",
+}
+
+
 def _transliterate(text: str) -> str:
-    nfkd = unicodedata.normalize("NFKD", text)
+    nfkd = unicodedata.normalize("NFKD", text.translate(_TRANSLIT))
     return "".join(c for c in nfkd if not unicodedata.combining(c))
+
+
+def _is_suffix(token: str) -> bool:
+    return token.lower().rstrip(".") in _SUFFIXES
+
+
+def family_name(name: str) -> str:
+    """Family name for the key: suffixes removed, lowercase particles dropped.
+
+    Accepts "Family, Given", "Family, Suffix, Given" and "Given Family".
+    In the last form a multi-word family name can only be recovered when its
+    first word is a known particle ("Kathryn La Barre"); "Simon Buckingham
+    Shum" yields "Shum" unless the source gives "Buckingham Shum, Simon".
+    """
+    name = " ".join(str(name).split())
+    if "," in name:
+        family = name.split(",", 1)[0].strip()
+    else:
+        tokens = name.split()
+        while len(tokens) > 1 and _is_suffix(tokens[-1]):
+            tokens.pop()
+        start = len(tokens) - 1
+        while start - 1 > 0 and tokens[start - 1].lower() in _PARTICLES:
+            start -= 1
+        family = " ".join(tokens[start:])
+    parts = family.split()
+    while len(parts) > 1 and _is_suffix(parts[-1]):
+        parts.pop()
+    while len(parts) > 1 and parts[0].islower() and parts[0] in _PARTICLES:
+        parts.pop(0)
+    return " ".join(parts)
 
 
 def _author_token(authors: Iterable[str], *, strict: bool) -> str | None:
     first = next(iter(authors), None)
     if not first or not str(first).strip():
         return None if strict else "anon"
-    if "," in first:
-        family = first.split(",", 1)[0].strip()
-    else:
-        family = first.split()[-1]
+    family = family_name(first)
     ascii_approx = _transliterate(family)
     token = re.sub(r"[^A-Za-z0-9]+", "", ascii_approx).lower()
     if not token:

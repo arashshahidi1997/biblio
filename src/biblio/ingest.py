@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import re
 import shutil
-import unicodedata
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
@@ -111,9 +110,9 @@ def _normalize_doi(value: Any) -> str | None:
 
 
 def _transliterate(text: str) -> str:
-    """Transliterate Unicode to ASCII equivalents (e.g. Mölle → Molle)."""
-    nfkd = unicodedata.normalize("NFKD", text)
-    return "".join(c for c in nfkd if not unicodedata.combining(c))
+    """Transliterate Unicode to ASCII equivalents (e.g. Mölle → Molle, Hjørland → Hjorland)."""
+    from .citekey import _transliterate as transliterate
+    return transliterate(text)
 
 
 def _slug_token(value: str | None, *, fallback: str) -> str:
@@ -157,14 +156,8 @@ def _title_camel_token(title: str | None, doi: str | None, n_words: int = 2) -> 
 
 
 def _first_author_token(authors: Iterable[str]) -> str:
-    first = next(iter(authors), None)
-    if not first:
-        return "anon"
-    if "," in first:
-        family = first.split(",", 1)[0].strip()
-    else:
-        family = first.split()[-1]
-    return _slug_token(family, fallback="anon")
+    from .citekey import _author_token
+    return _author_token(authors, strict=False) or "anon"
 
 
 def _year_token(year: str | None) -> str:
@@ -178,10 +171,7 @@ def assign_citekeys(records: Iterable[IngestRecord]) -> list[tuple[str, IngestRe
     seen: dict[str, int] = {}
     assigned: list[tuple[str, IngestRecord]] = []
     for record in records:
-        author = _first_author_token(record.authors)
-        year = _year_token(record.year)
-        title = _title_camel_token(record.title, record.doi)
-        base = f"{author}_{year}_{title}"
+        base = canonical_citekey(record)
         count = seen.get(base, 0)
         seen[base] = count + 1
         citekey = base if count == 0 else f"{base}{count + 1}"
@@ -190,8 +180,12 @@ def assign_citekeys(records: Iterable[IngestRecord]) -> list[tuple[str, IngestRe
 
 
 def canonical_citekey(record: IngestRecord) -> str:
-    """Return the canonical author_year_Title citekey for a record (no dedup suffix)."""
-    return f"{_first_author_token(record.authors)}_{_year_token(record.year)}_{_title_camel_token(record.title, record.doi)}"
+    """Return the canonical author_year_Title citekey for a record (no dedup suffix).
+
+    Delegates to ``biblio.citekey`` so every ingest path builds keys the same way.
+    """
+    from .citekey import canonical_citekey_str
+    return canonical_citekey_str(record)
 
 
 def parse_doi_file(path: str | Path) -> list[IngestRecord]:
