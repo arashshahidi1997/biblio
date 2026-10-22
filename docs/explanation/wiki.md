@@ -15,7 +15,7 @@ provides to apply it.
 | Actor | Does | Never does |
 |-------|------|------------|
 | **Editor** (Obsidian or VS Code) | read, write, navigate (backlinks, hover previews, search), review (set `status`, `reviewed`), work through queues | validate, restructure across files |
-| **biblio CLI** (deterministic, no LLM) | create skeleton and stubs, lint, regenerate hubs and views, refactor across files, check quotes against sources, report status | judge content, mark pages reviewed |
+| **biblio CLI** (deterministic, no LLM) | create skeleton and stubs, lint, regenerate hubs and views, refactor across files, check quotes against sources, report status, build review packets, record a named person's review decision | judge content, decide a review |
 | **Skills** (agent, LLM) | ingest sources, synthesize across sources, answer questions, propose refactors, prepare reviews | edit reviewed pages directly, review its own work |
 
 Every CLI write is a plain file change in git, so the editor and the CLI never
@@ -35,6 +35,9 @@ binding (bibliography, vocabulary, extra relation keys, project tokens).
 | `lint [PATHS] [--format text\|json\|tsv]` | detect deviations (list below); exit 1 on errors | all | 1 |
 | `hubs [--check]` | regenerate hub page lists and the hub index | P12 | 1 |
 | `status` | pages by type and status, review queue, open flags | P7 | 1 |
+| `embeds [--get] [--unlock]`, `figure KEY N` | embedded files by annex state; a paper's figure as embed + caption + citation | P8 | 1 |
+| `review packet [PAGES] [--out F]` | per page: lede, open flags, lint, quotes verified or not, citations, evidence, contested blocks | P11 | 1 |
+| `review accept PAGE --by NAME [--stable] [--resolve-flags]`, `review flag PAGE TEXT`, `review reopen PAGE` | record a person's decision; accept refuses lint errors and open flags | P11 | 1 |
 | `relink OLD NEW` | rename or move a page and rewrite every inbound link; dry run first; logged | P5 | 2 |
 | `merge A B` | frontmatter union, aliases, redirect stub, never delete; logged | P2 | 2 |
 | `extract PAGE --section H` | section to a new page, leave lede and link; logged | P1 | 2 |

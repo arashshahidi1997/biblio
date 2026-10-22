@@ -61,6 +61,28 @@ def add_parsers(sub) -> None:
     p.add_argument("number", help="Figure number, or a file stem such as pic-02 (see the figures manifest).")
     p.add_argument("--page", type=Path, help="The page it goes on, for the relative path (default: sources/).")
 
+    p = wsub.add_parser("review", help="Human review: packets for the reviewer, and recording decisions.")
+    rsub = p.add_subparsers(dest="review_cmd", required=True)
+    r = rsub.add_parser("packet", help="What a reviewer needs to judge pages (default: the review queue).")
+    _common(r)
+    r.add_argument("pages", nargs="*", help="Pages (path or basename); default: every draft written by an agent.")
+    r.add_argument("--out", type=Path, help="Write the packets to this markdown file.")
+    r = rsub.add_parser("accept", help="Record a person's acceptance: status reviewed and reviewed: {by, date}.")
+    _common(r)
+    r.add_argument("page")
+    r.add_argument("--by", required=True, help="The reviewer's name (a person; agents never review).")
+    r.add_argument("--stable", action="store_true", help="Advance a reviewed page to stable.")
+    r.add_argument("--resolve-flags", action="store_true", help="The reviewer settled the open review flags.")
+    r.add_argument("--date", help="Review date (default: today).")
+    r = rsub.add_parser("flag", help="Record a change the reviewer asks for (adds to review_flags).")
+    _common(r)
+    r.add_argument("page")
+    r.add_argument("text")
+    r = rsub.add_parser("reopen", help="Send a reviewed page back to draft (e.g. after a material change).")
+    _common(r)
+    r.add_argument("page")
+    r.add_argument("--reason", default="")
+
     p_sk = sub.add_parser("skills", help="Agent skills shipped with biblio.")
     sksub = p_sk.add_subparsers(dest="skills_cmd", required=True)
     sksub.add_parser("list", help="List bundled skills.")
@@ -137,6 +159,31 @@ def run(args) -> None:
         try:
             print(figure_embed(cfg, args.citekey, args.number, page), end="")
         except (FileNotFoundError, LookupError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            raise SystemExit(1)
+        return
+
+    if args.wiki_cmd == "review":
+        from . import review as rv
+        try:
+            if args.review_cmd == "packet":
+                paths = [rv.resolve_page(cfg, n) for n in args.pages] or rv.queue(cfg)
+                text = "\n".join(rv.packet(cfg, p) for p in paths) or "review queue is empty\n"
+                if args.out:
+                    args.out.write_text(f"# Review packets ({len(paths)} pages)\n\n" + text, encoding="utf-8")
+                    print(f"{len(paths)} packet(s) -> {args.out}")
+                else:
+                    print(text)
+                return
+            path = rv.resolve_page(cfg, args.page)
+            if args.review_cmd == "accept":
+                print(rv.accept(cfg, path, args.by, stable=args.stable, resolve_flags=args.resolve_flags,
+                                on=args.date))
+            elif args.review_cmd == "flag":
+                print("flagged: " + rv.flag(cfg, path, args.text))
+            else:
+                print(rv.reopen(cfg, path, args.reason))
+        except rv.ReviewError as exc:
             print(f"error: {exc}", file=sys.stderr)
             raise SystemExit(1)
         return

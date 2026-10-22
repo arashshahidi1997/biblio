@@ -31,11 +31,16 @@ metadata:
    questions. Copy quotes and numbers verbatim with the section name.
 3. **Plan.** List the pages that change or are created, one line each, with
    the principle that places the content there (one idea per page, P1; each
-   fact in one place, P2). Show the plan and wait when more than 3 pages
-   change.
+   fact in one place, P2). When someone is in the conversation and more
+   than 3 pages change, show the plan and let them adjust it before writing.
+   When you run unattended (a batch, a delegated task), carry out the whole
+   plan and put it at the top of your report instead: stopping early leaves
+   the wiki half connected, and the review step is where people judge it.
 4. **Write.**
    - New pages: `biblio wiki stub <name> --type <type> --tag <facet/value>
-     --author llm`, then fill the sections. Title plus a one-paragraph lede
+     --author llm --status draft`, then fill the sections. Record project
+     notes and analysis IDs in `evidence:` and code in `code:`
+     (`path::function`). Title plus a one-paragraph lede
      is the page's interface (P3).
    - Existing pages with `status: stub` or `draft`: edit in place.
    - Pages with `status: reviewed` or later: write a proposed diff in the
@@ -43,8 +48,11 @@ metadata:
    - Links between pages follow `link_style` in `wiki.yml` (default
      `markdown`): relative markdown links with the page title as text, e.g.
      `[Sharp-wave ripple](../concepts/sharp-wave-ripple.md)`.
-   - Literature claims cite `[@citekey]`; quotes as `> "verbatim" [@citekey]`.
-     Add every cited key to `sources:`.
+   - Literature claims cite `[@citekey]`. Back each claim taken from a paper
+     with a short verbatim quote, `> "verbatim" [@citekey]`, copied exactly
+     from the full text (OCR slips included); lint checks every quote against
+     the paper, so the quote is what makes the claim checkable for the
+     reviewer. Add every cited key to `sources:`.
    - Project results go only in "Our experience" or a `case` page, cited by
      stable ID (P10).
    - Conflicting sources: record both, add `> **Contested.**` and a
@@ -61,6 +69,11 @@ metadata:
 
 ## Hard rules
 
+- A hub's scope and reading order are a person's curation: propose changes
+  in the report, do not edit them. Regenerating the generated lists with
+  `biblio wiki hubs` is fine.
+- Touch only the wiki. Project backlogs, notes and analysis documents are
+  sources, not targets.
 - Pages written by you carry `author: llm` (or `mixed` when editing a human
   page) and `status: draft` at most.
 - No claim without a source location; no number that is not in the source.

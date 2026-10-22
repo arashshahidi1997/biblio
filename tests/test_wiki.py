@@ -451,3 +451,100 @@ def test_no_hub_suggestion_for_pages_a_hub_already_lists(repo):
     for i in range(6, 11):
         stub(cfg, f"c{i}", "concept", tags=["region/ca1"])
     assert any("region/ca1" in f.message for f in lint(cfg) if f.code == "SUG003")
+
+
+# --- review (W11 part 1) -----------------------------------------------------
+
+from biblio.wiki import review as rv  # noqa: E402
+
+
+REVIEW_BODY = """
+# Ripple coupling
+
+Sharp-wave ripples are coupled to cortical up-states during sleep.
+
+## Why it matters
+
+It links memory replay to cortical state.
+
+## Key facts
+
+> "Neocortical up-states precede hippocampal sharp-wave ripples by about 50 ms" [@sirota_2003_CommunicationNeocortex]
+
+## Related
+
+None yet.
+"""
+
+
+def _reviewable(cfg, name="coupling", flags="[]", body=REVIEW_BODY):
+    return write(cfg.wiki_root / "concepts" / f"{name}.md", sources="'@sirota_2003_CommunicationNeocortex'",
+                 extra=f"review_flags: {flags}\n", body=body)
+
+
+def test_set_fields_keeps_other_lines(repo):
+    cfg = load_wiki_config(repo)
+    page = _reviewable(cfg)
+    before = page.read_text()
+    rv.set_fields(page, {"status": "reviewed", "reviewed": {"by": "Arash", "date": "2026-10-22"}})
+    after = page.read_text()
+    assert "..." not in after and "status: reviewed\n" in after and "reviewed: {by: Arash, date: '2026-10-22'}" in after
+    kept = [ln for ln in before.split("---", 2)[1].splitlines() if not ln.startswith("status:")]
+    assert all(ln in after.split("---", 2)[1].splitlines() for ln in kept)          # other keys byte for byte
+    assert after.split("---", 2)[2] == before.split("---", 2)[2]                       # body untouched
+
+
+def test_accept_rules_and_lint(repo):
+    cfg = load_wiki_config(repo)
+    page = _reviewable(cfg, flags="['check the n']")
+    with pytest.raises(rv.ReviewError, match="reviewer's name"):
+        rv.accept(cfg, page, "  ")
+    with pytest.raises(rv.ReviewError, match="1 open review flag"):
+        rv.accept(cfg, page, "Arash")
+    with pytest.raises(rv.ReviewError, match="review it before marking it stable"):
+        rv.accept(cfg, page, "Arash", stable=True, resolve_flags=True)
+    assert rv.accept(cfg, page, "Arash", resolve_flags=True, on="2026-10-23") == "reviewed by Arash; 1 flag(s) resolved"
+    fm = parse_page(page, cfg.wiki_root).frontmatter
+    assert fm["status"] == "reviewed" and fm["reviewed"] == {"by": "Arash", "date": "2026-10-23"}
+    assert fm["review_flags"] == []
+    assert not {"FM004", "FM005"} & set(codes(lint(cfg), "concepts/coupling.md"))
+    assert rv.accept(cfg, page, "Arash", stable=True) == "stable by Arash"
+    assert "review · concepts/coupling.md · stable by Arash" in (cfg.wiki_root / "log.md").read_text()
+
+    rv.reopen(cfg, page, "rewrote the lede")
+    fm = parse_page(page, cfg.wiki_root).frontmatter
+    assert fm["status"] == "draft" and fm["reviewed"] is None
+
+
+def test_accept_refuses_stub_and_lint_errors(repo):
+    cfg = load_wiki_config(repo)
+    stubbed = stub(cfg, "s", "concept", tags=["event/ripple"])
+    with pytest.raises(rv.ReviewError, match="stub"):
+        rv.accept(cfg, stubbed, "Arash")
+    bad = _reviewable(cfg, "bad", body=REVIEW_BODY + "\n> \"Every ripple originates in the dentate gyrus\" "
+                                                      "[@sirota_2003_CommunicationNeocortex]\n")
+    with pytest.raises(rv.ReviewError, match="lint error"):
+        rv.accept(cfg, bad, "Arash")
+
+
+def test_flag_and_packet(repo, capsys):
+    cfg = load_wiki_config(repo)
+    page = _reviewable(cfg, body=REVIEW_BODY + "\n> \"Every ripple originates in the dentate gyrus\" "
+                                                "[@sirota_2003_CommunicationNeocortex]\n")
+    rv.flag(cfg, page, "  number   of sessions? ")
+    assert parse_page(page, cfg.wiki_root).list_field("review_flags") == ["number of sessions?"]
+    text = rv.packet(cfg, page)
+    assert "- [ ] number of sessions?" in text and "NOT FOUND in source" in text
+    assert "@sirota_2003_CommunicationNeocortex: project" in text
+    assert [p.name for p in rv.queue(cfg)] == ["coupling.md"]
+
+    main(["wiki", "review", "packet", "--root", str(repo)])
+    assert "## " in capsys.readouterr().out
+    main(["wiki", "review", "flag", "coupling", "second", "--root", str(repo)])
+    with pytest.raises(SystemExit):
+        main(["wiki", "review", "accept", "coupling", "--by", "Arash", "--root", str(repo)])
+    assert "lint error" in capsys.readouterr().err                   # the bad quote blocks acceptance first
+    page.write_text(page.read_text().replace('> "Every ripple originates in the dentate gyrus"', "Removed."))
+    with pytest.raises(SystemExit):
+        main(["wiki", "review", "accept", "coupling", "--by", "Arash", "--root", str(repo)])
+    assert "2 open review flag" in capsys.readouterr().err

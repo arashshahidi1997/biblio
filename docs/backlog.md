@@ -159,8 +159,12 @@ Requests from journal-club are tagged R01 to R06 below.
 - [ ] **W10 wiki-synthesize skill (M3).** Concept and theory pages with
   evidence for and against, method comparisons, open questions. *Depends* D04
   to D06.
-- [ ] **W11 wiki-query and wiki-review skills.** Answers from the wiki, then
-  full text by citekey and section; review packets for people. (B4, P11)
+- [ ] **W11 wiki-query and wiki-review skills.** Review done 2026-10-22:
+  `biblio wiki review packet|accept|flag|reopen` (accept needs `--by` a
+  person, refuses lint errors and open flags; frontmatter edited in place)
+  and skill `wiki-review` (agent pre-checks and proposes flags, the person
+  decides). Open: `wiki-query` (answers from the wiki, then full text by
+  citekey and section). (B4, P11)
 - [ ] **W12 promote.** Gate check and plan for the lab hub. (SPEC §9)
 - [ ] **W13 Spec home.** Move the wiki SPEC from pixecog into biblio's docs
   after its first review, so method and tools version together.
