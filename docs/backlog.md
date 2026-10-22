@@ -75,6 +75,9 @@ Requests from journal-club are tagged R01 to R06 below.
   reported; caps get headroom for thinking (at least 16000); Opus 5.5,
   Sonnet 5.5 and Fable 5.1 calls opt into server-side refusal fallbacks
   (`fallbacks: "default"`).
+- [ ] **H09 Zotero fallback keys.** `zotero.item_to_bibtex` builds keys with
+  its own rule (capitalized family name, one title word); route it through
+  `citekey.canonical_citekey_str` like the other ingest paths (H02).
 
 ## W. Wiki toolkit
 
