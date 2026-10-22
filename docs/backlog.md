@@ -189,8 +189,10 @@ Requests from journal-club are tagged R01 to R06 below.
 - [x] **D05 claims mode (R06).** `biblio digest claims KEY [--context wiki|talk]`:
   claims with evidence, caveats, section and one verbatim quote each, checked
   exact-only, one repair pass; `talk` adds rigor notes and figure roles.
-  Decoupled from K03 (the KG experiment can score it later). Tested with a
-  mocked LLM; first real run pending (claude CLI login expired on gamma2).
+  Decoupled from K03 (the KG experiment can score it later). First real run
+  2026-10-23 on alemanzapata_2026 (talk): 15 claims, 15/15 quotes exact, 10 of
+  the hand digest's 11 claims plus 2 interpretations, 12 rigor notes. Next:
+  a `terms` section (the hand digest's measured/derived/interpreted tables).
 - [ ] **D06 methods mode.** Comparison rows with quoted parameters; from
   `compare.py` and a03.
 - [ ] **D07 citations mode.** Citing sentences with intent labels
