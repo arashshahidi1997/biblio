@@ -41,10 +41,15 @@ Requests from journal-club are tagged R01 to R06 below.
   transliterated (`ø` → `o`); hyphens removed (`Aleman-Zapata` →
   `alemanzapata`, R02). Same key for "Given Family" and "Family, Given".
   Limit: "Simon Buckingham Shum" without a comma still gives `shum`.
-- [ ] **H03 DOI ingest metadata.** Take bibliographic metadata from the DOI
-  registry (CSL-JSON by content negotiation); use OpenAlex for enrichment only
-  after a DOI-checked match; map entry types. Today arXiv DOIs resolve to the
-  wrong work and books lose authors. *Depends* H02. (B8)
+- [x] **H03 DOI ingest metadata.** `ingest dois` and `add doi` take
+  bibliographic metadata from the DOI registry (CSL-JSON by content
+  negotiation, with retries); OpenAlex fills in only when the registry has no
+  record, and only when its work carries the requested DOI; entry types map
+  from CSL and OpenAlex types (books, chapters, proceedings, arXiv preprints
+  as `@misc`). The normalize path applies the same DOI check. On the 60
+  verified foundations DOIs, ingest now yields exactly the hand-checked keys.
+  Limit: records the registry lists without authors (e.g. one Morgan Kaufmann
+  book) still get `anon_`.
 - [ ] **H04 Failing tests.** 10 tests fail on the current branch, mostly LLM
   mocks (`test_author_search`, `test_autotag`, `test_cite_draft_review`,
   `test_present`, `test_biblio_summarize`, `test_tag_vocab` CLI lint).

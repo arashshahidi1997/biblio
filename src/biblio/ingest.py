@@ -3,9 +3,11 @@ from __future__ import annotations
 import json
 import re
 import shutil
+import time
+import urllib.error
 import urllib.parse
 import urllib.request
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
@@ -217,6 +219,24 @@ def parse_doi_file(path: str | Path) -> list[IngestRecord]:
     return records
 
 
+# OpenAlex work types -> BibTeX
+OPENALEX_ENTRY_TYPES = {
+    "article": "article", "review": "article", "letter": "article", "editorial": "article",
+    "erratum": "article", "book": "book", "book-chapter": "incollection",
+    "dissertation": "phdthesis", "report": "techreport", "preprint": "misc", "dataset": "misc",
+}
+
+
+def openalex_matches_doi(payload: Mapping[str, Any], doi: str | None) -> bool:
+    """True unless the OpenAlex work carries a DOI different from the requested one."""
+    if not doi:
+        return True
+    returned = payload.get("doi") or (payload.get("ids") or {}).get("doi")
+    if not returned:
+        return True
+    return (_normalize_doi(str(returned)) or "").lower() == doi.lower()
+
+
 def enrich_doi_records_with_openalex(
     records: list[IngestRecord],
     *,
@@ -244,7 +264,7 @@ def enrich_doi_records_with_openalex(
         except Exception:
             enriched.append(record)
             continue
-        if not isinstance(payload, Mapping):
+        if not isinstance(payload, Mapping) or not openalex_matches_doi(payload, record.doi):
             enriched.append(record)
             continue
         authors: list[str] = []
@@ -258,23 +278,85 @@ def enrich_doi_records_with_openalex(
                     name = _clean_text(author.get("display_name"))
                     if name:
                         authors.append(name)
+        entry_type = OPENALEX_ENTRY_TYPES.get(str(payload.get("type") or "article"), "misc")
+        source = ((payload.get("primary_location") or {}).get("source") or {})
+        container = _clean_text(source.get("display_name")) if isinstance(source, Mapping) else None
         enriched.append(
             IngestRecord(
                 source_type=record.source_type,
                 source_ref=record.source_ref,
-                entry_type="article",
+                entry_type=entry_type,
                 title=_clean_text(payload.get("display_name")) or record.title,
                 authors=tuple(authors) or record.authors,
                 year=_clean_text(payload.get("publication_year")) or record.year,
                 doi=record.doi,
                 url=_clean_text((payload.get("ids") or {}).get("openalex")) or record.url,
-                journal=record.journal,
-                booktitle=record.booktitle,
+                journal=record.journal or (container if entry_type == "article" else None),
+                booktitle=record.booktitle or (container if entry_type in ("inproceedings", "incollection") else None),
                 raw_id=record.raw_id,
                 file=record.file,
             )
         )
     return enriched
+
+
+def fetch_doi_csl(doi: str, *, timeout: int = 30, retries: int = 3) -> dict[str, Any] | None:
+    """CSL-JSON for a DOI from its registry (Crossref, DataCite), or None.
+
+    Uses DOI content negotiation; some registration agencies do not support it.
+    """
+    req = urllib.request.Request(
+        "https://doi.org/" + urllib.parse.quote(doi, safe="/"),
+        headers={"Accept": "application/vnd.citationstyles.csl+json",
+                 "User-Agent": "biblio-tools (https://github.com/arashshahidi1997/biblio)"},
+    )
+    payload = None
+    for attempt in range(retries):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec B310
+                payload = json.load(resp)
+            break
+        except urllib.error.HTTPError as exc:
+            if exc.code in (400, 404, 406):      # no record, or no CSL for this agency
+                return None
+        except Exception:
+            pass
+        time.sleep(2 ** attempt)
+    return payload if isinstance(payload, dict) and payload.get("title") else None
+
+
+def enrich_doi_records(
+    records: list[IngestRecord],
+    *,
+    fetch_csl: Any | None = None,
+    api_base: str = "https://api.openalex.org",
+    mailto: str | None = None,
+    fetch_json: Any | None = None,
+) -> list[IngestRecord]:
+    """Metadata for DOI-only records: the DOI registry first, OpenAlex as fallback.
+
+    OpenAlex is only used when the registry has no record, and only when the
+    returned work carries the requested DOI (OpenAlex can return a different
+    work for some DOIs, e.g. arXiv preprints merged with later versions).
+    """
+    fetch_csl = fetch_csl or fetch_doi_csl
+    out: list[IngestRecord] = []
+    fallback: list[tuple[int, IngestRecord]] = []
+    for record in records:
+        csl = fetch_csl(record.doi) if record.doi else None
+        if csl:
+            rec = record_from_csl(csl, source_type=record.source_type, source_ref=record.source_ref)
+            out.append(replace(rec, doi=record.doi, raw_id=record.raw_id, file=record.file,
+                               url=rec.url or record.url))
+        else:
+            fallback.append((len(out), record))
+            out.append(record)
+    if fallback:
+        enriched = enrich_doi_records_with_openalex(
+            [r for _, r in fallback], api_base=api_base, mailto=mailto, fetch_json=fetch_json)
+        for (idx, _), rec in zip(fallback, enriched):
+            out[idx] = rec
+    return out
 
 
 def enrich_record(
@@ -450,7 +532,7 @@ def enrich_and_cache(
             else:
                 payload = _capturing_fetch(oa_url)
 
-            if isinstance(payload, dict):
+            if isinstance(payload, dict) and openalex_matches_doi(payload, record.doi):
                 authors: list[str] = []
                 authorships = payload.get("authorships")
                 if isinstance(authorships, list):
@@ -593,7 +675,7 @@ def enrich_and_cache(
                         else:
                             payload = _capturing_fetch(oa_url)
 
-                        if isinstance(payload, dict):
+                        if isinstance(payload, dict) and openalex_matches_doi(payload, found_doi):
                             authors_list: list[str] = []
                             authorships = payload.get("authorships")
                             if isinstance(authorships, list):
@@ -639,9 +721,15 @@ def _csl_authors(item: Mapping[str, Any]) -> tuple[str, ...]:
             if not isinstance(author, Mapping):
                 continue
             family = _clean_text(author.get("family"))
+            particle = _clean_text(author.get("non-dropping-particle"))
+            if family and particle:
+                family = f"{particle} {family}"
             given = _clean_text(author.get("given"))
+            suffix = _clean_text(author.get("suffix"))
             literal = _clean_text(author.get("literal"))
-            if family and given:
+            if family and given and suffix:
+                out.append(f"{family}, {suffix}, {given}")
+            elif family and given:
                 out.append(f"{family}, {given}")
             elif family:
                 out.append(family)
@@ -651,54 +739,72 @@ def _csl_authors(item: Mapping[str, Any]) -> tuple[str, ...]:
 
 
 def _csl_year(item: Mapping[str, Any]) -> str | None:
-    issued = item.get("issued")
-    if not isinstance(issued, Mapping):
-        return None
-    parts = issued.get("date-parts")
-    if isinstance(parts, list) and parts and isinstance(parts[0], list) and parts[0]:
-        return _clean_text(parts[0][0])
+    for key in ("issued", "published-print", "published-online", "created"):
+        date = item.get(key)
+        if not isinstance(date, Mapping):
+            continue
+        parts = date.get("date-parts")
+        if isinstance(parts, list) and parts and isinstance(parts[0], list) and parts[0] and parts[0][0]:
+            return _clean_text(parts[0][0])
     return None
+
+
+# CSL types (as written by citeproc and by Crossref/DataCite content negotiation) -> BibTeX
+CSL_ENTRY_TYPES = {
+    "article-journal": "article", "article": "article", "article-magazine": "article",
+    "article-newspaper": "article", "journal-article": "article", "review": "article",
+    "paper-conference": "inproceedings", "proceedings-article": "inproceedings",
+    "chapter": "incollection", "book-chapter": "incollection", "book-section": "incollection",
+    "book-part": "incollection", "entry": "incollection", "entry-encyclopedia": "incollection",
+    "reference-entry": "incollection",
+    "book": "book", "monograph": "book", "edited-book": "book", "reference-book": "book",
+    "report": "techreport", "thesis": "phdthesis", "dissertation": "phdthesis",
+    "posted-content": "misc", "dataset": "misc", "software": "misc",
+}
+
+
+def record_from_csl(item: Mapping[str, Any], *, source_type: str, source_ref: str) -> IngestRecord:
+    """Build an IngestRecord from one CSL-JSON item."""
+    doi = _normalize_doi(item.get("DOI"))
+    csl_type = _clean_text(item.get("type")) or "article-journal"
+    entry_type = CSL_ENTRY_TYPES.get(csl_type, "misc")
+    url = _clean_text(item.get("URL"))
+    if doi and doi.lower().startswith("10.48550/arxiv."):
+        entry_type = "misc"
+        url = "https://arxiv.org/abs/" + re.split(r"(?i)arxiv\.", doi, maxsplit=1)[-1]
+    container = item.get("container-title")
+    if isinstance(container, list):
+        container_text = _clean_text(container[0] if container else None)
+    else:
+        container_text = _clean_text(container)
+    title = item.get("title")
+    if isinstance(title, list):
+        title = title[0] if title else None
+    return IngestRecord(
+        source_type=source_type,
+        source_ref=source_ref,
+        entry_type=entry_type,
+        title=_clean_text(re.sub(r"<[^>]+>", "", title)) if isinstance(title, str) else None,
+        authors=_csl_authors(item),
+        year=_csl_year(item),
+        doi=doi,
+        url=url,
+        journal=container_text if entry_type == "article" else None,
+        booktitle=container_text if entry_type in ("inproceedings", "incollection") else None,
+        raw_id=_clean_text(item.get("id")),
+        file=None,
+    )
 
 
 def parse_csljson_file(path: str | Path) -> list[IngestRecord]:
     file_path = Path(path).expanduser().resolve()
     payload = json.loads(file_path.read_text(encoding="utf-8"))
     items = payload if isinstance(payload, list) else [payload]
-    records: list[IngestRecord] = []
-    for idx, item in enumerate(items, start=1):
-        if not isinstance(item, Mapping):
-            continue
-        csl_type = _clean_text(item.get("type")) or "article-journal"
-        entry_type = {
-            "article-journal": "article",
-            "paper-conference": "inproceedings",
-            "chapter": "incollection",
-            "book": "book",
-            "report": "techreport",
-            "thesis": "phdthesis",
-        }.get(csl_type, "misc")
-        container = item.get("container-title")
-        if isinstance(container, list):
-            container_text = _clean_text(container[0] if container else None)
-        else:
-            container_text = _clean_text(container)
-        records.append(
-            IngestRecord(
-                source_type="csljson",
-                source_ref=f"{file_path}:{idx}",
-                entry_type=entry_type,
-                title=_clean_text(item.get("title")),
-                authors=_csl_authors(item),
-                year=_csl_year(item),
-                doi=_normalize_doi(item.get("DOI")),
-                url=_clean_text(item.get("URL")),
-                journal=container_text if entry_type == "article" else None,
-                booktitle=container_text if entry_type == "inproceedings" else None,
-                raw_id=_clean_text(item.get("id")),
-                file=None,
-            )
-        )
-    return records
+    return [
+        record_from_csl(item, source_type="csljson", source_ref=f"{file_path}:{idx}")
+        for idx, item in enumerate(items, start=1)
+        if isinstance(item, Mapping)
+    ]
 
 
 def parse_ris_file(path: str | Path) -> list[IngestRecord]:
@@ -842,6 +948,7 @@ def ingest_file(
     pdf_root: str | Path | None = None,
     pdf_pattern: str = "{citekey}/{citekey}.pdf",
     doi_fetch_json: Any | None = None,
+    doi_fetch_csl: Any | None = None,
     doi_api_base: str = "https://api.openalex.org",
     doi_mailto: str | None = None,
     force: bool = False,
@@ -873,8 +980,9 @@ def ingest_file(
                 else:
                     filtered.append(rec)
             records = filtered
-        records = enrich_doi_records_with_openalex(
+        records = enrich_doi_records(
             records,
+            fetch_csl=doi_fetch_csl,
             api_base=doi_api_base,
             mailto=doi_mailto,
             fetch_json=doi_fetch_json,

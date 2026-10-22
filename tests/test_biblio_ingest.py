@@ -91,6 +91,7 @@ def test_ingest_dois_enriches_with_openalex_metadata(tmp_path: Path) -> None:
         input_path=dois,
         dry_run=True,
         doi_fetch_json=fake_fetch,
+        doi_fetch_csl=lambda doi: None,
     )
     assert result.emitted == 1
     assert "@article{doe_2024_AlphaPaper" in bibtex_text
@@ -189,6 +190,7 @@ def test_ingest_dois_skips_duplicate_doi(tmp_path: Path) -> None:
         input_path=dois,
         dry_run=True,
         doi_fetch_json=fake_fetch,
+        doi_fetch_csl=lambda doi: None,
     )
     # alpha was skipped, beta was ingested
     assert result.emitted == 1
@@ -227,6 +229,7 @@ def test_ingest_dois_force_reingests_duplicate(tmp_path: Path) -> None:
         input_path=dois,
         dry_run=True,
         doi_fetch_json=fake_fetch,
+        doi_fetch_csl=lambda doi: None,
         force=True,
     )
     assert result.emitted == 1
@@ -418,3 +421,68 @@ def test_import_bibtex_entries_empty_selection(tmp_path: Path) -> None:
     )
     assert count == 0
     assert keys == []
+
+
+def _doi_only(doi: str):
+    from biblio.ingest import IngestRecord
+    return IngestRecord(source_type="doi_list", source_ref="t", entry_type="misc", title=None, authors=(),
+                        year=None, doi=doi, url=None, journal=None, booktitle=None, raw_id=doi)
+
+
+def test_doi_registry_metadata_wins_over_openalex(tmp_path: Path) -> None:
+    init_bib_scaffold(tmp_path, force=False)
+    dois = tmp_path / "dois.txt"
+    dois.write_text("10.1023/A:1008716330212\n", encoding="utf-8")
+    csl = {
+        "type": "journal-article", "title": "Formality Considered Harmful", "DOI": "10.1023/A:1008716330212",
+        "author": [{"family": "Shipman", "given": "Frank M.", "suffix": "III"},
+                   {"family": "Marshall", "given": "Catherine C."}],
+        "issued": {"date-parts": [[1999]]}, "container-title": ["Computer Supported Cooperative Work"],
+    }
+
+    def openalex_should_not_be_called(url: str) -> dict:
+        raise AssertionError("OpenAlex used although the registry answered")
+
+    result, bibtex_text = ingest_file(
+        repo_root=tmp_path, source_type="dois", input_path=dois, dry_run=True,
+        doi_fetch_json=openalex_should_not_be_called, doi_fetch_csl=lambda doi: csl,
+    )
+    assert "@article{shipman_1999_FormalityConsidered" in bibtex_text
+    assert "author = {Shipman, III, Frank M. and Marshall, Catherine C.}" in bibtex_text
+    assert "journal = {Computer Supported Cooperative Work}" in bibtex_text
+
+
+def test_openalex_fallback_rejects_work_with_other_doi() -> None:
+    from biblio.ingest import enrich_doi_records
+
+    def fake_openalex(url: str) -> dict:
+        return {"doi": "https://doi.org/10.4230/other", "display_name": "Wrong paper",
+                "publication_year": 2025, "authorships": [], "type": "preprint"}
+
+    [rec] = enrich_doi_records([_doi_only("10.48550/arXiv.2404.16130")],
+                               fetch_csl=lambda doi: None, fetch_json=fake_openalex)
+    assert rec.title is None and rec.authors == ()
+
+
+def test_openalex_fallback_maps_work_type() -> None:
+    from biblio.ingest import enrich_doi_records
+
+    def fake_openalex(url: str) -> dict:
+        return {"doi": "https://doi.org/10.1000/book", "display_name": "A Book", "publication_year": 2004,
+                "type": "book", "authorships": [{"author": {"display_name": "Ronald J. Brachman"}}]}
+
+    [rec] = enrich_doi_records([_doi_only("10.1000/book")], fetch_csl=lambda doi: None, fetch_json=fake_openalex)
+    assert rec.entry_type == "book" and rec.title == "A Book"
+
+
+def test_csl_record_types_particles_and_arxiv() -> None:
+    from biblio.ingest import record_from_csl
+    chapter = record_from_csl({"type": "book-chapter", "title": "Ch", "container-title": "Big Book",
+                               "author": [{"family": "Waard", "non-dropping-particle": "de", "given": "Anita"}]},
+                              source_type="t", source_ref="t")
+    assert chapter.entry_type == "incollection" and chapter.booktitle == "Big Book"
+    assert chapter.authors == ("de Waard, Anita",)
+    preprint = record_from_csl({"type": "article", "title": "From Local to Global",
+                                "DOI": "10.48550/arXiv.2404.16130", "author": [{"family": "Edge", "given": "Darren"}]},
+                               source_type="t", source_ref="t")
+    assert preprint.entry_type == "misc" and preprint.url == "https://arxiv.org/abs/2404.16130"

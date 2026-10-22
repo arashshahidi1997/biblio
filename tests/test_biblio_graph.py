@@ -121,6 +121,7 @@ def test_add_openalex_work_to_bib_by_doi(monkeypatch, tmp_path: Path) -> None:
 
     fake = _FakeGraphClient(cfg, works=works)
     monkeypatch.setattr(mod, "OpenAlexClient", lambda cfg: fake)
+    monkeypatch.setattr(mod, "fetch_doi_csl", lambda doi: None)      # registry has no record
     (tmp_path / "bib" / "config").mkdir(parents=True)
     result = add_openalex_work_to_bib(
         cfg=cfg,
@@ -133,3 +134,42 @@ def test_add_openalex_work_to_bib_by_doi(monkeypatch, tmp_path: Path) -> None:
     assert result.citekeys_path.exists()
     text = result.output_path.read_text(encoding="utf-8")
     assert "Added Paper" in text
+
+
+def _cfg_cache(tmp_path):
+    cfg = OpenAlexClientConfig(base_url="https://api.openalex.org", email=None, api_key=None, timeout_s=30,
+                               max_retries=0, per_page=10, select=("id",))
+    return cfg, OpenAlexCache(root=tmp_path / "cache")
+
+
+def test_add_doi_prefers_registry_metadata(monkeypatch, tmp_path: Path) -> None:
+    import biblio.graph as mod
+    cfg, cache = _cfg_cache(tmp_path)
+    works = {"W9": {"id": "https://openalex.org/W9", "doi": "https://doi.org/10.1000/ch",
+                    "display_name": "Wrong title", "publication_year": 1970,
+                    "authorships": [{"author": {"display_name": "И. Лакатос"}}]}}
+    monkeypatch.setattr(mod, "OpenAlexClient", lambda cfg: _FakeGraphClient(cfg, works=works))
+    monkeypatch.setattr(mod, "fetch_doi_csl", lambda doi: {
+        "type": "book-chapter", "title": "Falsification and the Methodology of Scientific Research Programmes",
+        "author": [{"family": "Lakatos", "given": "I."}], "issued": {"date-parts": [[1970]]},
+        "container-title": "Criticism and the Growth of Knowledge", "DOI": "10.1000/ch"})
+    (tmp_path / "bib" / "config").mkdir(parents=True)
+    result = add_openalex_work_to_bib(cfg=cfg, cache=cache, repo_root=tmp_path, doi="10.1000/ch")
+    text = result.output_path.read_text(encoding="utf-8")
+    assert result.citekey == "lakatos_1970_FalsificationMethodology"
+    assert "@incollection{lakatos_1970_FalsificationMethodology" in text
+    assert "booktitle = {Criticism and the Growth of Knowledge}" in text
+    assert result.openalex_id == "W9"
+
+
+def test_add_doi_rejects_openalex_work_with_other_doi(monkeypatch, tmp_path: Path) -> None:
+    import biblio.graph as mod
+    cfg, cache = _cfg_cache(tmp_path)
+    works = {"W9": {"id": "https://openalex.org/W9", "doi": "https://doi.org/10.4230/other",
+                    "display_name": "Some other paper", "publication_year": 2025, "authorships": []}}
+    monkeypatch.setattr(mod, "OpenAlexClient", lambda cfg: _FakeGraphClient(cfg, works=works))
+    monkeypatch.setattr(mod, "fetch_doi_csl", lambda doi: None)
+    (tmp_path / "bib" / "config").mkdir(parents=True)
+    import pytest
+    with pytest.raises(ValueError, match="different work"):
+        add_openalex_work_to_bib(cfg=cfg, cache=cache, repo_root=tmp_path, doi="10.48550/arXiv.2404.16130")

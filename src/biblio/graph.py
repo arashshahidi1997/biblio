@@ -1,12 +1,22 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Callable
 
 from .citekeys import add_citekeys_md, load_active_citekeys
-from .ingest import IngestRecord, assign_citekeys, default_import_bib_path, render_bibtex, write_import_bib
+from .ingest import (
+    OPENALEX_ENTRY_TYPES,
+    IngestRecord,
+    assign_citekeys,
+    default_import_bib_path,
+    fetch_doi_csl,
+    openalex_matches_doi,
+    record_from_csl,
+    render_bibtex,
+    write_import_bib,
+)
 from .openalex.openalex_cache import OpenAlexCache
 from .openalex.openalex_client import OpenAlexClient, OpenAlexClientConfig
 from ._pybtex_utils import parse_bibtex_file
@@ -171,36 +181,58 @@ def add_openalex_work_to_bib(
     root = Path(repo_root).expanduser().resolve()
     output_path = Path(out_path).expanduser().resolve() if out_path is not None else default_import_bib_path(root)
     ck_path = Path(citekeys_path).expanduser().resolve() if citekeys_path is not None else (root / "bib" / "config" / "citekeys.md").resolve()
+    # For a DOI, bibliographic metadata comes from the DOI registry; OpenAlex
+    # supplies the work ID, and the record only when the registry has none and
+    # the OpenAlex work carries the same DOI.
+    registry = fetch_doi_csl(doi) if doi and not openalex_id else None
     client = OpenAlexClient(cfg)
+    work: dict[str, Any] | None = None
     try:
-        work: dict[str, Any]
         normalized_id = _normalize_openalex_id(openalex_id)
         if normalized_id:
             work = _load_or_fetch_work(client=client, cache=cache, openalex_id=normalized_id, force=force)
         elif doi:
-            work = client.get_work_by_doi(doi)
-            normalized_id = _normalize_openalex_id(str(work.get("id") or ""))
-            if normalized_id:
+            try:
+                work = client.get_work_by_doi(doi)
+            except Exception:
+                if registry is None:
+                    raise
+                work = None
+            if work is not None and not openalex_matches_doi(work, doi):
+                work = None
+            normalized_id = _normalize_openalex_id(str((work or {}).get("id") or ""))
+            if normalized_id and work is not None:
                 cache.save_json(cache.path_for_work_id(normalized_id), work)
         else:
             raise ValueError("Either doi or openalex_id is required")
     finally:
         client.close()
 
-    record = IngestRecord(
-        source_type="openalex_add",
-        source_ref=doi or (normalized_id or ""),
-        entry_type="article",
-        title=str(work.get("display_name") or "").strip() or None,
-        authors=_work_authors(work),
-        year=str(work.get("publication_year") or "").strip() or None,
-        doi=_doi_from_work(work),
-        url=_openalex_url(normalized_id),
-        journal=None,
-        booktitle=None,
-        raw_id=normalized_id or doi,
-        file=None,
-    )
+    if registry is not None:
+        csl_record = record_from_csl(registry, source_type="doi_add", source_ref=str(doi))
+        record = replace(
+            csl_record,
+            doi=csl_record.doi or doi,
+            url=_openalex_url(normalized_id) if normalized_id else csl_record.url,
+            raw_id=normalized_id or doi,
+        )
+    elif work is not None:
+        record = IngestRecord(
+            source_type="openalex_add",
+            source_ref=doi or (normalized_id or ""),
+            entry_type=OPENALEX_ENTRY_TYPES.get(str(work.get("type") or "article"), "misc"),
+            title=str(work.get("display_name") or "").strip() or None,
+            authors=_work_authors(work),
+            year=str(work.get("publication_year") or "").strip() or None,
+            doi=_doi_from_work(work),
+            url=_openalex_url(normalized_id),
+            journal=None,
+            booktitle=None,
+            raw_id=normalized_id or doi,
+            file=None,
+        )
+    else:
+        raise ValueError(f"No metadata for DOI {doi}: the registry has no record and OpenAlex returned a different work")
     existing = _collect_existing_citekeys(root)
     citekey, assigned_record = _unique_assign_record(record, existing=existing)
     bibtex_text = render_bibtex([(citekey, assigned_record)])
@@ -211,7 +243,7 @@ def add_openalex_work_to_bib(
         output_path=output_path,
         citekeys_path=ck_path,
         openalex_id=normalized_id,
-        doi=_doi_from_work(work),
+        doi=record.doi,
     )
 
 
