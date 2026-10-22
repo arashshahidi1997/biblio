@@ -100,6 +100,9 @@ Requests from journal-club are tagged R01 to R06 below.
 - [ ] **W02 First real subject (M1).** Use phase 1 on pixecog's layer
   identification (pixecog wiki backlog L01 to L03): hub, ingest of the
   audit, code pages. Record what the tools lacked. *Depends* W01.
+  Measure the skills, not just the tools: run `wiki-ingest` on 2-3 real
+  papers through Anthropic's `skill-creator` eval loop (with and without the
+  skill, reviewed side by side) and file the failures here.
 - [ ] **W03 Link style (M1).** Decide one style per wiki (SPEC §12.1);
   proposal: relative markdown links, made move-safe by W05.
 - [ ] **W04 Editor setup (M1).** How-to for Obsidian (vault at the repo root,
@@ -146,6 +149,9 @@ Requests from journal-club are tagged R01 to R06 below.
   `papers/alemanzapata_2026_DeltasSpindles/digest.md` (claims with evidence,
   caveats, test statistics and n), plus a `talk` context that adds rigor
   notes and figure roles (R06).
+  Rigor notes use a fixed vocabulary (design validity, confounders,
+  statistical pitfalls, evidence level), borrowed with credit from K-Dense's
+  MIT `scientific-critical-thinking` references.
 - [ ] **D06 methods mode.** Comparison rows with quoted parameters; from
   `compare.py` and a03.
 - [ ] **D07 citations mode.** Citing sentences with intent labels
@@ -220,6 +226,11 @@ Requests from journal-club are tagged R01 to R06 below.
   srcbib under biblio's citekey convention, PDF copied, extraction queued;
   plus a skill for the laptop-to-server flow. `zotero.py` pull is
   collection-wide today. *Depends* H02.
+  Test path (decided 2026-10-22): the laptop's local API needs no key
+  (`Zotero(library_id='0', local=True)`, Zotero 7+, read-only; writes need
+  Zotero 10+ and a separate local key), so tests mock pyzotero on gamma2 and
+  the real check runs on the laptop. Reference: K-Dense `pyzotero` skill
+  (`references/authentication.md`, `files-attachments.md`).
 - [x] **I05 Reference triage for one paper (R03).** `biblio refs triage KEY
   [--zotero zotero.sqlite|export.bib] [--openalex]`: each GROBID reference
   gets `fulltext`, `pdf`, `metadata` or `absent`, with where it is held
