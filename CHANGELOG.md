@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0 (2026-10-23)
+
+### Added
+- **Digests** (M2 start): `biblio digest claims KEY [--context wiki|talk]`: the paper's claims with kind, evidence (statistics as reported), caveats, section and one verbatim quote each, checked exact-only with one repair pass; `talk` adds rigor notes and figure roles. Stored under `bib/derivatives/digest/<mode>/<context>/` with prompt version and model; `biblio digest list`. First real run: 15 claims, 15/15 quotes exact.
+- **Reading by section** (`biblio.sections`): docling markdown first, GROBID TEI as fallback; references and administrative sections dropped.
+- **Skill `wiki-synthesize`**: cross-paper wiki pages built from claims digests, every statement from a paper with its exact quote, own reasoning marked as synthesis. `wiki-ingest` starts from a digest when there is one.
+
+### Fixed
+- The `claude` CLI backend runs in a neutral temporary directory (it refused untrusted project folders and would load their settings), with a 15-minute timeout (`BIBLIO_LLM_TIMEOUT`), and reports errors printed on stdout, such as an expired login.
+
 ## 0.2.4 (2026-10-23)
 
 ### Changed

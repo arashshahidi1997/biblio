@@ -1,4 +1,4 @@
 """Portable bibliography/Docling scaffolding and runners ("biblio")."""
 
-__version__ = "0.2.4"  # single source: pyproject.toml reads it
+__version__ = "0.3.0"  # single source: pyproject.toml reads it
 
