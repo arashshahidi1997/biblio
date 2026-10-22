@@ -220,10 +220,15 @@ Requests from journal-club are tagged R01 to R06 below.
   srcbib under biblio's citekey convention, PDF copied, extraction queued;
   plus a skill for the laptop-to-server flow. `zotero.py` pull is
   collection-wide today. *Depends* H02.
-- [ ] **I05 Reference triage for one paper (R03).** Per reference: in a pool
-  with full text, PDF available, metadata only, or absent; matched by DOI,
-  then normalized title and year, then OpenAlex `referenced_works`; across
-  project, pools and an optional Zotero export; JSON and markdown output.
-  `get_absent_refs` (`grobid.py:505`) checks only the project's own srcbib.
-  Consider GROBID `consolidate_citations` on by default: about 79% of pool
-  references lack DOIs. This is discovery from a held paper (scope: partial).
+- [x] **I05 Reference triage for one paper (R03).** `biblio refs triage KEY
+  [--zotero zotero.sqlite|export.bib] [--openalex]`: each GROBID reference
+  gets `fulltext`, `pdf`, `metadata` or `absent`, with where it is held
+  (project, `pool:<name>`, `zotero`) and how it matched (DOI; normalized title
+  with year within one, tolerating OCR noise and a glued-on venue; a DOI from
+  the paper's OpenAlex `referenced_works`, which also adds references GROBID
+  missed). Output `bib/derivatives/refs/KEY/triage.{json,md}`. On
+  journal-club's target paper (2 s, 4 s with OpenAlex): 21 fulltext, 12
+  metadata, 34 absent; agrees with its prototype except two extra finds.
+  Open: `consolidate_citations` default (costs GROBID time, sends every
+  reference to Crossref); `paper_absent_refs` MCP tool still uses the old
+  srcbib-only check.

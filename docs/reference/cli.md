@@ -12,6 +12,7 @@
 | `biblio openalex` | Resolve srcbib entries to OpenAlex works |
 | `biblio add` | Add a paper by DOI, OpenAlex ID, or ORCID |
 | `biblio graph` | Expand the reference graph from OpenAlex data |
+| `biblio refs` | Triage a held paper's references: full text, PDF, metadata only, or absent |
 | `biblio grobid` | GROBID scholarly structure extraction (check, run, match) |
 | `biblio rag` | Manage bibliography-owned RAG source config |
 | `biblio library` | Manage per-paper status, tags, and priority |
@@ -79,6 +80,11 @@ biblio graph expand                             # both directions (default)
 biblio graph expand --direction references      # papers your corpus cites
 biblio graph expand --direction citing          # papers that cite your corpus
 biblio graph expand --force                     # ignore cached work payloads
+
+# reference triage for one paper (needs its GROBID output)
+biblio refs triage KEY                          # project + pools -> bib/derivatives/refs/KEY/triage.{json,md}
+biblio refs triage KEY --zotero ~/Zotero/zotero.sqlite   # also a Zotero library (read-only) or a .bib export
+biblio refs triage KEY --openalex               # recover DOIs and missed references from OpenAlex
 
 # library management
 biblio library list

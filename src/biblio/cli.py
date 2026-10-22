@@ -315,6 +315,22 @@ def _build_parser() -> argparse.ArgumentParser:
                              help="Input JSONL (default: bib/derivatives/openalex/resolved.jsonl).")
     graph_local.add_argument("--fetch", action="store_true", help="Fetch seed works missing from the cache.")
 
+    p_refs = sub.add_parser("refs", help="A held paper's references: what can we read now?")
+    refs_sub = p_refs.add_subparsers(dest="refs_cmd", required=True)
+    refs_triage = refs_sub.add_parser(
+        "triage", help="Status per reference (fulltext, pdf, metadata, absent) across project, pools, Zotero."
+    )
+    refs_triage.add_argument("citekey", help="The paper whose references to triage (needs GROBID output).")
+    refs_triage.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    refs_triage.add_argument("--zotero", type=Path,
+                             help="Also search a Zotero library: zotero.sqlite (read-only) or a BibTeX export.")
+    refs_triage.add_argument("--openalex", action="store_true",
+                             help="Recover DOIs and missed references from the paper's OpenAlex referenced_works.")
+    refs_triage.add_argument("--offline", action="store_true", help="With --openalex: use the cache only.")
+    refs_triage.add_argument("--out", type=Path,
+                             help="Output directory (default: bib/derivatives/refs/<citekey>/).")
+    refs_triage.add_argument("--print", dest="print_md", action="store_true", help="Also print the markdown.")
+
     p_site = sub.add_parser("site", help="Build and inspect a standalone bibliography site.")
     site_sub = p_site.add_subparsers(dest="site_cmd", required=True)
     site_build = site_sub.add_parser("build", help="Build a standalone site under bib/site/.")
@@ -1298,6 +1314,25 @@ def main(argv: Iterable[str] | None = None) -> None:
             f"[OK] citekey={result.citekey} openalex_id={result.openalex_id or '-'} doi={result.doi or '-'} "
             f"srcbib={result.output_path}"
         )
+        return
+
+    if args.command == "refs":
+        from .refs import to_markdown, triage, write_outputs
+        repo_root = (args.root.expanduser().resolve() if args.root else find_repo_root())
+        cfg = load_biblio_config(default_config_path(root=repo_root), root=repo_root)
+        zotero = args.zotero.expanduser().resolve() if args.zotero else None
+        if zotero is not None and not zotero.is_file():
+            raise SystemExit(f"[ERROR] Zotero library not found: {zotero}")
+        result = triage(cfg, args.citekey, zotero=zotero, use_openalex=bool(args.openalex),
+                        fetch=not args.offline)
+        jp, mp = write_outputs(cfg, result, args.out)
+        if args.print_md:
+            print(to_markdown(result))
+        c = result["counts"]
+        print(f"[OK] {len(result['references'])} references: " + ", ".join(f"{v} {k}" for k, v in c.items())
+              + f" -> {mp}")
+        for note in result["notes"]:
+            print(f"  note: {note}")
         return
 
     if args.command == "graph":
