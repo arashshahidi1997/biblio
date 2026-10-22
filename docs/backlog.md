@@ -144,12 +144,14 @@ Requests from journal-club are tagged R01 to R06 below.
 - [ ] **D08 people digest.** The a07 author index moves into biblio.
 - [ ] **D09 Fold concepts and autotag** into the subject and claims modes and
   the shared vocabulary (W14).
-- [ ] **D10 Figures at native resolution (R04).** docling crops are page
-  renders at 144 dpi. For each docling picture (page and bbox in its JSON),
-  take the embedded image covering the bbox, else re-render the bbox at a
-  configurable dpi (default 300); write `bib/derivatives/figures/<key>/` with
-  a manifest (number, caption, page, bbox, embedded or rendered, size).
-  Consumers: the wiki (W17) and figure requests.
+- [x] **D10 Figures at native resolution (R04).** `biblio figures run --key K`
+  (or `--all`): for each docling picture, the embedded image matching its
+  page and displayed size is extracted losslessly (`pdfimages -all`), else the
+  bbox is re-rendered (`pdftoppm`, 300 dpi default); tiny pictures skipped;
+  `bib/derivatives/figures/<key>/` with `manifest.yml` (number and caption
+  from docling, page, bbox, embedded or rendered, pixel size). Needs poppler.
+  On journal-club's target paper: Figures 1-6 as the original 300-ppi JPEGs
+  (1900 px wide; docling's crops are 144 dpi), 1.8 s. Panel splitting later.
 
 ## K. Knowledge-graph experiment
 

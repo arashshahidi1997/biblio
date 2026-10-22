@@ -621,6 +621,19 @@ def _build_parser() -> argparse.ArgumentParser:
     ui_serve.add_argument("--host", default="127.0.0.1", help="Host to bind (default: 127.0.0.1).")
     ui_serve.add_argument("--port", type=int, default=8010, help="Port to bind (default: 8010).")
 
+    # ── figures ───────────────────────────────────────────────────────────
+    p_fig = sub.add_parser("figures", help="Figures at native resolution from PDFs (needs poppler).")
+    fig_sub = p_fig.add_subparsers(dest="figures_cmd", required=True)
+    fig_run = fig_sub.add_parser("run", help="Extract figures for one key or all keys with docling output.")
+    fig_run.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    fig_run.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")
+    fig_group = fig_run.add_mutually_exclusive_group(required=True)
+    fig_group.add_argument("--key", help="Single citekey (with or without leading @).")
+    fig_group.add_argument("--all", action="store_true", help="All citekeys with docling output in this project.")
+    fig_run.add_argument("--dpi", type=int, default=300, help="Resolution for re-rendered figures (default: 300).")
+    fig_run.add_argument("--min-pt", type=float, default=36.0, help="Skip pictures smaller than this in both dimensions (default: 36 pt).")
+    fig_run.add_argument("--force", action="store_true", help="Rewrite existing figure folders.")
+
     # ── wiki + skills ─────────────────────────────────────────────────────
     from .wiki.cli import add_parsers as _add_wiki_parsers
     _add_wiki_parsers(sub)
@@ -1729,6 +1742,30 @@ def main(argv: Iterable[str] | None = None) -> None:
                 out = run_ref_md_for_key(cfg, args.key, force=args.force)
                 print(f"[OK] {args.key.lstrip('@')}: {out.md_path}")
         return
+
+    if args.command == "figures":
+        from .figures import extract_figures
+        repo_root = (args.root.expanduser().resolve() if args.root else find_repo_root())
+        cfg_path = (repo_root / args.config).resolve() if args.config else default_config_path(root=repo_root)
+        cfg = load_biblio_config(cfg_path, root=repo_root)
+        if args.key:
+            keys = [args.key.lstrip("@")]
+        else:
+            keys = sorted(p.name for p in cfg.out_root.iterdir() if p.is_dir()) if cfg.out_root.is_dir() else []
+        failed = 0
+        for key in keys:
+            try:
+                res = extract_figures(cfg, key, dpi=int(args.dpi), min_pt=float(args.min_pt), force=bool(args.force))
+            except (FileNotFoundError, RuntimeError, subprocess.CalledProcessError) as exc:
+                failed += 1
+                print(f"[ERR] {key}: {exc}", file=sys.stderr)
+                continue
+            if res["status"] == "exists":
+                print(f"[SKIP] {key}: {res['manifest']} exists (use --force)")
+            else:
+                print(f"[OK] {key}: {res['figures']} figures ({res['embedded']} embedded, "
+                      f"{res['figures'] - res['embedded']} rendered, {res['skipped_small']} small skipped) -> {res['manifest']}")
+        raise SystemExit(1 if failed else 0)
 
     if args.command in ("wiki", "skills"):
         from .wiki.cli import run as _run_wiki
