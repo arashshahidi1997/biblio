@@ -9,3 +9,4 @@ Use these when you already know what you want to do.
 - [Build the bibliography site](site.md)
 - [Use the local UI](ui.md)
 - [Sync RAG sources](rag.md)
+- [Edit the wiki in Obsidian or VS Code](wiki-editors.md)

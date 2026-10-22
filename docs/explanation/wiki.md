@@ -80,20 +80,22 @@ Shipped with biblio and installed into a project with `biblio skills install`
   full text under `bib/derivatives/docling/` resolve. Exclude `code/`, `data/`
   and derivatives that are not text (Obsidian: Settings, Files and links,
   Excluded files).
-- **Links.** Lint accepts `[[wikilinks]]` and relative markdown links. Relative
-  markdown links work unchanged in VS Code, mkdocs, Quarto and GitHub; with
-  `relink` handling moves, they lose their main drawback. Obsidian can be set
-  to write them (Use [[Wikilinks]] off, new link format relative). Choosing one
-  style per wiki is open (SPEC §12.1).
+- **Links.** biblio writes relative markdown links (`link_style: markdown`,
+  the default since 2026-10-22); lint accepts them and `[[wikilinks]]`.
+  Relative markdown links work unchanged in VS Code, mkdocs, Quarto and
+  GitHub, and Obsidian writes and rewrites them cleanly (Use [[Wikilinks]]
+  off, new link format relative). With that format, a rename in Obsidian turns
+  wikilinks into path wikilinks, which is why they are opt-in. Settings:
+  [Edit the wiki in Obsidian or VS Code](../how-to/wiki-editors.md).
 - **Queues.** In Obsidian, Bases (`.base` files) give table views over
   frontmatter, e.g. all `draft` pages written by `llm`. `views` will generate
   them; VS Code users read `biblio wiki status`.
 - **Annexed files.** DataLad stores PDFs and images as symlinks into
-  `.git/annex`. Obsidian does not support file symlinks or links between
-  folders of the same vault, so annexed figures and PDFs do not display there;
-  markdown full text is a regular file and works. VS Code follows the
-  symlinks. Where figures matter in Obsidian, use an unlocked checkout
-  (`git annex adjust --unlock`).
+  `.git/annex`. Obsidian ignores file symlinks (confirmed 2026-10-22), so
+  annexed figures and PDFs do not display there; markdown full text is a
+  regular file and works. VS Code follows the symlinks. Where figures matter
+  in Obsidian, unlock them (`datalad unlock <path>`, or `git annex adjust
+  --unlock` for a whole checkout).
 
 ## Phases
 
@@ -108,8 +110,7 @@ Shipped with biblio and installed into a project with `biblio skills install`
 
 ## Open
 
-1. One link style per wiki, and which (SPEC §12.1).
-2. Skills shipped in biblio need projio to discover them (projio only bundles
+1. Skills shipped in biblio need projio to discover them (projio only bundles
    its own `data/skills/` today); until then `biblio skills install` copies them.
-3. The wiki specification moves from pixecog into biblio's docs once reviewed,
+2. The wiki specification moves from pixecog into biblio's docs once reviewed,
    so the method and the tools version together.

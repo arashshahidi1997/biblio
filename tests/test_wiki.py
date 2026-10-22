@@ -191,21 +191,51 @@ def test_hubs_regenerate_and_lint_detects_stale(repo):
     written = regenerate(cfg)
     assert hub in written and cfg.wiki_root / "index.md" in written
     text = hub.read_text()
-    assert "[[ripple-detection|Ripple detection]] (stub)" in text and "up-state" not in text
-    assert "[[hub-ripples|Ripples]]" in (cfg.wiki_root / "index.md").read_text()
+    assert "[Ripple detection](../methods/ripple-detection.md) (stub)" in text and "up-state" not in text
+    assert "[Ripples](hubs/hub-ripples.md)" in (cfg.wiki_root / "index.md").read_text()
     assert stale_views(cfg) == {} and regenerate(cfg) == []
     assert "HUB001" not in codes(lint(cfg))
 
 
-def test_markdown_link_style(repo):
+def test_wikilink_style_is_opt_in(repo):
     cfg = load_wiki_config(repo)
-    (cfg.wiki_root / "wiki.yml").write_text("link_style: markdown\n")
+    (cfg.wiki_root / "wiki.yml").write_text("link_style: wikilink\n")
     cfg = load_wiki_config(repo)
     hub = stub(cfg, "ripples", "hub", tags=["event/ripple"])
     stub(cfg, "ripple-detection", "method", tags=["event/ripple"])
     regenerate(cfg)
-    assert "[Ripple detection](../methods/ripple-detection.md)" in hub.read_text()
-    assert "LNK004" not in codes(lint(cfg))
+    assert "[[ripple-detection|Ripple detection]]" in hub.read_text()
+    assert "LNK001" not in codes(lint(cfg))
+
+
+def test_fresh_wiki_with_tags_passes_lint(tmp_path):
+    """Laptop test 2026-10-22: init --tag and stub --tag gave TAG001 on the first lint."""
+    cfg = load_wiki_config(tmp_path)
+    init(cfg, subject="ripples", tags=["event/ripple"])
+    stub(cfg, "sharp-wave-ripple", "concept", tags=["event/ripple", "region/ca1"])
+    vocab = (cfg.wiki_root / "vocab.yml").read_text()
+    assert "event: {description: Physiological event, values: [ripple]}" in vocab
+    assert "region: {description: Anatomical region, values: [ca1]}" in vocab
+    assert vocab.startswith("# Faceted tag vocabulary")           # comments kept
+    assert "TAG001" not in codes(lint(cfg))
+    assert "added event/ripple" in (cfg.wiki_root / "log.md").read_text()
+
+
+def test_stub_tag_rules(repo):
+    cfg = load_wiki_config(repo)
+    before = (cfg.wiki_root / "vocab.yml").read_text()
+    stub(cfg, "a", "concept", tags=["event/ripple"])                # already known: no change
+    assert (cfg.wiki_root / "vocab.yml").read_text() == before
+    with pytest.raises(ValueError, match="unknown facet 'evnt'"):
+        stub(cfg, "b", "concept", tags=["evnt/ripple"])
+    with pytest.raises(ValueError, match="facet/value"):
+        stub(cfg, "c", "concept", tags=["ripple"])
+    assert not (cfg.wiki_root / "concepts" / "b.md").exists()
+
+    (cfg.wiki_root / "vocab.yml").write_text(
+        "namespaces:\n  event:\n    description: Event\n    values: [ripple]\n  region:\n    values: []\n")
+    stub(cfg, "d", "concept", tags=["event/spindle"])
+    assert "    values: [ripple, spindle]\n  region:\n    values: []" in (cfg.wiki_root / "vocab.yml").read_text()
 
 
 def test_status_review_queue(repo):

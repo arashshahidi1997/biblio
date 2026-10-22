@@ -66,7 +66,7 @@ class WikiConfig:
     project_tokens: tuple[str, ...] = DEFAULT_PROJECT_TOKENS
     max_words: int = 800
     bibliography_explicit: bool = False      # set in wiki.yml; otherwise project defaults are merged
-    link_style: str = "wikilink"        # "wikilink" | "markdown" (used when biblio writes links)
+    link_style: str = "markdown"        # "markdown" | "wikilink" (used when biblio writes links)
 
     @property
     def known_keys(self) -> set[str]:
@@ -121,6 +121,6 @@ def load_wiki_config(repo_root: Path, wiki_root: Path | None = None) -> WikiConf
         extra_keys=tuple(data.get("extra_keys", ())),
         project_tokens=tuple(data.get("project_tokens", DEFAULT_PROJECT_TOKENS)),
         max_words=int(data.get("max_words", 800)),
-        link_style=str(data.get("link_style", "wikilink")),
+        link_style=str(data.get("link_style", "markdown")),
         bibliography_explicit=bool(data.get("bibliography")),
     )

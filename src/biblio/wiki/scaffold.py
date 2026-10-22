@@ -16,7 +16,7 @@ WIKI_YML = """\
 # vocab: {vocab}                       # faceted tags (biblio tag_vocab format)
 # fulltext_root: bib/derivatives/docling      # <root>/<citekey>/<citekey>.md, for quote checks
 # link_roots: []                              # extra folders whose .md files links may point to
-# link_style: wikilink                        # how biblio writes links: wikilink | markdown
+# link_style: markdown                        # how biblio writes links: markdown (relative paths) | wikilink
 # relation_keys: []                           # extra typed relations, e.g. [supports, opposes]
 # extra_keys: []                              # extra frontmatter keys allowed
 # project_tokens: ['\\bsub-\\d+', '\\bses-\\d+']   # flagged on scope: general pages
@@ -111,6 +111,59 @@ def page_template(cfg: WikiConfig, ptype: str, title: str, tags: list[str], scop
     return fm + "\n".join(body)
 
 
+def ensure_tags(cfg: WikiConfig, tags: list[str]) -> list[str]:
+    """Add ``facet/value`` tags to the vocabulary; return the ones added.
+
+    The value goes into its facet's ``values: [...]`` list, edited as text so
+    comments and layout stay. An unknown facet is refused (likely a typo); add
+    the facet to the vocabulary by hand first.
+    """
+    import yaml
+
+    path = cfg.vocab
+    if not tags or path is None or not path.is_file():
+        return []
+    text = path.read_text(encoding="utf-8")
+    namespaces = (yaml.safe_load(text) or {}).get("namespaces") or {}
+    added = []
+    for tag in tags:
+        facet, sep, value = tag.lstrip("#").partition("/")
+        if not sep or not facet or not value:
+            raise ValueError(f"tag '{tag}' must be facet/value, e.g. event/ripple")
+        if facet not in namespaces:
+            raise ValueError(f"unknown facet '{facet}' in tag '{tag}'; known: {sorted(namespaces)}. "
+                             f"Add it to {path.name} first.")
+        if value in ((namespaces[facet] or {}).get("values") or []):
+            continue
+        text = _add_vocab_value(text, facet, value, path)
+        namespaces[facet] = {**(namespaces[facet] or {}),
+                             "values": [*((namespaces[facet] or {}).get("values") or []), value]}
+        added.append(f"{facet}/{value}")
+    if added:
+        path.write_text(text, encoding="utf-8")
+    return added
+
+
+def _add_vocab_value(text: str, facet: str, value: str, path: Path) -> str:
+    # the facet's block: its header line up to the next line at the same or a lower indent
+    header = re.search(rf"^([ \t]*){re.escape(facet)}:.*$", text, re.M)
+    if header:
+        indent = len(header.group(1))
+        end = len(text)
+        for m in re.finditer(r"^([ \t]*)\S.*$", text[header.end():], re.M):
+            if len(m.group(1)) <= indent:
+                end = header.end() + m.start()
+                break
+        block = text[header.start():end]
+        values = re.search(r"values:\s*\[([^\]]*)\]", block)
+        if values:
+            items = [v.strip() for v in values.group(1).split(",") if v.strip()]
+            new_block = block[:values.start(1)] + ", ".join([*items, value]) + block[values.end(1):]
+            return text[:header.start()] + new_block + text[end:]
+    raise ValueError(f"cannot add '{facet}/{value}' to {path} automatically (values are not a [..] list); "
+                     "add it by hand")
+
+
 def stub(cfg: WikiConfig, name: str, ptype: str, *, title: str | None = None, tags: list[str] | None = None,
          scope: str = "general", author: str = "human", log: bool = True) -> Path:
     if ptype not in cfg.page_types:
@@ -122,6 +175,9 @@ def stub(cfg: WikiConfig, name: str, ptype: str, *, title: str | None = None, ta
     path = folder / f"{slug}.md"
     if path.exists():
         raise FileExistsError(path)
+    added = ensure_tags(cfg, tags or [])
+    if added and log:
+        append_log(cfg, "vocab", [cfg.vocab.name], "added " + ", ".join(added))
     folder.mkdir(parents=True, exist_ok=True)
     title = title or name.replace("-", " ").strip().capitalize()
     path.write_text(page_template(cfg, ptype, title, tags or [], scope, author), encoding="utf-8")
@@ -154,6 +210,8 @@ def init(cfg: WikiConfig, subject: str | None = None, tags: list[str] | None = N
             created.append(path)
     if created:
         append_log(cfg, "init", [p.name for p in created], "skeleton")
+    if cfg.vocab is None:  # the config was loaded before this skeleton existed
+        cfg.vocab = root / "vocab.yml"
     if subject:
         created.append(stub(cfg, subject, "hub", title=subject.replace("-", " ").capitalize(), tags=tags or []))
     return created

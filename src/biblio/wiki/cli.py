@@ -82,7 +82,11 @@ def run(args) -> None:
 
     if args.wiki_cmd == "init":
         from .scaffold import init
-        created = init(cfg, subject=args.subject, tags=args.tag)
+        try:
+            created = init(cfg, subject=args.subject, tags=args.tag)
+        except (ValueError, FileExistsError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            raise SystemExit(1)
         for path in created:
             print(f"created {rel(path)}")
         if not created:

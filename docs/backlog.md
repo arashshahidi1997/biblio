@@ -83,10 +83,9 @@ Requests from journal-club are tagged R01 to R06 below.
   (`fallbacks: "default"`).
 - [ ] **H09 Zotero fallback keys.** `zotero.item_to_bibtex` builds keys with
   its own rule (capitalized family name, one title word); route it through
-  `citekey.canonical_citekey_str` like the other ingest paths (H02).
-
-## W. Wiki toolkit
-
+  `citekey.canonical_citekey_str` like the other ingest paths (H02). Only
+  `zotero pull` still uses it: `add zotero` replaces the key. Since I04's
+  follow-up the rule uses authors only (editors for an edited volume).
 - [x] **W01 Phase 1.** `biblio wiki init|stub|lint|hubs|status`,
   `biblio skills list|install`, skills `wiki-maintain` and `wiki-ingest`,
   13 tests (af65941). Answers R05 part 1.
@@ -97,17 +96,25 @@ Requests from journal-club are tagged R01 to R06 below.
   against the pool's full text. Real run with journal-club's two pools: 1.1 s.
 - [ ] **W17 Figure embeds (R05).** Wiki pages embed figures from D10 in a way
   that works with annexed files in both editors. *Depends* D10, W04.
+  Laptop test 2026-10-22: Obsidian ignores annex symlinks, an unlocked figure
+  displays (how-to says `datalad unlock`). Open: a command that unlocks what
+  the wiki embeds; VS Code untested.
 - [ ] **W02 First real subject (M1).** Use phase 1 on pixecog's layer
   identification (pixecog wiki backlog L01 to L03): hub, ingest of the
   audit, code pages. Record what the tools lacked. *Depends* W01.
   Measure the skills, not just the tools: run `wiki-ingest` on 2-3 real
   papers through Anthropic's `skill-creator` eval loop (with and without the
   skill, reviewed side by side) and file the failures here.
-- [ ] **W03 Link style (M1).** Decide one style per wiki (SPEC §12.1);
-  proposal: relative markdown links, made move-safe by W05.
-- [ ] **W04 Editor setup (M1).** How-to for Obsidian (vault at the repo root,
-  excluded folders, link settings, unlocked annex checkout for figures) and
-  VS Code (settings written between managed markers).
+- [x] **W03 Link style (M1).** Relative markdown links, the default
+  `link_style: markdown` (wikilinks opt-in): Obsidian resolves, inserts and
+  rewrites them on rename; with relative link format a rename turns wikilinks
+  into path wikilinks. Decided from the laptop test 2026-10-22.
+- [x] **W04 Editor setup (M1).** [How-to](how-to/wiki-editors.md): vault at
+  the project root, wikilinks off, relative paths, auto-update links,
+  `bib/` excluded, `.obsidian/workspace*.json` ignored, unlock embedded
+  figures. VS Code section untested. Also fixed from the same test:
+  `wiki init --tag` and `stub --tag` add the tag to `vocab.yml` (unknown
+  facets refused), so a new wiki passes lint at once.
 - [ ] **W05 relink (M3).** Rename or move a page and rewrite inbound links;
   dry run, log. (P5)
 - [ ] **W06 merge (M3).** Frontmatter union, aliases, redirect stub, never
@@ -221,18 +228,18 @@ Requests from journal-club are tagged R01 to R06 below.
   Re-resolve after citekey normalization and drop records whose key is no
   longer in the bibliography.
 - [ ] **I03 Needs-PDF queue and pool:** keep as storage; review the surface.
-- [ ] **I04 One-paper ingest from Zotero (R02).** Built, tested with mocks;
-  **awaiting the real check on the laptop** (request
-  [laptop-test](log/task/task-arash-20261022-laptop-zotero-obsidian.md)).
-  `biblio add zotero REF [--local] [--extract] [--dry-run]`: REF is an item
-  key, DOI, Better BibTeX citekey or biblio's own key; entry to
-  `bib/srcbib/zotero.bib` under biblio's citekey with `zotero = {ITEMKEY}`,
-  PDF (stored attachment first) to `pdf_root`; a paper already in the
-  project keeps its key, an entry in `zotero.bib` is refreshed under its key.
-  `--local` needs no config (user library `0`). Skill `zotero-add` covers the
-  laptop-to-server flow. Fixed on the way: `ZoteroClient` never passed
-  `local=True` to pyzotero, so `zotero.local: true` went to the web API.
-  Reference: K-Dense `pyzotero` skill (`references/authentication.md`).
+- [x] **I04 One-paper ingest from Zotero (R02).** `biblio add zotero REF
+  [--local] [--extract] [--dry-run]`: REF is an item key, DOI, Better BibTeX
+  citekey or biblio's own key; entry to `bib/srcbib/zotero.bib` under
+  biblio's citekey with `zotero = {ITEMKEY}`, PDF to `pdf_root` (stored file,
+  main text and published version preferred); a paper already in the project
+  keeps its key, an entry in `zotero.bib` is refreshed under its key.
+  `--local` needs no config. Skill `zotero-add` covers the laptop-to-server
+  flow. Real check on the laptop 2026-10-22 ([results](log/task/task-arash-20261022-laptop-zotero-obsidian.md)):
+  all reference forms, 0.24 s per paper, clear error when Zotero is closed;
+  its bugs fixed (editors no longer authors, preprints keep the arXiv id,
+  re-runs say "refreshed", no path after `pdf: none`). Also fixed:
+  `ZoteroClient` never passed `local=True` to pyzotero.
 - [x] **I05 Reference triage for one paper (R03).** `biblio refs triage KEY
   [--zotero zotero.sqlite|export.bib] [--openalex]`: each GROBID reference
   gets `fulltext`, `pdf`, `metadata` or `absent`, with where it is held

@@ -40,6 +40,9 @@ metadata:
    - Existing pages with `status: stub` or `draft`: edit in place.
    - Pages with `status: reviewed` or later: write a proposed diff in the
      report, do not edit (P11).
+   - Links between pages follow `link_style` in `wiki.yml` (default
+     `markdown`): relative markdown links with the page title as text, e.g.
+     `[Sharp-wave ripple](../concepts/sharp-wave-ripple.md)`.
    - Literature claims cite `[@citekey]`; quotes as `> "verbatim" [@citekey]`.
      Add every cited key to `sources:`.
    - Project results go only in "Our experience" or a `case` page, cited by
