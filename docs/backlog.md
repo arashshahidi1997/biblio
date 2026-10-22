@@ -161,6 +161,17 @@ Requests from journal-club are tagged R01 to R06 below.
   from docling, page, bbox, embedded or rendered, pixel size). Needs poppler.
   On journal-club's target paper: Figures 1-6 as the original 300-ppi JPEGs
   (1900 px wide; docling's crops are 144 dpi), 1.8 s. Panel splitting later.
+- [ ] **D11 Figures, round 2 (R04 reopened by journal-club).** Gaps from a
+  real run, most important first: captions and figure numbers when docling
+  links captions to margin icons (skip pictures under ~1% of the page; else
+  nearest unused "Figure N" text on the page); names for Extended Data and
+  Supplementary figures; the graphical abstract as `ga`; page-relative size
+  threshold for logos and cover sheets; a one-page cropped PDF for vector art;
+  manifest provenance (project-relative `pdf`, `pdf_sha256`, `pdf_version`,
+  credit, licence, per-file sha256, `ref` like `<key>:fig1`, `art`). Reference:
+  journal-club's PyMuPDF prototype `code/figures.py` and its
+  `figures/<key>/manifest.yml` field names. Details in
+  [the issue](log/issue/issue-arash-20261022-154443-625358.md). *Depends* D10.
 
 ## K. Knowledge-graph experiment
 
