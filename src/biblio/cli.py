@@ -129,7 +129,7 @@ def _build_parser() -> argparse.ArgumentParser:
         p_in = ingest_sub.add_parser(name, help=help_text)
         p_in.add_argument("input_path", type=Path, help="Input file to import.")
         p_in.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
-        p_in.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+        p_in.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")
         p_in.add_argument(
             "--out-bib",
             type=Path,
@@ -141,7 +141,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p_pdf = ingest_sub.add_parser("pdfs", help="Import local PDFs into bib/articles and emit managed BibTeX entries.")
     p_pdf.add_argument("input_paths", nargs="+", type=Path, help="PDF files or directories containing PDFs.")
     p_pdf.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
-    p_pdf.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    p_pdf.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")
     p_pdf.add_argument(
         "--out-bib",
         type=Path,
@@ -155,7 +155,7 @@ def _build_parser() -> argparse.ArgumentParser:
     doc_sub = p_doc.add_subparsers(dest="doc_cmd", required=True)
     p_run = doc_sub.add_parser("run", help="Run Docling for one key or all keys.")
     p_run.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
-    p_run.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    p_run.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")
     group = p_run.add_mutually_exclusive_group(required=True)
     group.add_argument("--key", help="Single citekey (with or without leading @).")
     group.add_argument("--all", action="store_true", help="Run for all citekeys in the merged bibliography.")
@@ -173,7 +173,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     p_batch = doc_sub.add_parser("batch", help="Batch-process all pending citekeys (PDFs without docling output).")
     p_batch.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
-    p_batch.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    p_batch.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")
     p_batch.add_argument("--concurrency", type=int, default=1, help="Max parallel docling jobs (default: 1). Use with care on shared HPC nodes.")
     p_batch.add_argument("--filter", dest="filter_glob", default=None, help="fnmatch glob to filter citekeys (e.g. 'smith*').")
     p_batch.add_argument("--force", action="store_true", help="Re-run Docling even if outputs exist.")
@@ -192,13 +192,13 @@ def _build_parser() -> argparse.ArgumentParser:
     bt_sub = p_bt.add_subparsers(dest="bibtex_cmd", required=True)
     bt_merge = bt_sub.add_parser("merge", help="Merge bib/srcbib/*.bib into a single main bib file.")
     bt_merge.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
-    bt_merge.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    bt_merge.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")
     bt_merge.add_argument("--dry-run", action="store_true", help="Parse and report, but do not write output.")
 
     bt_export = bt_sub.add_parser("export", help="Export BibTeX entries for selected citekeys.")
     bt_export.add_argument("citekeys", nargs="*", help="Citekeys to export. Omit to use --all or --status.")
     bt_export.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
-    bt_export.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    bt_export.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")
     bt_export.add_argument("--all", action="store_true", dest="export_all", help="Export all entries from merged bib.")
     bt_export.add_argument("--status", type=str, default=None, help="Export entries with this library status.")
     bt_export.add_argument("--collection", type=str, default=None, help="Export entries from this collection.")
@@ -209,7 +209,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Copy/symlink PDFs referenced by `file` fields in bib/srcbib/*.bib into bib/articles/...",
     )
     bt_fetch.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
-    bt_fetch.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    bt_fetch.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")
     bt_fetch.add_argument("--dry-run", action="store_true")
     bt_fetch.add_argument("--force", action="store_true", help="Overwrite/recopy even if unchanged.")
 
@@ -218,7 +218,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Download PDFs via open-access cascade (pool → OpenAlex → Unpaywall → EZProxy).",
     )
     bt_fetch_oa.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
-    bt_fetch_oa.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    bt_fetch_oa.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")
     bt_fetch_oa.add_argument("--force", action="store_true", help="Download even if PDF already exists.")
     bt_fetch_oa.add_argument("--citekeys", nargs="*", default=None, help="Only fetch these citekeys (default: all).")
 
@@ -226,7 +226,7 @@ def _build_parser() -> argparse.ArgumentParser:
     oa_sub = p_oa.add_subparsers(dest="openalex_cmd", required=True)
     oa_resolve = oa_sub.add_parser("resolve", help="Resolve bib/srcbib/*.bib entries to OpenAlex works.")
     oa_resolve.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
-    oa_resolve.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    oa_resolve.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")
     oa_resolve.add_argument("--src-dir", type=Path, help="Source bib directory (default: bib/srcbib).")
     oa_resolve.add_argument("--src-glob", default="*.bib", help="Glob for source bib files (default: *.bib).")
     oa_resolve.add_argument(
@@ -267,17 +267,17 @@ def _build_parser() -> argparse.ArgumentParser:
     add_doi = add_sub.add_parser("doi", help="Add a paper by DOI via OpenAlex metadata.")
     add_doi.add_argument("doi", help="DOI to add.")
     add_doi.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
-    add_doi.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    add_doi.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")
     add_oa = add_sub.add_parser("openalex", help="Add a paper by OpenAlex work id.")
     add_oa.add_argument("openalex_id", help="OpenAlex ID like W123 or https://openalex.org/W123.")
     add_oa.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
-    add_oa.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    add_oa.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")
     add_orcid = add_sub.add_parser("orcid", help="Add papers by author ORCID via OpenAlex.")
     add_orcid.add_argument("orcid", help="ORCID identifier (e.g. 0000-0002-1234-5678).")
     add_orcid.add_argument("--since", type=int, default=None, help="Only include works from this year onward.")
     add_orcid.add_argument("--min-citations", type=int, default=None, help="Only include works with at least N citations.")
     add_orcid.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
-    add_orcid.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    add_orcid.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")
 
     p_graph = sub.add_parser("graph", help="Expand graph-style literature candidates from OpenAlex results.")
     graph_sub = p_graph.add_subparsers(dest="graph_cmd", required=True)
@@ -311,7 +311,7 @@ def _build_parser() -> argparse.ArgumentParser:
     site_sub = p_site.add_subparsers(dest="site_cmd", required=True)
     site_build = site_sub.add_parser("build", help="Build a standalone site under bib/site/.")
     site_build.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
-    site_build.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    site_build.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")
     site_build.add_argument("--out-dir", type=Path, help="Site output directory (default: bib/site).")
     site_build.add_argument("--force", action="store_true", help="Delete and rebuild the output directory if it exists.")
     site_build.add_argument("--include-graphs", dest="include_graphs", action="store_true", default=True)
@@ -332,7 +332,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     site_doctor = site_sub.add_parser("doctor", help="Report current bibliography site readiness.")
     site_doctor.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
-    site_doctor.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    site_doctor.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")
     site_doctor.add_argument("--out-dir", type=Path, help="Site output directory (default: bib/site).")
     site_doctor.add_argument("--include-graphs", dest="include_graphs", action="store_true", default=True)
     site_doctor.add_argument("--no-graphs", dest="include_graphs", action="store_false")
@@ -345,12 +345,12 @@ def _build_parser() -> argparse.ArgumentParser:
     grobid_sub = p_grobid.add_subparsers(dest="grobid_cmd", required=True)
     grobid_check = grobid_sub.add_parser("check", help="Check connectivity to the configured GROBID server.")
     grobid_check.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
-    grobid_check.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    grobid_check.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")
     grobid_check.add_argument("--url", help="GROBID server URL (overrides config).")
 
     grobid_run = grobid_sub.add_parser("run", help="Extract scholarly structure from PDFs via GROBID.")
     grobid_run.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
-    grobid_run.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    grobid_run.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")
     grobid_run_group = grobid_run.add_mutually_exclusive_group(required=True)
     grobid_run_group.add_argument("--key", help="Single citekey (with or without leading @).")
     grobid_run_group.add_argument("--all", action="store_true", help="Run for all citekeys in the merged bibliography.")
@@ -358,12 +358,12 @@ def _build_parser() -> argparse.ArgumentParser:
 
     grobid_match = grobid_sub.add_parser("match", help="Match GROBID references against the local corpus.")
     grobid_match.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
-    grobid_match.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    grobid_match.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")
 
     p_summarize = sub.add_parser("summarize", help="Generate structured paper summaries via LLM.")
     p_summarize.add_argument("key", nargs="?", help="Single citekey (with or without leading @).")
     p_summarize.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
-    p_summarize.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    p_summarize.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")
     p_summarize.add_argument("--prompt-only", action="store_true", help="Print assembled prompt to stdout (no LLM call).")
     p_summarize.add_argument("--status", help="Batch mode: summarize all papers with this library status (e.g. unread).")
     p_summarize.add_argument("--force", action="store_true", help="Regenerate existing summaries.")
@@ -372,7 +372,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p_present = sub.add_parser("present", help="Generate Marp slide decks from paper context.")
     p_present.add_argument("key", help="Citekey (with or without leading @).")
     p_present.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
-    p_present.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    p_present.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")
     p_present.add_argument("--template", choices=["journal-club", "conference-talk", "lab-meeting"],
                            default="journal-club", help="Slide template (default: journal-club).")
     p_present.add_argument("--prompt-only", action="store_true", help="Print assembled prompt to stdout (no LLM call).")
@@ -384,32 +384,32 @@ def _build_parser() -> argparse.ArgumentParser:
     lib_sub = p_lib.add_subparsers(dest="library_cmd", required=True)
     lib_list = lib_sub.add_parser("list", help="List all library entries.")
     lib_list.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
-    lib_list.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    lib_list.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")
     lib_list.add_argument("--status", help="Filter by status.")
     lib_list.add_argument("--tag", help="Filter by tag.")
     lib_list.add_argument("--json", action="store_true", help="Emit JSON.")
     lib_set = lib_sub.add_parser("set", help="Set status, tags, or priority for a paper.")
     lib_set.add_argument("key", help="Citekey (with or without leading @).")
     lib_set.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
-    lib_set.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    lib_set.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")
     lib_set.add_argument("--status", help="Status: unread|reading|processed|archived.")
     lib_set.add_argument("--tags", help="Comma-separated tags (replaces existing tags).")
     lib_set.add_argument("--priority", help="Priority: low|normal|high.")
 
     lib_lint = lib_sub.add_parser("lint", help="Scan library tags for non-vocabulary, duplicate, or inconsistent tags.")
     lib_lint.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
-    lib_lint.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    lib_lint.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")
     lib_lint.add_argument("--json", action="store_true", help="Emit JSON output.")
 
     lib_dedup = lib_sub.add_parser("dedup", help="Detect duplicate papers by DOI, title similarity, or OpenAlex ID.")
     lib_dedup.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
-    lib_dedup.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    lib_dedup.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")
     lib_dedup.add_argument("--json", action="store_true", help="Emit JSON output.")
 
     lib_autotag = lib_sub.add_parser("autotag", help="Auto-tag papers via LLM classification and/or reference propagation.")
     lib_autotag.add_argument("key", nargs="?", help="Single citekey (with or without leading @).")
     lib_autotag.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
-    lib_autotag.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    lib_autotag.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")
     lib_at_group = lib_autotag.add_mutually_exclusive_group()
     lib_at_group.add_argument("--all", action="store_true", help="Process all papers in the library.")
     lib_at_group.add_argument("--untagged", action="store_true", help="Process only papers with no tags.")
@@ -450,7 +450,7 @@ def _build_parser() -> argparse.ArgumentParser:
     ref_md_sub = p_ref_md.add_subparsers(dest="ref_md_cmd", required=True)
     ref_md_run = ref_md_sub.add_parser("run", help="Resolve in-text citations for one key or all keys.")
     ref_md_run.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
-    ref_md_run.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    ref_md_run.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")
     ref_md_run_group = ref_md_run.add_mutually_exclusive_group(required=True)
     ref_md_run_group.add_argument("--key", help="Single citekey (with or without leading @).")
     ref_md_run_group.add_argument("--all", action="store_true", help="Run for all citekeys in the merged bibliography.")
@@ -460,19 +460,19 @@ def _build_parser() -> argparse.ArgumentParser:
     q_sub = p_q.add_subparsers(dest="queue_cmd", required=True)
     q_list = q_sub.add_parser("list", help="List queued papers needing PDFs.")
     q_list.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
-    q_list.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    q_list.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")
     q_open = q_sub.add_parser("open", help="Open a queued paper's URL in the default browser.")
     q_open.add_argument("key", help="Citekey to open (with or without leading @).")
     q_open.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
-    q_open.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    q_open.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")
     q_drain = q_sub.add_parser("drain", help="Re-attempt OA fetch for all queued papers.")
     q_drain.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
-    q_drain.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    q_drain.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")
     q_drain.add_argument("--force", action="store_true", help="Download even if PDF already exists locally.")
     q_remove = q_sub.add_parser("remove", help="Remove a citekey from the queue.")
     q_remove.add_argument("key", help="Citekey to remove (with or without leading @).")
     q_remove.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
-    q_remove.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    q_remove.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")
 
     p_pool = sub.add_parser("pool", help="Manage the shared PDF pool workspace.")
     pool_sub = p_pool.add_subparsers(dest="pool_cmd", required=True)
@@ -480,7 +480,7 @@ def _build_parser() -> argparse.ArgumentParser:
     _pool_args = [
         ("--pool", dict(type=Path, help="Pool workspace root (default: read from project config).")),
         ("--root", dict(type=Path, help="Repository root (default: auto-detect from cwd).")),
-        ("--config", dict(type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")),
+        ("--config", dict(type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")),
     ]
 
     pool_ingest = pool_sub.add_parser("ingest", help="Ingest PDFs from an inbox directory into the pool.")
@@ -609,7 +609,7 @@ def _build_parser() -> argparse.ArgumentParser:
     ui_sub = p_ui.add_subparsers(dest="ui_cmd", required=True)
     ui_serve = ui_sub.add_parser("serve", help="Serve the local FastAPI/React/Cytoscape UI.")
     ui_serve.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
-    ui_serve.add_argument("--config", type=Path, help="Path to biblio.yml (default: bib/config/biblio.yml).")
+    ui_serve.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")
     ui_serve.add_argument("--host", default="127.0.0.1", help="Host to bind (default: 127.0.0.1).")
     ui_serve.add_argument("--port", type=int, default=8010, help="Port to bind (default: 8010).")
 
@@ -876,7 +876,7 @@ def main(argv: Iterable[str] | None = None) -> None:
             cfg_path = (repo_root / args.config).resolve() if not args.config.is_absolute() else args.config.resolve()
             cfg = load_biblio_config(cfg_path, root=repo_root)
         else:
-            cfg = load_biblio_config(repo_root / "bib" / "config" / "biblio.yml", root=repo_root)
+            cfg = load_biblio_config(default_config_path(root=repo_root), root=repo_root)
         out_bib = (
             (repo_root / args.out_bib).resolve() if getattr(args, "out_bib", None) and not args.out_bib.is_absolute()
             else (args.out_bib.resolve() if getattr(args, "out_bib", None) else default_import_bib_path(repo_root))
@@ -920,7 +920,7 @@ def main(argv: Iterable[str] | None = None) -> None:
     if args.command == "docling":
         if args.doc_cmd == "batch":
             repo_root = (args.root.expanduser().resolve() if args.root else find_repo_root())
-            cfg_path = (repo_root / args.config).resolve() if args.config else (repo_root / "bib" / "config" / "biblio.yml")
+            cfg_path = (repo_root / args.config).resolve() if args.config else default_config_path(root=repo_root)
             cfg = load_biblio_config(cfg_path, root=repo_root)
 
             if args.screen:
@@ -992,7 +992,7 @@ def main(argv: Iterable[str] | None = None) -> None:
         if args.doc_cmd != "run":
             raise SystemExit(2)
         repo_root = (args.root.expanduser().resolve() if args.root else find_repo_root())
-        cfg_path = (repo_root / args.config).resolve() if args.config else (repo_root / "bib" / "config" / "biblio.yml")
+        cfg_path = (repo_root / args.config).resolve() if args.config else default_config_path(root=repo_root)
         cfg = load_biblio_config(cfg_path, root=repo_root)
 
         if args.screen:
@@ -1055,7 +1055,7 @@ def main(argv: Iterable[str] | None = None) -> None:
 
     if args.command == "bibtex":
         repo_root = (args.root.expanduser().resolve() if args.root else find_repo_root())
-        cfg_path = (repo_root / args.config).resolve() if args.config else (repo_root / "bib" / "config" / "biblio.yml")
+        cfg_path = (repo_root / args.config).resolve() if args.config else default_config_path(root=repo_root)
         cfg = load_biblio_config(cfg_path, root=repo_root)
         if args.bibtex_cmd == "merge":
             n_sources, n_entries, quality_warnings = merge_srcbib(cfg.bibtex_merge, dry_run=args.dry_run)
@@ -1139,7 +1139,7 @@ def main(argv: Iterable[str] | None = None) -> None:
         if args.openalex_cmd != "resolve":
             raise SystemExit(2)
         repo_root = (args.root.expanduser().resolve() if args.root else find_repo_root())
-        cfg_path = (repo_root / args.config).resolve() if args.config else (repo_root / "bib" / "config" / "biblio.yml")
+        cfg_path = (repo_root / args.config).resolve() if args.config else default_config_path(root=repo_root)
         cfg = load_biblio_config(cfg_path, root=repo_root)
 
         src_dir = args.src_dir or (repo_root / "bib" / "srcbib")
@@ -1203,7 +1203,7 @@ def main(argv: Iterable[str] | None = None) -> None:
 
     if args.command == "add":
         repo_root = (args.root.expanduser().resolve() if getattr(args, "root", None) else find_repo_root())
-        cfg_path = (repo_root / args.config).resolve() if getattr(args, "config", None) else (repo_root / "bib" / "config" / "biblio.yml")
+        cfg_path = (repo_root / args.config).resolve() if getattr(args, "config", None) else default_config_path(root=repo_root)
         cfg = load_biblio_config(cfg_path, root=repo_root)
         if args.add_cmd == "doi":
             result = add_openalex_work_to_bib(
@@ -1284,7 +1284,7 @@ def main(argv: Iterable[str] | None = None) -> None:
         if args.graph_cmd != "expand":
             raise SystemExit(2)
         repo_root = (args.root.expanduser().resolve() if args.root else find_repo_root())
-        cfg_path = (repo_root / "bib" / "config" / "biblio.yml").resolve()
+        cfg_path = default_config_path(root=repo_root)
         cfg = load_biblio_config(cfg_path, root=repo_root)
         input_path = args.input_path or (repo_root / "bib" / "derivatives" / "openalex" / "resolved.jsonl")
         input_path = (repo_root / input_path).resolve() if not input_path.is_absolute() else input_path
@@ -1307,7 +1307,7 @@ def main(argv: Iterable[str] | None = None) -> None:
 
     if args.command == "grobid":
         repo_root = (args.root.expanduser().resolve() if args.root else find_repo_root())
-        cfg_path = (repo_root / args.config).resolve() if args.config else (repo_root / "bib" / "config" / "biblio.yml")
+        cfg_path = (repo_root / args.config).resolve() if args.config else default_config_path(root=repo_root)
         cfg = load_biblio_config(cfg_path, root=repo_root)
         if args.grobid_cmd == "check":
             from .config import GrobidConfig
@@ -1361,7 +1361,7 @@ def main(argv: Iterable[str] | None = None) -> None:
         from .summarize import summarize as run_summarize
 
         repo_root = (args.root.expanduser().resolve() if args.root else find_repo_root())
-        cfg_path = (repo_root / args.config).resolve() if getattr(args, "config", None) else (repo_root / "bib" / "config" / "biblio.yml")
+        cfg_path = (repo_root / args.config).resolve() if getattr(args, "config", None) else default_config_path(root=repo_root)
         cfg = load_biblio_config(cfg_path, root=repo_root)
 
         # Build list of citekeys to process
@@ -1450,7 +1450,7 @@ def main(argv: Iterable[str] | None = None) -> None:
             print(f"[OK] cleaned {removed}")
             return
 
-        cfg_path = (repo_root / args.config).resolve() if getattr(args, "config", None) else (repo_root / "bib" / "config" / "biblio.yml")
+        cfg_path = (repo_root / args.config).resolve() if getattr(args, "config", None) else default_config_path(root=repo_root)
         cfg = load_biblio_config(cfg_path, root=repo_root)
 
         if args.site_cmd == "doctor":
@@ -1486,7 +1486,7 @@ def main(argv: Iterable[str] | None = None) -> None:
 
     if args.command == "library":
         repo_root = (args.root.expanduser().resolve() if getattr(args, "root", None) else find_repo_root())
-        cfg_path = (repo_root / args.config).resolve() if getattr(args, "config", None) else (repo_root / "bib" / "config" / "biblio.yml")
+        cfg_path = (repo_root / args.config).resolve() if getattr(args, "config", None) else default_config_path(root=repo_root)
         cfg = load_biblio_config(cfg_path, root=repo_root)
         if args.library_cmd == "list":
             entries = load_library(cfg)
@@ -1613,7 +1613,7 @@ def main(argv: Iterable[str] | None = None) -> None:
 
     if args.command == "collection":
         repo_root = (args.root.expanduser().resolve() if getattr(args, "root", None) else find_repo_root())
-        cfg_path = (repo_root / args.config).resolve() if getattr(args, "config", None) else (repo_root / "bib" / "config" / "biblio.yml")
+        cfg_path = (repo_root / args.config).resolve() if getattr(args, "config", None) else default_config_path(root=repo_root)
         cfg = load_biblio_config(cfg_path, root=repo_root)
 
         if args.collection_cmd == "create":
@@ -1687,7 +1687,7 @@ def main(argv: Iterable[str] | None = None) -> None:
 
     if args.command == "ref-md":
         repo_root = (args.root.expanduser().resolve() if args.root else find_repo_root())
-        cfg_path = (repo_root / args.config).resolve() if args.config else (repo_root / "bib" / "config" / "biblio.yml")
+        cfg_path = (repo_root / args.config).resolve() if args.config else default_config_path(root=repo_root)
         cfg = load_biblio_config(cfg_path, root=repo_root)
         if args.ref_md_cmd == "run":
             if args.all:
@@ -1722,14 +1722,14 @@ def main(argv: Iterable[str] | None = None) -> None:
         if args.ui_cmd != "serve":
             raise SystemExit(2)
         repo_root = (args.root.expanduser().resolve() if args.root else find_repo_root())
-        cfg_path = (repo_root / args.config).resolve() if args.config else (repo_root / "bib" / "config" / "biblio.yml")
+        cfg_path = (repo_root / args.config).resolve() if args.config else default_config_path(root=repo_root)
         cfg = load_biblio_config(cfg_path, root=repo_root)
         serve_ui_app(cfg, host=str(args.host), port=int(args.port))
         return
 
     if args.command == "queue":
         repo_root = (args.root.expanduser().resolve() if args.root else find_repo_root())
-        cfg_path = (repo_root / args.config).resolve() if args.config else (repo_root / "bib" / "config" / "biblio.yml")
+        cfg_path = (repo_root / args.config).resolve() if args.config else default_config_path(root=repo_root)
         cfg = load_biblio_config(cfg_path, root=repo_root)
 
         if args.queue_cmd == "list":
@@ -1841,7 +1841,7 @@ def main(argv: Iterable[str] | None = None) -> None:
         repo_root = (args.root.expanduser().resolve() if args.root else find_repo_root())
         cfg_path = (
             (repo_root / args.config).resolve() if args.config
-            else (repo_root / "bib" / "config" / "biblio.yml")
+            else default_config_path(root=repo_root)
         )
         cfg = load_biblio_config(cfg_path, root=repo_root)
 
@@ -1908,9 +1908,9 @@ def main(argv: Iterable[str] | None = None) -> None:
             result = link_project(cfg, pool_root, lab_pool=lab_pool)
             if result["config_updated"]:
                 if lab_pool:
-                    print(f"Updated bib/config/biblio.yml: pool.path = {pool_root}, pool.search = [{lab_pool}, {pool_root}]")
+                    print(f"Updated {result['config_path']}: pool.path = {pool_root}, pool.search = [{lab_pool}, {pool_root}]")
                 else:
-                    print(f"Updated bib/config/biblio.yml: pool.path = {pool_root}")
+                    print(f"Updated {result['config_path']}: pool.path = {pool_root}")
             else:
                 print("biblio.yml already has this pool path — no change.")
             if result["gitignore_updated"]:
@@ -2063,7 +2063,7 @@ def main(argv: Iterable[str] | None = None) -> None:
         if args.concepts_cmd == "extract":
             keys_to_process: list[str] = []
             if getattr(args, "all", False):
-                cfg_path = (repo_root / args.config).resolve() if getattr(args, "config", None) else (repo_root / "bib" / "config" / "biblio.yml")
+                cfg_path = (repo_root / args.config).resolve() if getattr(args, "config", None) else default_config_path(root=repo_root)
                 cfg = load_biblio_config(cfg_path, root=repo_root)
                 lib = load_library(cfg)
                 keys_to_process = list(lib.keys())

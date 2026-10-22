@@ -30,7 +30,7 @@ from .normalize import (
     apply_normalize_plan,
     build_normalize_plan,
 )
-from .config import BiblioConfig, load_biblio_config
+from .config import BiblioConfig, default_config_path, load_biblio_config
 from .docling import outputs_for_key as docling_outputs_for_key, resolve_docling_outputs, run_docling_for_key
 from .graph import add_openalex_work_to_bib, expand_openalex_reference_graph, load_openalex_seed_records
 from .openalex.openalex_resolve import ResolveOptions, resolve_srcbib_to_openalex
@@ -214,7 +214,7 @@ def build_setup_report(cfg: BiblioConfig) -> dict[str, Any]:
     local_store = stores.get("local") if isinstance(stores.get("local"), dict) else {}
     return {
         "repo_root": str(cfg.repo_root),
-        "config_path": str((cfg.repo_root / "bib" / "config" / "biblio.yml").resolve()),
+        "config_path": str(default_config_path(root=cfg.repo_root)),
         "docling": {
             "ok": None,
             "command": cmd,
@@ -312,7 +312,7 @@ def check_docling_command(cfg: BiblioConfig) -> dict[str, Any]:
 
 
 def _config_path(repo_root: Path) -> Path:
-    return (repo_root / "bib" / "config" / "biblio.yml").resolve()
+    return default_config_path(root=repo_root)
 
 
 def _load_config_mapping(repo_root: Path) -> dict[str, Any]:

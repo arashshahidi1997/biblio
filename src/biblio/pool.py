@@ -8,7 +8,7 @@ from typing import Any
 import yaml
 
 from .citekeys import load_active_citekeys
-from .config import BiblioConfig, load_biblio_config
+from .config import BiblioConfig, load_biblio_config, default_config_path
 from .grobid import parse_tei_header, process_pdf_header
 from .ingest import IngestRecord, canonical_citekey, render_bibtex, write_import_bib
 from .ledger import append_jsonl, new_run_id, utc_now_iso
@@ -503,10 +503,10 @@ def promote_to_pool(
     return results
 
 
-def link_project(project_cfg: BiblioConfig, pool_root: Path, *, lab_pool: Path | None = None) -> dict[str, bool]:
+def link_project(project_cfg: BiblioConfig, pool_root: Path, *, lab_pool: Path | None = None) -> dict[str, Any]:
     """Write pool.path into project biblio.yml and add articles/ to bib/.gitignore."""
     pool_root = pool_root.expanduser().resolve()
-    cfg_path = project_cfg.repo_root / "bib" / "config" / "biblio.yml"
+    cfg_path = default_config_path(root=project_cfg.repo_root)
 
     # Update biblio.yml
     config_updated = False
@@ -546,7 +546,7 @@ def link_project(project_cfg: BiblioConfig, pool_root: Path, *, lab_pool: Path |
             f.write("articles/\n")
         gitignore_updated = True
 
-    return {"config_updated": config_updated, "gitignore_updated": gitignore_updated}
+    return {"config_updated": config_updated, "gitignore_updated": gitignore_updated, "config_path": cfg_path}
 
 
 def sync_pool_symlinks(project_cfg: BiblioConfig) -> dict[str, str]:

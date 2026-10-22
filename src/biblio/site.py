@@ -12,7 +12,7 @@ from typing import Any
 
 from ._pybtex_utils import parse_bibtex_file, require_pybtex
 from .citekeys import load_active_citekeys
-from .config import BiblioConfig
+from .config import BiblioConfig, default_config_path
 
 SITE_OUT_REL = Path("bib/site")
 
@@ -953,7 +953,7 @@ def doctor_biblio_site(
     if status["orphan_docling"]:
         warnings.append(f"Found {len(status['orphan_docling'])} orphan Docling directories.")
     return BiblioSiteDoctorReport(
-        config_path=Path(config_path).resolve() if config_path is not None else cfg.repo_root / "bib" / "config" / "biblio.yml",
+        config_path=Path(config_path).resolve() if config_path is not None else default_config_path(root=cfg.repo_root),
         repo_root=cfg.repo_root.resolve(),
         out_dir=site_options.out_dir.resolve(),
         papers_total=int(status["papers_total"]),
