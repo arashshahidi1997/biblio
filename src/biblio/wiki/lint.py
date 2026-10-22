@@ -17,6 +17,7 @@ import yaml
 from .fidelity import QuoteChecker
 from .hubs import stale_views
 from .pages import Page, iter_page_paths, load_pages
+from .sources import SourceIndex
 from .schema import AUTHORS, REQUIRED_KEYS, REVIEWED_STATUSES, SCOPES, STATUSES, WikiConfig
 
 SEVERITIES = ("error", "warning", "suggestion", "info")
@@ -35,11 +36,6 @@ class Finding:
     op: str | None = None
 
 
-def _bib_keys(path: Path | None) -> set[str] | None:
-    if not path or not path.is_file():
-        return None
-    text = path.read_text(encoding="utf-8", errors="replace")
-    return set(re.findall(r"^\s*@\w+\s*\{\s*([^,\s]+)\s*,", text, re.M))
 
 
 def _vocab_tags(path: Path | None) -> set[str] | None:
@@ -101,13 +97,13 @@ def lint(cfg: WikiConfig, paths: list[Path] | None = None) -> list[Finding]:
     findings: list[Finding] = []
     add = findings.append
 
-    bib = _bib_keys(cfg.bibliography)
+    sources = SourceIndex(cfg)
     vocab = _vocab_tags(cfg.vocab)
     resolver = _Resolver(cfg, all_pages)
-    checker = QuoteChecker(cfg.fulltext_path)
+    checker = QuoteChecker(sources.fulltext)
     project_res = [re.compile(t) for t in cfg.project_tokens]
 
-    if bib is None:
+    if not sources.has_bibliography:
         add(Finding("info", "CIT000", "-", None, "no bibliography found; citekeys not checked"))
     if vocab is None:
         add(Finding("info", "TAG000", "-", None, "no vocabulary found; tags not checked"))
@@ -143,7 +139,7 @@ def lint(cfg: WikiConfig, paths: list[Path] | None = None) -> list[Finding]:
                     inbound[target] += 1
 
     for page in pages:
-        _check_page(cfg, page, add, bib, vocab, resolver, checker, project_res)
+        _check_page(cfg, page, add, sources, vocab, resolver, checker, project_res)
         if inbound[page.path] == 0 and page.type not in ("hub", "question"):
             add(Finding("info", "ORPH001", page.rel, None, "no page links here", "P5", "hub"))
 
@@ -179,7 +175,8 @@ def _strip_link(value: str) -> str:
     return m.group(1) if m else value
 
 
-def _check_page(cfg, page: Page, add, bib, vocab, resolver: _Resolver, checker: QuoteChecker, project_res):
+def _check_page(cfg, page: Page, add, sources: SourceIndex, vocab, resolver: _Resolver, checker: QuoteChecker,
+                project_res):
     fm = page.frontmatter
     reviewed = page.status in REVIEWED_STATUSES
     strict = "error" if reviewed else "warning"
@@ -265,17 +262,22 @@ def _check_page(cfg, page: Page, add, bib, vocab, resolver: _Resolver, checker: 
                 add(Finding("warning", "LNK005", page.rel, link.line, f"'{link.target}#{link.anchor}': no such heading"))
 
     # citations
-    sources = {s.lstrip("@") for s in page.list_field("sources")}
+    listed = {s.lstrip("@") for s in page.list_field("sources")}
     cited = {c.key for c in page.citations}
-    if bib is not None:
-        for key in sorted(cited | sources):
-            if key not in bib:
-                line = next((c.line for c in page.citations if c.key == key), 1)
-                add(Finding("error", "CIT001", page.rel, line, f"@{key} is not in the bibliography", "P8"))
-    for key in sorted(cited - sources):
+    if sources.has_bibliography:
+        for key in sorted(cited | listed):
+            line = next((c.line for c in page.citations if c.key == key), 1)
+            where = sources.locate(key)
+            if where is None:
+                add(Finding("error", "CIT001", page.rel, line, f"@{key} is not in the bibliography or any pool", "P8"))
+            elif where != "project":
+                add(Finding("info", "CIT003", page.rel, line,
+                            f"@{key} is in a pool ({where}) but not in the project bibliography; "
+                            "add it before rendering", "P8"))
+    for key in sorted(cited - listed):
         line = next(c.line for c in page.citations if c.key == key)
         add(Finding("warning", "CIT002", page.rel, line, f"@{key} is cited but not listed in sources:", "P8"))
-    for key in sorted(sources - cited):
+    for key in sorted(listed - cited):
         add(Finding("info", "CIT004", page.rel, 1, f"@{key} is in sources: but never cited in the text", "P8"))
 
     # fidelity

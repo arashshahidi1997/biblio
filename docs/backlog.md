@@ -81,11 +81,11 @@ Requests from journal-club are tagged R01 to R06 below.
 - [x] **W01 Phase 1.** `biblio wiki init|stub|lint|hubs|status`,
   `biblio skills list|install`, skills `wiki-maintain` and `wiki-ingest`,
   13 tests (af65941). Answers R05 part 1.
-- [ ] **W16 Pools in lint (R05, first for journal-club).** Citekey and quote
-  checks resolve against the project bibliography *and* the shared pools
-  (`pool.search`), since a literature wiki cites mostly pool papers. *Done
-  when* a wiki citing a pool paper lints without CIT001, and its quotes are
-  checked against the pool's full text.
+- [x] **W16 Pools in lint (R05, first for journal-club).** Citekeys resolve
+  against all project bibliographies (`compiled.bib`, `merged.bib`,
+  `main.bib`) and the pools in `pool.search`; a key found only in a pool is
+  a note (CIT003, "add before rendering"), not an error; quotes are checked
+  against the pool's full text. Real run with journal-club's two pools: 1.1 s.
 - [ ] **W17 Figure embeds (R05).** Wiki pages embed figures from D10 in a way
   that works with annexed files in both editors. *Depends* D10, W04.
 - [ ] **W02 First real subject (M1).** Use phase 1 on pixecog's layer

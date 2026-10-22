@@ -65,6 +65,7 @@ class WikiConfig:
     extra_keys: tuple[str, ...] = ()
     project_tokens: tuple[str, ...] = DEFAULT_PROJECT_TOKENS
     max_words: int = 800
+    bibliography_explicit: bool = False      # set in wiki.yml; otherwise project defaults are merged
     link_style: str = "wikilink"        # "wikilink" | "markdown" (used when biblio writes links)
 
     @property
@@ -96,7 +97,7 @@ def load_wiki_config(repo_root: Path, wiki_root: Path | None = None) -> WikiConf
         return (repo_root / value).resolve() if value else None
 
     bibliography = rel(data.get("bibliography")) or _first_existing(
-        repo_root, (".projio/render/compiled.bib", "bib/main.bib"))
+        repo_root, (".projio/render/compiled.bib", ".projio/biblio/merged.bib", "bib/main.bib"))
     vocab = rel(data.get("vocab"))
     if vocab is None:
         vocab = next((p for p in (wiki_root / "vocab.yml", repo_root / ".projio" / "biblio" / "tag_vocab.yml")
@@ -121,4 +122,5 @@ def load_wiki_config(repo_root: Path, wiki_root: Path | None = None) -> WikiConf
         project_tokens=tuple(data.get("project_tokens", DEFAULT_PROJECT_TOKENS)),
         max_words=int(data.get("max_words", 800)),
         link_style=str(data.get("link_style", "wikilink")),
+        bibliography_explicit=bool(data.get("bibliography")),
     )

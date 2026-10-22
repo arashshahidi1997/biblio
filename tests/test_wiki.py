@@ -37,6 +37,12 @@ sources: [{sources}]
 """
 
 
+@pytest.fixture(autouse=True)
+def _no_user_config(monkeypatch):
+    """Keep the user's ~/.config/biblio settings (e.g. pools) out of these tests."""
+    monkeypatch.setattr("biblio.profile.load_user_config", lambda: {})
+
+
 @pytest.fixture
 def repo(tmp_path: Path) -> Path:
     (tmp_path / "bib").mkdir()
@@ -230,3 +236,53 @@ def test_cli_lint_exit_code_and_skills_install(repo, capsys, tmp_path):
     results = install(tmp_path / "skills")
     assert all(action == "installed" for _, action in results)
     assert (tmp_path / "skills" / "wiki-maintain" / "SKILL.md").is_file()
+
+
+POOL_PAPER = """# Ripple heterogeneity
+
+## Results
+
+Sharp-wave ripples differed in their laminar current sinks across sessions.
+"""
+
+
+def test_lint_resolves_citekeys_and_quotes_in_pools(repo, tmp_path):
+    pool_project = tmp_path / "poolproject"
+    (pool_project / "bib" / "articles").mkdir(parents=True)
+    (pool_project / "bib" / "main.bib").write_text(
+        "@article{pool_2025_RippleHeterogeneity,\n  title = {Ripples},\n  doi = {10.1000/pool}\n}\n")
+    paper = pool_project / "bib" / "derivatives" / "docling" / "pool_2025_RippleHeterogeneity"
+    paper.mkdir(parents=True)
+    (paper / "pool_2025_RippleHeterogeneity.md").write_text(POOL_PAPER)
+    cfg_file = repo / ".projio" / "biblio" / "biblio.yml"
+    cfg_file.parent.mkdir(parents=True)
+    cfg_file.write_text(f"pool:\n  search:\n    - {pool_project / 'bib' / 'articles'}\n")
+
+    cfg = load_wiki_config(repo)
+    body = """
+# Ripple types
+
+Ripples are not all alike [@pool_2025_RippleHeterogeneity].
+
+## Why it matters
+
+> "Sharp-wave ripples differed in their laminar current sinks across sessions" [@pool_2025_RippleHeterogeneity]
+
+> "Every ripple originates in the dentate gyrus" [@pool_2025_RippleHeterogeneity]
+
+See also [@ghost_1999_Nothing].
+
+## Key facts
+
+## Related
+"""
+    page = write(cfg.wiki_root / "concepts" / "ripple-types.md",
+                 sources="pool_2025_RippleHeterogeneity, ghost_1999_Nothing", body=body)
+    findings = lint(cfg, [page])
+    by_code = {}
+    for f in findings:
+        by_code.setdefault(f.code, []).append(f)
+    assert "CIT003" in by_code and "pool" in by_code["CIT003"][0].message      # known, but only in a pool
+    assert [f.message for f in by_code["CIT001"]] == ["@ghost_1999_Nothing is not in the bibliography or any pool"]
+    assert len(by_code.get("FID001", [])) == 1 and "dentate" in by_code["FID001"][0].message
+    assert "FID002" not in by_code                                               # pool full text was found

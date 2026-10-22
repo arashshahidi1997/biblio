@@ -50,8 +50,8 @@ binding (bibliography, vocabulary, extra relation keys, project tokens).
 | Structure | lede paragraph present; required H2 sections per type (skipped for stubs) | warning (error once reviewed) |
 | Tags | `facet/value` tags exist in the vocabulary | error |
 | Links | wikilinks and relative markdown links resolve; heading anchors exist; no `![[embeds]]`; basenames unique | warning (error once reviewed) |
-| Citations | `[@citekey]` exists in the bibliography; in-text citations listed in `sources:` | error / warning |
-| Fidelity | quoted text attributed to a citekey appears in that paper's full text | error |
+| Citations | `[@citekey]` exists in the project bibliography or a pool (`pool.search`; pool-only keys are a note to add before rendering); in-text citations listed in `sources:` | error / warning / note |
+| Fidelity | quoted text attributed to a citekey appears in that paper's full text (project or pool) | error |
 | Code | `path::function` anchors exist | warning |
 | Scope | no project tokens (e.g. `sub-01`, `ses-03`) on `scope: general` pages outside "Our experience" | warning |
 | Views | hub page lists match what `hubs` would generate | warning |
