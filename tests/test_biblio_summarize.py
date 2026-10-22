@@ -164,7 +164,7 @@ def test_summarize_skips_existing(mock_summary_path, mock_cfg_path, mock_load_cf
 @patch("biblio.config.load_biblio_config")
 @patch("biblio.config.default_config_path")
 @patch("biblio.summarize.summary_path_for_key")
-@patch.dict("os.environ", {}, clear=True)
+@patch.dict("os.environ", {"BIBLIO_LLM_BACKEND": "api"}, clear=True)
 def test_summarize_no_api_key(mock_summary_path, mock_cfg_path, mock_load_cfg, mock_assemble, tmp_path):
     mock_summary_path.return_value = tmp_path / "smith_2024_Test.md"
     mock_cfg_path.return_value = Path("/fake/config.yml")
@@ -175,7 +175,7 @@ def test_summarize_no_api_key(mock_summary_path, mock_cfg_path, mock_load_cfg, m
 
     result = summarize("smith_2024_Test", Path("/fake/root"), prompt_only=False)
 
-    assert result.get("error") == "ANTHROPIC_API_KEY not set"
+    assert result.get("error", "").startswith("ANTHROPIC_API_KEY not set")
     assert result["summary_path"] is None
 
 

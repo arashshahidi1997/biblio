@@ -110,7 +110,7 @@ class _FakeClient:
         self._responses = responses
         self.calls: list[tuple[str, dict]] = []
 
-    def _get_json(self, path: str, *, params: dict | None = None) -> dict:
+    def _get_json(self, path: str, *, params: dict | None = None, skip_select: bool = False) -> dict:
         self.calls.append((path, params or {}))
         key = path
         if params:

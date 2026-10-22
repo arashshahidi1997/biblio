@@ -50,12 +50,17 @@ Requests from journal-club are tagged R01 to R06 below.
   verified foundations DOIs, ingest now yields exactly the hand-checked keys.
   Limit: records the registry lists without authors (e.g. one Morgan Kaufmann
   book) still get `anon_`.
-- [ ] **H04 Failing tests.** 10 tests fail on the current branch, mostly LLM
-  mocks (`test_author_search`, `test_autotag`, `test_cite_draft_review`,
-  `test_present`, `test_biblio_summarize`, `test_tag_vocab` CLI lint).
-  *Done when* the suite is green or the tests move with their modules (S03 to S05).
+- [x] **H04 Failing tests.** Suite green (328 passed). Causes: a real bug,
+  `biblio library lint` crashed because a local import in `main()` made
+  `load_library` local to the whole function; LLM tests assumed the API
+  backend while the default became the `claude` CLI, so test runs shelled out
+  to the real CLI (tests now default to `BIBLIO_LLM_BACKEND=api` in
+  `conftest.py`); a fake client and three message assertions were out of date.
 - [ ] **H05 Conda out.** Remove conda paths from docling hints and the GUI
   setup; a pixi feature or uv tool for docling. (B11)
+- [ ] **H08 LLM model names.** `llm.py` maps `sonnet`/`opus` to
+  `claude-sonnet-4-20250514` and `claude-opus-4-20250514`; update to current
+  models and make the default configurable.
 - [ ] **H06 Local citation edges.** `graph.py:316` drops OpenAlex references
   between two held papers. *Done when* the corpus graph includes them.
 - [ ] **H07 Log triage.** The notio log holds 122 task notes and 16 issues

@@ -1082,7 +1082,6 @@ def main(argv: Iterable[str] | None = None) -> None:
                 db = parse_bibtex_file(bib_path)
                 citekeys = sorted(db.entries.keys())
             if args.status:
-                from .library import load_library
                 lib = load_library(cfg)
                 citekeys = sorted(k for k, v in lib.items() if v.get("status") == args.status)
             if args.collection:

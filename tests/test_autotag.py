@@ -118,7 +118,7 @@ def test_autotag_llm_calls_api(
 @patch("biblio.autotag.default_config_path")
 @patch("biblio.autotag._get_abstract")
 @patch("biblio.autotag.load_cache", return_value=None)
-@patch.dict("os.environ", {}, clear=True)
+@patch.dict("os.environ", {"BIBLIO_LLM_BACKEND": "api"}, clear=True)
 def test_autotag_llm_no_api_key(mock_load_cache, mock_abstract, mock_cfg_path, mock_load_cfg):
     mock_cfg_path.return_value = Path("/fake/config.yml")
     cfg = MagicMock()
@@ -131,7 +131,7 @@ def test_autotag_llm_no_api_key(mock_load_cache, mock_abstract, mock_cfg_path, m
             from biblio.autotag import autotag_llm
 
             result = autotag_llm("test_key", Path("/fake"))
-    assert result.get("error") == "ANTHROPIC_API_KEY not set"
+    assert result.get("error", "").startswith("ANTHROPIC_API_KEY not set")
 
 
 @patch("biblio.autotag.load_biblio_config")

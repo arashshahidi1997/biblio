@@ -291,7 +291,7 @@ def test_generate_slides_skips_existing(mock_slides_path, mock_cfg_path, mock_lo
 @patch("biblio.present.load_biblio_config")
 @patch("biblio.present.default_config_path")
 @patch("biblio.present.slides_path_for_key")
-@patch.dict("os.environ", {}, clear=True)
+@patch.dict("os.environ", {"BIBLIO_LLM_BACKEND": "api"}, clear=True)
 def test_generate_slides_no_api_key(mock_slides_path, mock_cfg_path, mock_load_cfg, mock_assemble, tmp_path):
     mock_slides_path.return_value = tmp_path / "smith_2024.md"
     mock_cfg_path.return_value = Path("/fake/config.yml")
@@ -307,7 +307,7 @@ def test_generate_slides_no_api_key(mock_slides_path, mock_cfg_path, mock_load_c
 
     result = generate_slides("smith_2024", Path("/fake/root"), prompt_only=False)
 
-    assert result.get("error") == "ANTHROPIC_API_KEY not set"
+    assert result.get("error", "").startswith("ANTHROPIC_API_KEY not set")
     assert result["slides_path"] is None
 
 
