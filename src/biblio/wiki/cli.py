@@ -59,7 +59,10 @@ def add_parsers(sub) -> None:
     _common(p)
     p.add_argument("citekey")
     p.add_argument("number", help="Figure number, or a file stem such as pic-02 (see the figures manifest).")
-    p.add_argument("--page", type=Path, help="The page it goes on, for the relative path (default: sources/).")
+    p.add_argument("--page", type=Path,
+                   help="The page it goes on (path from the wiki root or the cwd), for the relative path.")
+    p.add_argument("--caption", default="title", choices=["title", "full", "none"],
+                   help="Caption text: the caption's first sentence (default), the full caption, or none.")
 
     p = wsub.add_parser("review", help="Human review: packets for the reviewer, and recording decisions.")
     rsub = p.add_subparsers(dest="review_cmd", required=True)
@@ -155,12 +158,23 @@ def run(args) -> None:
 
     if args.wiki_cmd == "figure":
         from .embeds import figure_embed
-        page = args.page.expanduser().resolve() if args.page else None
+        page = None
+        if args.page:
+            p = args.page.expanduser()
+            cands = [p] if p.is_absolute() else [cfg.wiki_root / p, Path.cwd() / p, cfg.repo_root / p]
+            page = next((c.resolve() for c in cands if c.is_file()), None)
+            if page is None:
+                print(f"error: no page {args.page} (looked in the wiki root and the current directory)",
+                      file=sys.stderr)
+                raise SystemExit(1)
         try:
-            print(figure_embed(cfg, args.citekey, args.number, page), end="")
+            snippet, warnings = figure_embed(cfg, args.citekey, args.number, page, caption=args.caption)
         except (FileNotFoundError, LookupError) as exc:
             print(f"error: {exc}", file=sys.stderr)
             raise SystemExit(1)
+        print(snippet, end="")
+        for w in warnings:
+            print(f"warning: caption {w}", file=sys.stderr)
         return
 
     if args.wiki_cmd == "review":

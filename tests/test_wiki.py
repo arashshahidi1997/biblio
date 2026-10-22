@@ -4,6 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+import yaml
 
 from biblio.cli import main
 from biblio.skills_bundle import install, list_skills
@@ -346,11 +347,11 @@ def _figures(repo: Path) -> Path:
 def test_figure_snippet(repo):
     cfg = load_wiki_config(repo)
     _figures(repo)
-    snippet = figure_embed(cfg, FIG_KEY, "2")
+    snippet, warnings = figure_embed(cfg, FIG_KEY, "2")
     assert snippet == (f"![Figure 2 of {FIG_KEY}](../../../bib/derivatives/figures/{FIG_KEY}/fig-2.png)\n\n"
-                       f"*Figure 2. Hippocampal ripples follow up-states.* [@{FIG_KEY}]\n")
+                       f"*Figure 2. Hippocampal ripples follow up-states.* [@{FIG_KEY}]\n") and warnings == []
     page = cfg.wiki_root / "concepts" / "x.md"
-    assert f"(../../../bib/derivatives/figures/{FIG_KEY}/fig-2.png)" in figure_embed(cfg, FIG_KEY, "fig-2", page)
+    assert f"(../../../bib/derivatives/figures/{FIG_KEY}/fig-2.png)" in figure_embed(cfg, FIG_KEY, "fig-2", page)[0]
     with pytest.raises(LookupError, match="known: 2"):
         figure_embed(cfg, FIG_KEY, "9")
     with pytest.raises(FileNotFoundError, match="biblio figures run"):
@@ -363,7 +364,7 @@ def test_figure_needs_credit(repo):
     rel = f"../../../bib/derivatives/figures/{FIG_KEY}/fig-2.png"
     write(cfg.wiki_root / "concepts" / "uncredited.md", body=f"\n# U\n\nLede.\n\n![Figure 2]({rel})\n")
     write(cfg.wiki_root / "concepts" / "credited.md", sources=f"'@{FIG_KEY}'",
-          body="\n# C\n\nLede.\n\n" + figure_embed(cfg, FIG_KEY, "2", cfg.wiki_root / "concepts" / "credited.md"))
+          body="\n# C\n\nLede.\n\n" + figure_embed(cfg, FIG_KEY, "2", cfg.wiki_root / "concepts" / "credited.md")[0])
     found = lint(cfg)
     assert "IMG003" in codes(found, "concepts/uncredited.md")
     assert not {"IMG003", "LNK004", "IMG001", "IMG002"} & set(codes(found, "concepts/credited.md"))
@@ -379,7 +380,7 @@ def test_annexed_figure_states_and_embeds_command(repo, capsys):
     git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "fig")
     cfg = load_wiki_config(repo)
     page = cfg.wiki_root / "concepts" / "embeds.md"
-    write(page, sources=f"'@{FIG_KEY}'", body="\n# E\n\nLede.\n\n" + figure_embed(cfg, FIG_KEY, "2", page))
+    write(page, sources=f"'@{FIG_KEY}'", body="\n# E\n\nLede.\n\n" + figure_embed(cfg, FIG_KEY, "2", page)[0])
 
     assert file_state(fig) == "locked"
     assert "IMG002" in codes(lint(cfg), "concepts/embeds.md")
@@ -725,7 +726,39 @@ def test_packet_pool_only_citation_and_figure(repo, tmp_path):
     cfg_file.write_text(f"pool:\n  search:\n    - {pool_project / 'bib' / 'articles'}\n")
     _figures(repo)
     page = _reviewable(cfg, body=REVIEW_BODY + "\nAlso [@pool_2025_X].\n\n"
-                       + figure_embed(cfg, FIG_KEY, "2", cfg.wiki_root / "concepts" / "coupling.md"))
+                       + figure_embed(cfg, FIG_KEY, "2", cfg.wiki_root / "concepts" / "coupling.md")[0])
     text = rv.packet(cfg, page)
     assert "@pool_2025_X: pool only (" in text and "add to the project bibliography" in text
     assert "### Figures (1)" in text and "fig-2.png` (file)" in text
+
+
+# --- R14: figure snippets (journal-club trial) --------------------------------------
+
+def test_clean_caption_ligatures_and_lost_dashes():
+    from biblio.wiki.embeds import clean_caption
+    text, warnings = clean_caption("Ripples were f iltered and the def lection identif ied; "
+                                   "the role of interest, if it holds, pre-ripple (12040 ms before ripple).")
+    assert "filtered" in text and "deflection" in text and "identified" in text
+    assert "of interest" in text and "if it holds" in text                 # real words ending in f stay
+    assert warnings == ["'12040 ms' may have lost a dash; check the paper"]
+
+
+def test_figure_caption_modes_and_word_count(repo, tmp_path, capsys):
+    cfg = load_wiki_config(repo)
+    d = _figures(repo)
+    long = "Figure 2. Hippocampal ripples follow up-states. " + "(A) Detail sentence with statistics. " * 60
+    (d / "manifest.yml").write_text(yaml.safe_dump({"citekey": FIG_KEY, "figures": [
+        {"index": 3, "number": 2, "caption": long, "page": 4, "file": "fig-2.png"}]}))
+    short, _ = figure_embed(cfg, FIG_KEY, "2")
+    assert "*Figure 2. Hippocampal ripples follow up-states (full caption in the paper)*" in short
+    full, _ = figure_embed(cfg, FIG_KEY, "2", caption="full")
+    assert "Detail sentence" in full
+    page = write(cfg.wiki_root / "concepts" / "f.md", body="\n# F\n\nLede here.\n\n" + full)
+    assert parse_page(page, cfg.wiki_root).words < 20           # the embedded caption does not count
+
+    # --page is found from the wiki root even when run elsewhere; a missing page is an error
+    main(["wiki", "figure", FIG_KEY, "2", "--page", "concepts/f.md", "--root", str(repo)])
+    assert f"(../../../bib/derivatives/figures/{FIG_KEY}/fig-2.png)" in capsys.readouterr().out
+    with pytest.raises(SystemExit):
+        main(["wiki", "figure", FIG_KEY, "2", "--page", "concepts/nope.md", "--root", str(repo)])
+    assert "no page" in capsys.readouterr().err

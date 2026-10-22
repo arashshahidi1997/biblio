@@ -175,6 +175,7 @@ def parse_page(path: Path, wiki_root: Path) -> Page:
     paragraph: list[str] = []
     seen_h2 = False
     words = 0
+    prev_text = ""                               # the previous non-blank line, to spot figure captions
 
     for idx, raw in enumerate(lines):
         lineno = offset + idx
@@ -227,8 +228,12 @@ def parse_page(path: Path, wiki_root: Path) -> Page:
             for m in INLINE_QUOTE_RE.finditer(raw):
                 keys = [c.key for c in _parse_citations(m.group(2), lineno)]
                 page.quotes.append(Quote(text=m.group(1).strip(), keys=keys, line=lineno))
-        if not heading:
+        figure = stripped.startswith("![") or prev_text.startswith("![") or bool(
+            re.match(r"^\*+\s*(Figure|Fig\.)", stripped))
+        if not heading and not figure:           # embeds and their captions do not count toward the limit
             words += len(re.findall(r"\w+", _strip_citations(raw)))
+        if stripped:
+            prev_text = stripped
 
     _flush_blockquote(block, page.quotes)
     if page.lede is None and paragraph:
