@@ -316,3 +316,84 @@ See also [@ghost_1999_Nothing].
     assert [f.message for f in by_code["CIT001"]] == ["@ghost_1999_Nothing is not in the bibliography or any pool"]
     assert len(by_code.get("FID001", [])) == 1 and "dentate" in by_code["FID001"][0].message
     assert "FID002" not in by_code                                               # pool full text was found
+
+
+# --- W17: embedded figures -------------------------------------------------
+
+import shutil  # noqa: E402
+import subprocess  # noqa: E402
+
+from biblio.wiki.embeds import figure_embed, file_state, find_embeds, apply  # noqa: E402
+
+PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 2048
+FIG_KEY = "sirota_2003_CommunicationNeocortex"
+
+
+def _figures(repo: Path) -> Path:
+    d = repo / "bib" / "derivatives" / "figures" / FIG_KEY
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "fig-2.png").write_bytes(PNG)
+    (d / "manifest.yml").write_text(
+        f"citekey: {FIG_KEY}\nfigures:\n"
+        "- {index: 3, number: 2, kind: figure, caption: \"Figure 2. Hippocampal  ripples\\n follow up-states.\", "
+        "page: 4, file: fig-2.png}\n")
+    return d
+
+
+def test_figure_snippet(repo):
+    cfg = load_wiki_config(repo)
+    _figures(repo)
+    snippet = figure_embed(cfg, FIG_KEY, "2")
+    assert snippet == (f"![Figure 2 of {FIG_KEY}](../../../bib/derivatives/figures/{FIG_KEY}/fig-2.png)\n\n"
+                       f"*Figure 2. Hippocampal ripples follow up-states.* [@{FIG_KEY}]\n")
+    page = cfg.wiki_root / "concepts" / "x.md"
+    assert f"(../../../bib/derivatives/figures/{FIG_KEY}/fig-2.png)" in figure_embed(cfg, FIG_KEY, "fig-2", page)
+    with pytest.raises(LookupError, match="known: 2"):
+        figure_embed(cfg, FIG_KEY, "9")
+    with pytest.raises(FileNotFoundError, match="biblio figures run"):
+        figure_embed(cfg, "nobody_2000_X", "1")
+
+
+def test_figure_needs_credit(repo):
+    cfg = load_wiki_config(repo)
+    _figures(repo)
+    rel = f"../../../bib/derivatives/figures/{FIG_KEY}/fig-2.png"
+    write(cfg.wiki_root / "concepts" / "uncredited.md", body=f"\n# U\n\nLede.\n\n![Figure 2]({rel})\n")
+    write(cfg.wiki_root / "concepts" / "credited.md", sources=f"'@{FIG_KEY}'",
+          body="\n# C\n\nLede.\n\n" + figure_embed(cfg, FIG_KEY, "2", cfg.wiki_root / "concepts" / "credited.md"))
+    found = lint(cfg)
+    assert "IMG003" in codes(found, "concepts/uncredited.md")
+    assert not {"IMG003", "LNK004", "IMG001", "IMG002"} & set(codes(found, "concepts/credited.md"))
+
+
+@pytest.mark.skipif(shutil.which("git-annex") is None, reason="needs git-annex")
+def test_annexed_figure_states_and_embeds_command(repo, capsys):
+    git = lambda *a: subprocess.run(["git", *a], cwd=repo, check=True, capture_output=True)  # noqa: E731
+    git("init", "-q")
+    git("-c", "user.name=t", "-c", "user.email=t@t", "annex", "init", "test")
+    fig = _figures(repo) / "fig-2.png"
+    git("annex", "add", str(fig))
+    git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "fig")
+    cfg = load_wiki_config(repo)
+    page = cfg.wiki_root / "concepts" / "embeds.md"
+    write(page, sources=f"'@{FIG_KEY}'", body="\n# E\n\nLede.\n\n" + figure_embed(cfg, FIG_KEY, "2", page))
+
+    assert file_state(fig) == "locked"
+    assert "IMG002" in codes(lint(cfg), "concepts/embeds.md")
+
+    backup = repo / "fig-2.backup"
+    backup.write_bytes(fig.read_bytes())
+    git("annex", "drop", "--force", str(fig))
+    assert file_state(fig) == "absent"
+    found = lint(cfg)
+    assert "IMG001" in codes(found, "concepts/embeds.md") and "LNK004" not in codes(found, "concepts/embeds.md")
+
+    git("annex", "reinject", str(backup), str(fig))  # the content is back, still locked
+    embeds = find_embeds(cfg)
+    [(action, paths, code)] = apply(cfg, embeds, get=False, unlock=True)
+    assert (action, code) == ("unlock", 0) and file_state(fig) == "file" and embeds[0].state == "file"
+    assert not {"IMG001", "IMG002"} & set(codes(lint(cfg), "concepts/embeds.md"))
+
+    with pytest.raises(SystemExit) as exc:
+        main(["wiki", "embeds", "--root", str(repo)])
+    assert exc.value.code == 0 and "file     bib/derivatives/figures" in capsys.readouterr().out

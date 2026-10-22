@@ -47,6 +47,18 @@ def add_parsers(sub) -> None:
     _common(p)
     p.add_argument("--format", default="text", choices=["text", "json"])
 
+    p = wsub.add_parser("embeds", help="Files pages embed and their annex state; fetch or unlock them.")
+    _common(p)
+    p.add_argument("--get", action="store_true", help="Fetch annexed files whose content is not here.")
+    p.add_argument("--unlock", action="store_true",
+                   help="Unlock annexed files so Obsidian shows them (it ignores symlinks).")
+
+    p = wsub.add_parser("figure", help="Markdown that embeds a paper's figure with caption and citation.")
+    _common(p)
+    p.add_argument("citekey")
+    p.add_argument("number", help="Figure number, or a file stem such as pic-02 (see the figures manifest).")
+    p.add_argument("--page", type=Path, help="The page it goes on, for the relative path (default: sources/).")
+
     p_sk = sub.add_parser("skills", help="Agent skills shipped with biblio.")
     sksub = p_sk.add_subparsers(dest="skills_cmd", required=True)
     sksub.add_parser("list", help="List bundled skills.")
@@ -102,6 +114,29 @@ def run(args) -> None:
             print(f"error: {exc}", file=sys.stderr)
             raise SystemExit(1)
         print(f"created {rel(path)}")
+        return
+
+    if args.wiki_cmd == "embeds":
+        from .embeds import apply, find_embeds
+        embeds = find_embeds(cfg)
+        for action, paths, code in apply(cfg, embeds, get=args.get, unlock=args.unlock):
+            print(f"{action}: {len(paths)} file(s)" + ("" if code == 0 else f" (exit {code})"))
+        for e in embeds:
+            print(f"{e.state:8} {rel(e.path)}  <- {e.page.rel}:{e.line}")
+        if not embeds:
+            print("no embedded files")
+        counts = {s: sum(e.state == s for e in embeds) for s in ("file", "locked", "absent", "missing")}
+        print(", ".join(f"{v} {k}" for k, v in counts.items() if v) or "")
+        raise SystemExit(1 if counts["absent"] or counts["missing"] else 0)
+
+    if args.wiki_cmd == "figure":
+        from .embeds import figure_embed
+        page = args.page.expanduser().resolve() if args.page else None
+        try:
+            print(figure_embed(cfg, args.citekey, args.number, page), end="")
+        except (FileNotFoundError, LookupError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            raise SystemExit(1)
         return
 
     if args.wiki_cmd == "lint":

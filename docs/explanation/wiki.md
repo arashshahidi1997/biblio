@@ -50,6 +50,7 @@ binding (bibliography, vocabulary, extra relation keys, project tokens).
 | Structure | lede paragraph present; required H2 sections per type (skipped for stubs) | warning (error once reviewed) |
 | Tags | `facet/value` tags exist in the vocabulary | error |
 | Links | wikilinks and relative markdown links resolve; heading anchors exist; no `![[embeds]]`; basenames unique | warning (error once reviewed) |
+| Embeds | an embedded image's annexed content is present (`IMG001`); a locked annex symlink is noted because Obsidian ignores it (`IMG002`); a figure from `bib/derivatives/figures/<citekey>/` cites that paper (`IMG003`) | warning / note |
 | Citations | `[@citekey]` exists in the project bibliography or a pool (`pool.search`; pool-only keys are a note to add before rendering); in-text citations listed in `sources:` | error / warning / note |
 | Fidelity | quoted text attributed to a citekey appears in that paper's full text (project or pool) | error |
 | Code | `path::function` anchors exist | warning |

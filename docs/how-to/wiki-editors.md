@@ -54,14 +54,25 @@ symlink into `.git/annex`. **Obsidian ignores file symlinks**, so an annexed
 figure is missing from the vault and its embed shows "could not be found".
 Markdown full text is in git (with `text2git`) and works.
 
-Unlock the figures a wiki embeds, so they become regular files:
+To embed a paper's figure, extract the paper's figures once and print a
+snippet (image, caption and citation, with the right relative path):
 
 ```bash
-datalad unlock bib/derivatives/figures/<key>
+biblio figures run --key <citekey>
+biblio wiki figure <citekey> 3 --page docs/wiki/sources/<page>.md
 ```
 
-`datalad save` keeps them annexed and unlocked. For a whole checkout,
-`git annex adjust --unlock` unlocks everything.
+Then unlock what the wiki embeds, so the files become regular files:
+
+```bash
+biblio wiki embeds --unlock     # add --get to fetch content that is not here yet
+```
+
+`biblio wiki embeds` alone lists every embedded file with its state (`file`,
+`locked`, `absent`, `missing`); lint reports the same as `IMG001`/`IMG002`,
+and `IMG003` when a paper's figure is embedded without citing the paper.
+`datalad save` keeps unlocked files annexed and unlocked. For a whole
+checkout, `git annex adjust --unlock` unlocks everything.
 
 ## VS Code
 

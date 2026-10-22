@@ -94,11 +94,14 @@ Requests from journal-club are tagged R01 to R06 below.
   `main.bib`) and the pools in `pool.search`; a key found only in a pool is
   a note (CIT003, "add before rendering"), not an error; quotes are checked
   against the pool's full text. Real run with journal-club's two pools: 1.1 s.
-- [ ] **W17 Figure embeds (R05).** Wiki pages embed figures from D10 in a way
-  that works with annexed files in both editors. *Depends* D10, W04.
-  Laptop test 2026-10-22: Obsidian ignores annex symlinks, an unlocked figure
-  displays (how-to says `datalad unlock`). Open: a command that unlocks what
-  the wiki embeds; VS Code untested.
+- [x] **W17 Figure embeds (R05).** `biblio wiki figure KEY N [--page P]`
+  prints the embed with caption and citation from the D10 manifest;
+  `biblio wiki embeds [--get] [--unlock]` lists embedded files by annex state
+  and fetches or unlocks them; lint `IMG001` (content absent), `IMG002`
+  (locked, invisible in Obsidian), `IMG003` (paper's figure without its
+  citation). Laptop test 2026-10-22: Obsidian ignores annex symlinks, an
+  unlocked figure displays. VS Code untested. D11's manifest fields (credit,
+  licence, `ref`) will feed the snippet.
 - [ ] **W02 First real subject (M1).** Use phase 1 on pixecog's layer
   identification (pixecog wiki backlog L01 to L03): hub, ingest of the
   audit, code pages. Record what the tools lacked. *Depends* W01.

@@ -51,6 +51,9 @@ metadata:
      `contradicts:` link (P9).
    - For a paper, create or update its `source` page: contribution to the
      subject, key claims with sections, figures, links to full text.
+   - Figures: `biblio figures run --key <citekey>` once, then paste the output
+     of `biblio wiki figure <citekey> <n> --page <page>` (embed, caption,
+     citation). Embed only figures the page discusses.
 5. **Lint and views.** `biblio wiki lint <changed pages>` until no errors,
    then `biblio wiki hubs`.
 6. **Log.** Append to `log.md`: date, `ingest`, source, pages created and

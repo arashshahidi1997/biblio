@@ -6,6 +6,7 @@ refactor operation that would resolve it (wiki SPEC §8).
 from __future__ import annotations
 
 import json
+import os
 import re
 from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass
@@ -50,6 +51,27 @@ def _vocab_tags(path: Path | None) -> set[str] | None:
     for alias in (data.get("aliases") or {}):
         tags.add(str(alias).replace(":", "/"))
     return tags
+
+
+def _check_embed(cfg, page: Page, link, add) -> bool:
+    """Embedded files (W17): annex state and credit. True when the link check is done."""
+    from .embeds import figure_citekey, file_state
+    path = Path(os.path.normpath(page.path.parent / link.target))
+    rel = os.path.relpath(path, cfg.repo_root)
+    state = file_state(path)
+    key = figure_citekey(cfg, path)
+    if key and key not in {c.key for c in page.citations} | {s.lstrip("@") for s in page.list_field("sources")}:
+        add(Finding("warning", "IMG003", page.rel, link.line,
+                    f"figure from {key} without credit; cite [@{key}] on the page", "§6"))
+    if state == "absent":
+        add(Finding("warning", "IMG001", page.rel, link.line,
+                    f"'{rel}' is annexed but not here (biblio wiki embeds --get)", "§6"))
+        return True
+    if state == "locked":
+        add(Finding("info", "IMG002", page.rel, link.line,
+                    f"'{rel}' is an annex symlink; Obsidian will not show it (biblio wiki embeds --unlock)", "§6"))
+        return True
+    return False
 
 
 def _heading_slug(text: str) -> str:
@@ -254,6 +276,8 @@ def _check_page(cfg, page: Page, add, sources: SourceIndex, vocab, resolver: _Re
                 add(Finding("warning", "LNK005", page.rel, link.line,
                             f"[[{link.target}#{link.anchor}]]: no such heading"))
         else:
+            if link.embed and _check_embed(cfg, page, link, add):
+                continue
             target = (page.path.parent / link.target).resolve()
             if not target.exists():
                 add(Finding(strict, "LNK004", page.rel, link.line, f"link target '{link.target}' does not exist",
