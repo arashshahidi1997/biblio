@@ -8,7 +8,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Iterable
+from typing import Any, Iterable
 
 from .citekeys import load_active_citekeys
 from .config import default_config_path, load_biblio_config
@@ -272,6 +272,16 @@ def _build_parser() -> argparse.ArgumentParser:
     add_oa.add_argument("openalex_id", help="OpenAlex ID like W123 or https://openalex.org/W123.")
     add_oa.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
     add_oa.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")
+    add_zot = add_sub.add_parser(
+        "zotero", help="Add one paper from Zotero: entry under biblio's citekey, PDF copied."
+    )
+    add_zot.add_argument("ref", help="Zotero item key (ABCD1234), citekey (Better BibTeX or biblio's), or DOI.")
+    add_zot.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    add_zot.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml).")
+    add_zot.add_argument("--local", action="store_true",
+                         help="Use the Zotero app's local API on this machine (Zotero 7+, no key, no config).")
+    add_zot.add_argument("--extract", action="store_true", help="Then run GROBID and docling for the paper.")
+    add_zot.add_argument("--dry-run", action="store_true", help="Find the item and show the key; write nothing.")
     add_orcid = add_sub.add_parser("orcid", help="Add papers by author ORCID via OpenAlex.")
     add_orcid.add_argument("orcid", help="ORCID identifier (e.g. 0000-0002-1234-5678).")
     add_orcid.add_argument("--since", type=int, default=None, help="Only include works from this year onward.")
@@ -831,6 +841,45 @@ def _extract_browser_cookies(proxy_base: str) -> str | None:
     return None
 
 
+def _add_zotero(args: argparse.Namespace, cfg: Any, cfg_path: Path, repo_root: Path) -> None:
+    import yaml as _yaml
+    from .zotero import load_zotero_config
+    from .zotero_add import ZoteroLookupError, add_from_zotero, local_config
+
+    raw = _yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {} if cfg_path.exists() else {}
+    zcfg = load_zotero_config(raw, repo_root)
+    if args.local:
+        zcfg = local_config(zcfg, repo_root)
+    elif zcfg is None:
+        raise SystemExit("[ERROR] No zotero section in biblio.yml; use --local on the machine running Zotero, "
+                         "or set zotero.library_id and BIBLIO_ZOTERO_API_KEY for the web API.")
+    try:
+        res = add_from_zotero(cfg, zcfg, args.ref, dry_run=bool(args.dry_run))
+    except ZoteroLookupError as exc:
+        raise SystemExit(f"[ERROR] {exc}")
+    except Exception as exc:  # noqa: BLE001  connection refused, 403, ...
+        where = "the local API (is Zotero running, with local API access enabled?)" if zcfg.local else "the web API"
+        raise SystemExit(f"[ERROR] Zotero request failed via {where}: {exc}")
+    verb = "found" if args.dry_run else ("already in project" if res.existing else "added")
+    print(f"[OK] {res.citekey} ({verb}) <- Zotero {res.zotero_key}: {res.title[:70]}")
+    print(f"  pdf: {res.pdf_status} -> {res.pdf_path}")
+    for note in res.notes:
+        print(f"  note: {note}")
+    if args.dry_run:
+        return
+    if args.extract and res.pdf_path and res.pdf_path.is_file():
+        from .docling import run_docling_for_key
+        from .grobid import run_grobid_for_key
+        for name, fn in (("grobid", run_grobid_for_key), ("docling", run_docling_for_key)):
+            try:
+                fn(cfg, res.citekey)
+                print(f"  {name}: done")
+            except Exception as exc:  # noqa: BLE001
+                print(f"  {name}: failed ({exc})")
+    elif res.pdf_path and res.pdf_path.is_file():
+        print(f"  next: biblio grobid run --key {res.citekey} && biblio docling run --key {res.citekey}")
+
+
 def main(argv: Iterable[str] | None = None) -> None:
     parser = _build_parser()
     if argcomplete is not None:
@@ -1255,6 +1304,9 @@ def main(argv: Iterable[str] | None = None) -> None:
                 repo_root=repo_root,
                 openalex_id=str(args.openalex_id),
             )
+        elif args.add_cmd == "zotero":
+            _add_zotero(args, cfg, cfg_path, repo_root)
+            return
         elif args.add_cmd == "orcid":
             from .author_search import search_by_orcid, get_author_works
             from .ingest import find_existing_dois

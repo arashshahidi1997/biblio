@@ -138,9 +138,9 @@ class ZoteroClient:
         _require_pyzotero()
         self.cfg = cfg
         if cfg.local:
-            # Zotero 7 local API — no API key needed
+            # Zotero 7 local API (localhost:23119), no API key needed
             self._zot = pyzotero_client.Zotero(
-                cfg.library_id, cfg.library_type,
+                cfg.library_id, cfg.library_type, local=True,
             )
         else:
             if not cfg.api_key:

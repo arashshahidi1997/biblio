@@ -221,16 +221,18 @@ Requests from journal-club are tagged R01 to R06 below.
   Re-resolve after citekey normalization and drop records whose key is no
   longer in the bibliography.
 - [ ] **I03 Needs-PDF queue and pool:** keep as storage; review the surface.
-- [ ] **I04 One-paper ingest from Zotero (R02).** `biblio add zotero
-  <itemKey|citekey>` through the local API (laptop) or the web API: entry in
-  srcbib under biblio's citekey convention, PDF copied, extraction queued;
-  plus a skill for the laptop-to-server flow. `zotero.py` pull is
-  collection-wide today. *Depends* H02.
-  Test path (decided 2026-10-22): the laptop's local API needs no key
-  (`Zotero(library_id='0', local=True)`, Zotero 7+, read-only; writes need
-  Zotero 10+ and a separate local key), so tests mock pyzotero on gamma2 and
-  the real check runs on the laptop. Reference: K-Dense `pyzotero` skill
-  (`references/authentication.md`, `files-attachments.md`).
+- [ ] **I04 One-paper ingest from Zotero (R02).** Built, tested with mocks;
+  **awaiting the real check on the laptop** (request
+  [laptop-test](log/task/task-arash-20261022-laptop-zotero-obsidian.md)).
+  `biblio add zotero REF [--local] [--extract] [--dry-run]`: REF is an item
+  key, DOI, Better BibTeX citekey or biblio's own key; entry to
+  `bib/srcbib/zotero.bib` under biblio's citekey with `zotero = {ITEMKEY}`,
+  PDF (stored attachment first) to `pdf_root`; a paper already in the
+  project keeps its key, an entry in `zotero.bib` is refreshed under its key.
+  `--local` needs no config (user library `0`). Skill `zotero-add` covers the
+  laptop-to-server flow. Fixed on the way: `ZoteroClient` never passed
+  `local=True` to pyzotero, so `zotero.local: true` went to the web API.
+  Reference: K-Dense `pyzotero` skill (`references/authentication.md`).
 - [x] **I05 Reference triage for one paper (R03).** `biblio refs triage KEY
   [--zotero zotero.sqlite|export.bib] [--openalex]`: each GROBID reference
   gets `fulltext`, `pdf`, `metadata` or `absent`, with where it is held
