@@ -28,6 +28,80 @@ class GraphExpandResult:
     seeds_with_openalex: int
     candidates: int
     output_path: Path
+    local_edges: int = 0
+    local_edges_path: Path | None = None
+
+
+LOCAL_EDGES_NAME = "local_edges.json"
+
+
+def _seed_citekeys(records: list[dict[str, Any]]) -> dict[str, str]:
+    out = {}
+    for record in records:
+        sid = _normalize_openalex_id(record.get("openalex_id"))
+        if sid and record.get("citekey"):
+            out[sid] = str(record["citekey"])
+    return out
+
+
+def _local_edge(seed_by_id: dict[str, str], source_id: str, target_id: str) -> dict[str, Any]:
+    return {
+        "source_citekey": seed_by_id.get(source_id),
+        "target_citekey": seed_by_id.get(target_id),
+        "source_openalex_id": source_id,
+        "target_openalex_id": target_id,
+        "relation": "references",
+    }
+
+
+def write_local_edges(path: Path, edges: list[dict[str, Any]], *, merge: bool = True) -> list[dict[str, Any]]:
+    """Write citation edges between held papers, merged with the existing file."""
+    existing: list[dict[str, Any]] = []
+    if merge and path.exists():
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        existing = [e for e in payload if isinstance(e, dict)] if isinstance(payload, list) else []
+    by_key = {(e.get("source_openalex_id"), e.get("target_openalex_id")): e for e in existing}
+    for edge in edges:
+        by_key[(edge["source_openalex_id"], edge["target_openalex_id"])] = edge
+    out = sorted(by_key.values(), key=lambda e: (str(e.get("source_citekey")), str(e.get("target_citekey"))))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(out, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return out
+
+
+def build_local_edges(
+    *,
+    cfg: OpenAlexClientConfig,
+    cache: OpenAlexCache,
+    records: list[dict[str, Any]],
+    out_path: str | Path,
+    fetch_missing: bool = False,
+) -> tuple[list[dict[str, Any]], int]:
+    """Citation edges between held papers from their OpenAlex ``referenced_works``.
+
+    Reads seed works from the OpenAlex cache; with ``fetch_missing`` it fetches
+    the seeds that are not cached. Returns (edges written, seeds without a work).
+    """
+    seed_by_id = _seed_citekeys(records)
+    edges: list[dict[str, Any]] = []
+    missing = 0
+    client = OpenAlexClient(cfg) if fetch_missing else None
+    try:
+        for seed_id in sorted(seed_by_id):
+            work = cache.load_json(cache.path_for_work_id(seed_id))
+            if work is None and client is not None:
+                work = _load_or_fetch_work(client=client, cache=cache, openalex_id=seed_id, force=False)
+            if work is None:
+                missing += 1
+                continue
+            for raw_ref in work.get("referenced_works") or []:
+                ref_id = _normalize_openalex_id(raw_ref) if isinstance(raw_ref, str) else None
+                if ref_id and ref_id != seed_id and ref_id in seed_by_id:
+                    edges.append(_local_edge(seed_by_id, seed_id, ref_id))
+    finally:
+        if client is not None:
+            client.close()
+    return write_local_edges(Path(out_path), edges), missing
 
 
 @dataclass(frozen=True)
@@ -316,6 +390,9 @@ def expand_openalex_reference_graph(
         if sid is not None
     }
 
+    seed_by_id = _seed_citekeys(records)
+    local_edges: list[dict[str, Any]] = []
+
     # Load existing candidates for merge mode
     existing_items: list[dict[str, Any]] = []
     candidates_seen: set[str] = set()
@@ -345,7 +422,12 @@ def expand_openalex_reference_graph(
                         if not isinstance(raw_ref, str):
                             continue
                         ref_id = _normalize_openalex_id(raw_ref)
-                        if ref_id is None or ref_id in all_seed_ids:
+                        if ref_id is None:
+                            continue
+                        if ref_id in all_seed_ids:
+                            # held paper: a corpus edge, not a candidate
+                            if ref_id != seed_id:
+                                local_edges.append(_local_edge(seed_by_id, seed_id, ref_id))
                             continue
                         key = f"{seed_id}|references|{ref_id}"
                         if key in candidates_seen:
@@ -367,6 +449,8 @@ def expand_openalex_reference_graph(
                         continue
                     ref_id = str(candidate["openalex_id"])
                     if ref_id in all_seed_ids:
+                        if ref_id != seed_id:
+                            local_edges.append(_local_edge(seed_by_id, ref_id, seed_id))
                         continue
                     key = f"{seed_id}|citing|{ref_id}"
                     if key in candidates_seen:
@@ -383,6 +467,8 @@ def expand_openalex_reference_graph(
     all_items = existing_items + discovered
     all_items.sort(key=lambda item: (int(item.get("hop", 1)), str(item.get("seed_openalex_id")), str(item.get("direction") or ""), str(item.get("openalex_id"))))
     output_path.write_text(json.dumps(all_items, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    local_path = output_path.parent / LOCAL_EDGES_NAME
+    written_local = write_local_edges(local_path, local_edges, merge=merge)
     if progress_cb is not None:
         progress_cb({"phase": "done", "completed": total, "total": total, "seed_openalex_id": None, "candidates": len(all_items)})
     return GraphExpandResult(
@@ -390,4 +476,6 @@ def expand_openalex_reference_graph(
         seeds_with_openalex=len(active_seed_ids),
         candidates=len(all_items),
         output_path=output_path,
+        local_edges=len(written_local),
+        local_edges_path=local_path,
     )

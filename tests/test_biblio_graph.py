@@ -173,3 +173,40 @@ def test_add_doi_rejects_openalex_work_with_other_doi(monkeypatch, tmp_path: Pat
     import pytest
     with pytest.raises(ValueError, match="different work"):
         add_openalex_work_to_bib(cfg=cfg, cache=cache, repo_root=tmp_path, doi="10.48550/arXiv.2404.16130")
+
+
+def test_expand_records_edges_between_held_papers(monkeypatch, tmp_path: Path) -> None:
+    import json
+    import biblio.graph as mod
+    cfg, cache = _cfg_cache(tmp_path)
+    works = {
+        "W1": {"id": "https://openalex.org/W1", "display_name": "Held A", "referenced_works":
+               ["https://openalex.org/W2", "https://openalex.org/W3"]},
+        "W2": {"id": "https://openalex.org/W2", "display_name": "Held B", "referenced_works": []},
+        "W3": {"id": "https://openalex.org/W3", "display_name": "External", "referenced_works": []},
+    }
+    monkeypatch.setattr(mod, "OpenAlexClient", lambda cfg: _FakeGraphClient(cfg, works=works))
+    records = [{"citekey": "a_2020_A", "openalex_id": "W1"}, {"citekey": "b_2019_B", "openalex_id": "W2"}]
+    out = tmp_path / "openalex" / "graph_candidates.json"
+    result = expand_openalex_reference_graph(cfg=cfg, cache=cache, records=records, out_path=out,
+                                             direction="references")
+    candidates = json.loads(out.read_text())
+    assert [c["openalex_id"] for c in candidates] == ["W3"]          # held papers are not candidates
+    edges = json.loads((out.parent / "local_edges.json").read_text())
+    assert edges == [{"relation": "references", "source_citekey": "a_2020_A", "source_openalex_id": "W1",
+                      "target_citekey": "b_2019_B", "target_openalex_id": "W2"}]
+    assert result.local_edges == 1
+
+
+def test_build_local_edges_from_cache_only(tmp_path: Path) -> None:
+    import json
+    from biblio.graph import build_local_edges
+    cfg, cache = _cfg_cache(tmp_path)
+    cache.save_json(cache.path_for_work_id("W1"), {"id": "https://openalex.org/W1",
+                                                   "referenced_works": ["https://openalex.org/W2"]})
+    records = [{"citekey": "a_2020_A", "openalex_id": "W1"}, {"citekey": "b_2019_B", "openalex_id": "W2"},
+               {"citekey": "c_2018_C", "openalex_id": "W4"}]
+    edges, missing = build_local_edges(cfg=cfg, cache=cache, records=records, out_path=tmp_path / "local_edges.json")
+    assert [(e["source_citekey"], e["target_citekey"]) for e in edges] == [("a_2020_A", "b_2019_B")]
+    assert missing == 2                                                  # W2 and W4 not cached
+    assert json.loads((tmp_path / "local_edges.json").read_text()) == edges

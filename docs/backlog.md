@@ -63,8 +63,11 @@ Requests from journal-club are tagged R01 to R06 below.
 - [ ] **H08 LLM model names.** `llm.py` maps `sonnet`/`opus` to
   `claude-sonnet-4-20250514` and `claude-opus-4-20250514`; update to current
   models and make the default configurable.
-- [ ] **H06 Local citation edges.** `graph.py:316` drops OpenAlex references
-  between two held papers. *Done when* the corpus graph includes them.
+- [x] **H06 Local citation edges.** `graph expand` records references
+  between held papers in `local_edges.json` (beside the candidates, which stay
+  a to-ingest list); `biblio graph local` rebuilds them from cached OpenAlex
+  works without expanding; the site graph reads them. On pixecog's cache
+  alone: 2,114 edges among 333 held papers, where there were none.
 - [ ] **H07 Log triage.** The notio log holds 122 task notes and 16 issues
   from March 2026, mostly GUI and writing-helper features; several are marked
   `scheduled` four or five times, and 14 issues are automatic "Execution
@@ -182,6 +185,11 @@ Requests from journal-club are tagged R01 to R06 below.
   and OpenAlex outputs resolved from the shared pool.
 - [ ] **I02 GROBID coverage.** Empty GROBID folders in pixecog (4 of 38 in the
   test corpus); rerun and record failures.
+- [ ] **I06 Stale keys in resolved.jsonl.** pixecog's
+  `openalex/resolved.jsonl` holds 424 records, including old-style keys
+  (`Swanson_2025_Topography` beside `swanson_2025_TopographyPutative`).
+  Re-resolve after citekey normalization and drop records whose key is no
+  longer in the bibliography.
 - [ ] **I03 Needs-PDF queue and pool:** keep as storage; review the surface.
 - [ ] **I04 One-paper ingest from Zotero (R02).** `biblio add zotero
   <itemKey|citekey>` through the local API (laptop) or the web API: entry in

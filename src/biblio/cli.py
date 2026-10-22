@@ -307,6 +307,14 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Expand past works, future works, or both (default: both).",
     )
 
+    graph_local = graph_sub.add_parser(
+        "local", help="Citation edges between held papers, from cached OpenAlex works (no expansion)."
+    )
+    graph_local.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    graph_local.add_argument("--in", dest="input_path", type=Path,
+                             help="Input JSONL (default: bib/derivatives/openalex/resolved.jsonl).")
+    graph_local.add_argument("--fetch", action="store_true", help="Fetch seed works missing from the cache.")
+
     p_site = sub.add_parser("site", help="Build and inspect a standalone bibliography site.")
     site_sub = p_site.add_subparsers(dest="site_cmd", required=True)
     site_build = site_sub.add_parser("build", help="Build a standalone site under bib/site/.")
@@ -1280,13 +1288,22 @@ def main(argv: Iterable[str] | None = None) -> None:
         return
 
     if args.command == "graph":
-        if args.graph_cmd != "expand":
+        if args.graph_cmd not in ("expand", "local"):
             raise SystemExit(2)
         repo_root = (args.root.expanduser().resolve() if args.root else find_repo_root())
         cfg_path = default_config_path(root=repo_root)
         cfg = load_biblio_config(cfg_path, root=repo_root)
         input_path = args.input_path or (repo_root / "bib" / "derivatives" / "openalex" / "resolved.jsonl")
         input_path = (repo_root / input_path).resolve() if not input_path.is_absolute() else input_path
+        if args.graph_cmd == "local":
+            from .graph import LOCAL_EDGES_NAME, build_local_edges
+            records = load_openalex_seed_records(input_path)
+            out = input_path.parent / LOCAL_EDGES_NAME
+            edges, missing = build_local_edges(cfg=cfg.openalex_client, cache=cfg.openalex_cache,
+                                               records=records, out_path=out, fetch_missing=bool(args.fetch))
+            hint = f"; {missing} seeds not in cache (use --fetch)" if missing else ""
+            print(f"[OK] local edges={len(edges)} -> {out}{hint}")
+            return
         output_path = args.output_path or (repo_root / "bib" / "derivatives" / "openalex" / "graph_candidates.json")
         output_path = (repo_root / output_path).resolve() if not output_path.is_absolute() else output_path
         records = load_openalex_seed_records(input_path)
@@ -1300,7 +1317,8 @@ def main(argv: Iterable[str] | None = None) -> None:
         )
         print(
             f"[OK] seeds={result.total_inputs} seeds_with_openalex={result.seeds_with_openalex} "
-            f"direction={args.direction} candidates={result.candidates} -> {result.output_path}"
+            f"direction={args.direction} candidates={result.candidates} -> {result.output_path}; "
+            f"local edges={result.local_edges} -> {result.local_edges_path}"
         )
         return
 

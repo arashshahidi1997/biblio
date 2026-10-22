@@ -586,10 +586,21 @@ def _build_site_model(cfg: BiblioConfig, options: BiblioSiteOptions) -> dict[str
 
     graph_candidates_path = cfg.openalex.out_jsonl.parent / "graph_candidates.json"
     graph_candidates: list[dict[str, Any]] = []
+    local_edges_path = cfg.openalex.out_jsonl.parent / "local_edges.json"
+    if options.include_graphs and local_edges_path.exists():
+        # citation edges between held papers, in the candidates' shape
+        for edge in json.loads(local_edges_path.read_text(encoding="utf-8")) or []:
+            if isinstance(edge, dict) and edge.get("source_openalex_id") and edge.get("target_openalex_id"):
+                graph_candidates.append({
+                    "seed_openalex_id": edge["source_openalex_id"],
+                    "openalex_id": edge["target_openalex_id"],
+                    "direction": "references",
+                    "local": True,
+                })
     if options.include_graphs and graph_candidates_path.exists():
         payload = json.loads(graph_candidates_path.read_text(encoding="utf-8"))
         if isinstance(payload, list):
-            graph_candidates = [item for item in payload if isinstance(item, dict)]
+            graph_candidates.extend(item for item in payload if isinstance(item, dict))
 
     all_keys = set(citekeys) | set(source_by_key) | set(docling_dirs) | set(openalex_by_key)
     papers: list[dict[str, Any]] = []
