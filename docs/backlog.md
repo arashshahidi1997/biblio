@@ -12,18 +12,31 @@ done. Mark `[x]` when done. Principles are cited by ID
 phase 2 → M4 slimming. The knowledge-graph experiment (K) runs alongside and
 feeds M2 and M3.
 
+## Forcing goals
+
+Two projects drive the order of work:
+
+| Project | Goal | Needs first |
+|---------|------|-------------|
+| journal-club | lab-meeting talk on `alemanzapata_2026_DeltasSpindles`, **2026-10-23**: ingest the paper and its references, a literature wiki, figures, the talk (its `backlogs/2026-10-23-alemanzapata-tooling.md`) | **W16**, H01, then I04, I05, D10 |
+| pixecog | wiki subject "layer identification" (its `docs/wiki/BACKLOG.md`) | W02, W03, W04 |
+
+Requests from journal-club are tagged R01 to R06 below.
+
 ## H. Hygiene (M0)
 
 - [ ] **H01 Config path.** 17 places in `cli.py`, plus `site.py`, `pool.py`
   and `ui.py`, hardcode `bib/config/biblio.yml` although
   `config.default_config_path` resolves `.projio/biblio/biblio.yml` first.
   `docling run/batch` fail in projio workspaces without `--config`
-  ([issue 2026-10-22](log/issue/issue-arash-20261022-154246-616402.md)).
+  ([issue 2026-10-22](log/issue/issue-arash-20261022-154246-616402.md), R01).
   *Done when* every command uses `default_config_path`, help texts say so, and
   a test runs `docling run` in a `.projio/biblio` workspace.
 - [ ] **H02 Citekey generator.** Multi-word family names (`de Waard`,
   `La Barre`, `Buckingham Shum`), suffixes (`Shipman III`) and `ø` produce
-  wrong keys (`citekey.py:44-61`). *Done when* tests cover each case. (B8)
+  wrong keys (`citekey.py:44-61`). Hyphenated names need one rule too:
+  Better BibTeX writes `aleman-zapata_2026_...`, the pools `alemanzapata_2026_...`
+  (R02). *Done when* tests cover each case. (B8)
 - [ ] **H03 DOI ingest metadata.** Take bibliographic metadata from the DOI
   registry (CSL-JSON by content negotiation); use OpenAlex for enrichment only
   after a DOI-checked match; map entry types. Today arXiv DOIs resolve to the
@@ -45,8 +58,15 @@ feeds M2 and M3.
 ## W. Wiki toolkit
 
 - [x] **W01 Phase 1.** `biblio wiki init|stub|lint|hubs|status`,
-  `biblio skills list|install`, skills `wiki-maintain` and `wiki-ingest`
-  (af65941).
+  `biblio skills list|install`, skills `wiki-maintain` and `wiki-ingest`,
+  13 tests (af65941). Answers R05 part 1.
+- [ ] **W16 Pools in lint (R05, first for journal-club).** Citekey and quote
+  checks resolve against the project bibliography *and* the shared pools
+  (`pool.search`), since a literature wiki cites mostly pool papers. *Done
+  when* a wiki citing a pool paper lints without CIT001, and its quotes are
+  checked against the pool's full text.
+- [ ] **W17 Figure embeds (R05).** Wiki pages embed figures from D10 in a way
+  that works with annexed files in both editors. *Depends* D10, W04.
 - [ ] **W02 First real subject (M1).** Use phase 1 on pixecog's layer
   identification (pixecog wiki backlog L01 to L03): hub, ingest of the
   audit, code pages. Record what the tools lacked. *Depends* W01.
@@ -76,8 +96,8 @@ feeds M2 and M3.
   after its first review, so method and tools version together.
 - [ ] **W14 One vocabulary.** The wiki's `vocab.yml` and biblio's
   `tag_vocab.yml` become one file (pixecog wiki backlog E03).
-- [ ] **W15 Skill discovery.** projio discovers skills shipped by installed
-  packages; until then `biblio skills install`.
+- [ ] **W15 Skill discovery (R05).** projio discovers skills shipped by
+  installed packages; until then `biblio skills install`.
 
 ## D. Digest (M2)
 
@@ -92,6 +112,10 @@ feeds M2 and M3.
 - [ ] **D04 subject mode.** Draft source-page content for a wiki subject;
   feeds `wiki-ingest`.
 - [ ] **D05 claims mode.** Claim, evidence and gap candidates; from K03.
+  Target shape: journal-club's hand-written
+  `papers/alemanzapata_2026_DeltasSpindles/digest.md` (claims with evidence,
+  caveats, test statistics and n), plus a `talk` context that adds rigor
+  notes and figure roles (R06).
 - [ ] **D06 methods mode.** Comparison rows with quoted parameters; from
   `compare.py` and a03.
 - [ ] **D07 citations mode.** Citing sentences with intent labels
@@ -99,6 +123,12 @@ feeds M2 and M3.
 - [ ] **D08 people digest.** The a07 author index moves into biblio.
 - [ ] **D09 Fold concepts and autotag** into the subject and claims modes and
   the shared vocabulary (W14).
+- [ ] **D10 Figures at native resolution (R04).** docling crops are page
+  renders at 144 dpi. For each docling picture (page and bbox in its JSON),
+  take the embedded image covering the bbox, else re-render the bbox at a
+  configurable dpi (default 300); write `bib/derivatives/figures/<key>/` with
+  a manifest (number, caption, page, bbox, embedded or rendered, size).
+  Consumers: the wiki (W17) and figure requests.
 
 ## K. Knowledge-graph experiment
 
@@ -137,3 +167,15 @@ feeds M2 and M3.
 - [ ] **I02 GROBID coverage.** Empty GROBID folders in pixecog (4 of 38 in the
   test corpus); rerun and record failures.
 - [ ] **I03 Needs-PDF queue and pool:** keep as storage; review the surface.
+- [ ] **I04 One-paper ingest from Zotero (R02).** `biblio add zotero
+  <itemKey|citekey>` through the local API (laptop) or the web API: entry in
+  srcbib under biblio's citekey convention, PDF copied, extraction queued;
+  plus a skill for the laptop-to-server flow. `zotero.py` pull is
+  collection-wide today. *Depends* H02.
+- [ ] **I05 Reference triage for one paper (R03).** Per reference: in a pool
+  with full text, PDF available, metadata only, or absent; matched by DOI,
+  then normalized title and year, then OpenAlex `referenced_works`; across
+  project, pools and an optional Zotero export; JSON and markdown output.
+  `get_absent_refs` (`grobid.py:505`) checks only the project's own srcbib.
+  Consider GROBID `consolidate_citations` on by default: about 79% of pool
+  references lack DOIs. This is discovery from a held paper (scope: partial).
