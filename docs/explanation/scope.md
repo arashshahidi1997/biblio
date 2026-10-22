@@ -122,7 +122,7 @@ spec; biblio follows it rather than defining its own.
 
 | Module | Reason | Proposal |
 |--------|--------|----------|
-| `ui.py` + `frontend/` (3,210 lines, 111 endpoints; 22 frontend source files plus a Node build) | about half the endpoints run or configure pipelines, duplicating the CLI | see decision 1 |
+| `ui.py` + `frontend/` (3,210 lines, 111 endpoints; 22 frontend source files plus a Node build) | about half the endpoints run or configure pipelines, duplicating the CLI | keep the navigators; trim run and setup endpoints later |
 | `site.py` | static paper site | fold into the wiki's generated views |
 | `present.py` | slides belong to projio's `present_*` | remove |
 | `cite_draft.py`, `lit_review.py`, `review` | writing with the literature; two of them depend on RAG | move to notio manuscript, consuming digests |
@@ -130,12 +130,17 @@ spec; biblio follows it rather than defining its own.
 | `rag.py`, `rag_support.py`, `vector_store.py` | retrieval is not trusted yet | optional extra, off by default |
 | `ezproxy.py`, `auth` | paywalled access carries ban risk | separate opt-in plugin |
 
+## Decided (2026-10-22)
+
+1. **Interface:** the vault, opened in Obsidian or VS Code, is where people
+   read, edit and review. The GUI stays, valued for its navigators, but work
+   on it waits; the run and setup endpoints are the first candidates to go
+   when it is revisited.
+2. **Wiki home:** biblio owns the wiki tooling and its skills
+   ([wiki toolkit](wiki.md)); the wiki method is versioned with them.
+
 ## Decisions needed
 
-1. **UI:** freeze, remove, or split into its own package?
-2. **Wiki home:** does the whole wiki skill live in biblio, or only its
-   literature operations, with the skill in projio as the pixecog backlog
-   plans (E02)?
-3. **MCP:** which few tools stay, or CLI plus skills only?
-4. **RAG:** keep as an optional extra, or remove until it is evaluated?
-5. **Zotero push and EZProxy:** keep, plugin, or drop?
+1. **MCP:** which few tools stay, or CLI plus skills only?
+2. **RAG:** keep as an optional extra, or remove until it is evaluated?
+3. **Zotero push and EZProxy:** keep, plugin, or drop?

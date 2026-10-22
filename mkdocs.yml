@@ -40,6 +40,7 @@ nav:
   - Explanation:
       - explanation/index.md
       - Scope: explanation/scope.md
+      - Wiki Toolkit: explanation/wiki.md
       - Ecosystem Links: explanation/ecosystem-links.md
       - Workspace Model: explanation/workspace.md
       - Why Docling And OpenAlex: explanation/docling-openalex.md

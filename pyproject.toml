@@ -58,4 +58,4 @@ where = ["src"]
 include = ["biblio", "biblio.*"]
 
 [tool.setuptools.package-data]
-biblio = ["templates/**/*.tmpl", "static/**", "profiles/*.yml"]
+biblio = ["templates/**/*.tmpl", "static/**", "profiles/*.yml", "skills/*/SKILL.md"]

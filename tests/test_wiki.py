@@ -1,0 +1,232 @@
+"""Tests for the wiki toolkit: scaffold, lint, hubs, status, skills."""
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+
+from biblio.cli import main
+from biblio.skills_bundle import install, list_skills
+from biblio.wiki.fidelity import QuoteChecker
+from biblio.wiki.hubs import regenerate, stale_views
+from biblio.wiki.lint import lint
+from biblio.wiki.pages import parse_page
+from biblio.wiki.scaffold import init, stub
+from biblio.wiki.schema import load_wiki_config
+from biblio.wiki.status import status
+
+PAPER = """# Communication between neocortex and hippocampus
+
+## Results
+
+Neocortical up-states precede hippocampal sharp-wave ripples by about 50 ms in
+sleeping rats. Ripple probability increased during the up-state of the
+slow oscillation.
+"""
+
+FM = """---
+title: {title}
+type: {type}
+scope: {scope}
+status: {status}
+author: llm
+updated: 2026-10-22
+tags: [{tags}]
+sources: [{sources}]
+{extra}---
+"""
+
+
+@pytest.fixture
+def repo(tmp_path: Path) -> Path:
+    (tmp_path / "bib").mkdir()
+    (tmp_path / "bib" / "main.bib").write_text(
+        "@article{sirota_2003_CommunicationNeocortex,\n  title = {Communication},\n  year = {2003}\n}\n")
+    paper = tmp_path / "bib" / "derivatives" / "docling" / "sirota_2003_CommunicationNeocortex"
+    paper.mkdir(parents=True)
+    (paper / "sirota_2003_CommunicationNeocortex.md").write_text(PAPER)
+    cfg = load_wiki_config(tmp_path)
+    init(cfg)
+    vocab = cfg.wiki_root / "vocab.yml"
+    vocab.write_text(vocab.read_text().replace(
+        "event: {description: Physiological event, values: []}",
+        "event: {description: Physiological event, values: [ripple, up-state]}"))
+    return tmp_path
+
+
+def write(path: Path, *, title="Page", type="concept", scope="general", status="draft", tags="event/ripple",
+          sources="", extra="", body="") -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(FM.format(title=title, type=type, scope=scope, status=status, tags=tags,
+                              sources=sources, extra=extra) + body)
+    return path
+
+
+CONCEPT_BODY = """
+# Ripple coupling
+
+Sharp-wave ripples are coupled to cortical up-states during sleep.
+
+## Why it matters
+
+It links memory replay to cortical state.
+
+## Key facts
+
+> "Neocortical up-states precede hippocampal sharp-wave ripples by about 50 ms" [@sirota_2003_CommunicationNeocortex]
+
+> "Ripple probability increased during the up‐state of the  slow oscillation" [@sirota_2003_CommunicationNeocortex]
+
+> "Ripple probability rose during the up-state of the slow oscillation" [@sirota_2003_CommunicationNeocortex]
+
+> "Ripples are triggered by the phase of the moon in every species studied" [@sirota_2003_CommunicationNeocortex]
+
+> **Contested.** Some studies report the reverse order [@sirota_2003_CommunicationNeocortex].
+
+In sub-01 we saw this too.
+
+## Our experience
+
+Seen in sub-02 ses-03.
+
+## Related
+
+See [[missing-page]] and [[ripple-detection]].
+"""
+
+
+def codes(findings, page=None):
+    return [f.code for f in findings if page is None or f.page == page]
+
+
+def test_init_is_idempotent(repo):
+    cfg = load_wiki_config(repo)
+    assert (cfg.wiki_root / "concepts").is_dir()
+    assert (cfg.wiki_root / "log.md").read_text().count("init") == 1
+    assert init(cfg) == []
+
+
+def test_stub_has_required_sections_and_lints_clean(repo):
+    cfg = load_wiki_config(repo)
+    path = stub(cfg, "Ripple detection", "method", tags=["event/ripple"])
+    assert path == cfg.wiki_root / "methods" / "ripple-detection.md"
+    text = path.read_text()
+    for section in ("## Goal", "## Procedure", "## Failure modes", "## Implementation"):
+        assert section in text
+    findings = lint(cfg, [path])
+    assert [f for f in findings if f.severity == "error"] == []
+
+
+def test_lint_checks_quotes_citations_links_scope(repo):
+    cfg = load_wiki_config(repo)
+    stub(cfg, "ripple-detection", "method", tags=["event/ripple"])
+    page = write(cfg.wiki_root / "concepts" / "ripple-coupling.md",
+                 sources="sirota_2003_CommunicationNeocortex", body=CONCEPT_BODY)
+    findings = lint(cfg, [page])
+    found = codes(findings, "concepts/ripple-coupling.md")
+    fid = sorted(f.message for f in findings if f.code == "FID001")
+    # exact quotes and formatting noise pass; a fabricated quote and a one-word paraphrase do not
+    assert len(fid) == 2 and "rose" in fid[0] and "moon" in fid[1]
+    assert "LNK001" in found                                   # [[missing-page]]
+    scope = [f for f in findings if f.code == "SCOPE001"]
+    assert len(scope) == 1 and "sub-01" in scope[0].message    # "Our experience" is exempt
+    assert "CIT001" not in found and "CIT002" not in found
+    assert "STR002" not in found and "STR001" not in found
+
+
+def test_lint_unknown_citekey_and_unlisted_source(repo):
+    cfg = load_wiki_config(repo)
+    body = "\n# X\n\nLede text here.\n\n## Why it matters\n\nSee [@nobody_1999_Nothing] and [@sirota_2003_CommunicationNeocortex].\n"
+    page = write(cfg.wiki_root / "concepts" / "x.md", body=body)
+    found = codes(lint(cfg, [page]))
+    assert "CIT001" in found and "CIT002" in found
+    assert "STR002" in found                                   # missing Key facts, Related
+
+
+def test_reviewed_page_needs_reviewer_and_is_strict(repo):
+    cfg = load_wiki_config(repo)
+    page = write(cfg.wiki_root / "concepts" / "done.md", status="reviewed",
+                 body="\n# Done\n\nLede.\n\n## Why it matters\n\n[[nowhere]]\n\n## Key facts\n\n## Related\n")
+    findings = lint(cfg, [page])
+    assert ("error", "FM004") in [(f.severity, f.code) for f in findings]
+    assert ("error", "LNK001") in [(f.severity, f.code) for f in findings]
+
+
+def test_frontmatter_and_tag_checks(repo):
+    cfg = load_wiki_config(repo)
+    page = write(cfg.wiki_root / "methods" / "odd.md", type="concept", status="final", tags="event/unknown",
+                 extra="colour: blue\nrelated: ['[[ghost]]']\n", body="\n# Odd\n\nLede.\n")
+    found = codes(lint(cfg, [page]))
+    for code in ("FM003", "FM005", "FM006", "FM008", "TAG001"):
+        assert code in found, code
+
+
+def test_duplicate_basenames_and_embeds(repo):
+    cfg = load_wiki_config(repo)
+    write(cfg.wiki_root / "concepts" / "same.md", body="\n# A\n\nLede.\n\n![[other]]\n")
+    write(cfg.wiki_root / "pitfalls" / "same.md", type="pitfall", body="\n# B\n\nLede.\n")
+    found = codes(lint(cfg))
+    assert found.count("LNK002") == 2 and "LNK003" in found
+
+
+def test_status_block_is_not_a_quote(repo):
+    cfg = load_wiki_config(repo)
+    page = parse_page(write(cfg.wiki_root / "concepts" / "c.md", body=CONCEPT_BODY), cfg.wiki_root)
+    assert not any("reverse order" in q.text for q in page.quotes)
+    assert len(page.quotes) == 4
+
+
+def test_hubs_regenerate_and_lint_detects_stale(repo):
+    cfg = load_wiki_config(repo)
+    hub = stub(cfg, "ripples", "hub", tags=["event/ripple"])
+    stub(cfg, "ripple-detection", "method", tags=["event/ripple"])
+    stub(cfg, "up-state", "concept", tags=["event/up-state"])
+    assert "HUB001" in codes(lint(cfg))
+    written = regenerate(cfg)
+    assert hub in written and cfg.wiki_root / "index.md" in written
+    text = hub.read_text()
+    assert "[[ripple-detection|Ripple detection]] (stub)" in text and "up-state" not in text
+    assert "[[hub-ripples|Ripples]]" in (cfg.wiki_root / "index.md").read_text()
+    assert stale_views(cfg) == {} and regenerate(cfg) == []
+    assert "HUB001" not in codes(lint(cfg))
+
+
+def test_markdown_link_style(repo):
+    cfg = load_wiki_config(repo)
+    (cfg.wiki_root / "wiki.yml").write_text("link_style: markdown\n")
+    cfg = load_wiki_config(repo)
+    hub = stub(cfg, "ripples", "hub", tags=["event/ripple"])
+    stub(cfg, "ripple-detection", "method", tags=["event/ripple"])
+    regenerate(cfg)
+    assert "[Ripple detection](../methods/ripple-detection.md)" in hub.read_text()
+    assert "LNK004" not in codes(lint(cfg))
+
+
+def test_status_review_queue(repo):
+    cfg = load_wiki_config(repo)
+    write(cfg.wiki_root / "concepts" / "drafted.md", body="\n# D\n\nLede.\n")
+    report = status(cfg)
+    assert report["review_queue"] == ["concepts/drafted.md"]
+    assert report["by_type"]["concept"]["draft"] == 1
+
+
+def test_quote_checker_tolerates_hyphenation(tmp_path):
+    f = tmp_path / "p.md"
+    f.write_text("The slow oscil-\nlation drives ripples in the hippo-\ncampus.")
+    checker = QuoteChecker(lambda key: f)
+    assert checker.check("k", "The slow oscillation drives ripples in the hippocampus") == "exact"
+    assert checker.check("k", "Gamma bursts dominate the neocortex during waking hours") == "missing"
+
+
+def test_cli_lint_exit_code_and_skills_install(repo, capsys, tmp_path):
+    cfg = load_wiki_config(repo)
+    write(cfg.wiki_root / "concepts" / "bad.md", status="reviewed", body="\n# Bad\n\nLede.\n")
+    with pytest.raises(SystemExit) as exc:
+        main(["wiki", "lint", "--root", str(repo), "--min-severity", "error"])
+    assert exc.value.code == 1
+    assert "FM004" in capsys.readouterr().out
+    names = [n for n, _ in list_skills()]
+    assert {"wiki-ingest", "wiki-maintain"} <= set(names)
+    results = install(tmp_path / "skills")
+    assert all(action == "installed" for _, action in results)
+    assert (tmp_path / "skills" / "wiki-maintain" / "SKILL.md").is_file()

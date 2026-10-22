@@ -613,6 +613,10 @@ def _build_parser() -> argparse.ArgumentParser:
     ui_serve.add_argument("--host", default="127.0.0.1", help="Host to bind (default: 127.0.0.1).")
     ui_serve.add_argument("--port", type=int, default=8010, help="Port to bind (default: 8010).")
 
+    # ── wiki + skills ─────────────────────────────────────────────────────
+    from .wiki.cli import add_parsers as _add_wiki_parsers
+    _add_wiki_parsers(sub)
+
     # ── concepts ──────────────────────────────────────────────────────────
     p_concepts = sub.add_parser("concepts", help="Extract and search key concepts from papers.")
     concepts_sub = p_concepts.add_subparsers(dest="concepts_cmd", required=True)
@@ -1707,6 +1711,11 @@ def main(argv: Iterable[str] | None = None) -> None:
                 print(f"[RUN] {args.key.lstrip('@')}", file=sys.stderr, flush=True)
                 out = run_ref_md_for_key(cfg, args.key, force=args.force)
                 print(f"[OK] {args.key.lstrip('@')}: {out.md_path}")
+        return
+
+    if args.command in ("wiki", "skills"):
+        from .wiki.cli import run as _run_wiki
+        _run_wiki(args)
         return
 
     if args.command == "ui":
