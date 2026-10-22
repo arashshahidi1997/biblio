@@ -156,9 +156,10 @@ Requests from journal-club are tagged R01 to R06 below.
 - [ ] **W09 views (M3).** Generate Obsidian Bases tables (review queue,
   contested, stubs), people pages (from K02/D08) and a typed graph as static
   HTML. (P12)
-- [ ] **W10 wiki-synthesize skill (M3).** Concept and theory pages with
-  evidence for and against, method comparisons, open questions. *Depends* D04
-  to D06.
+- [x] **W10 wiki-synthesize skill (M3).** Drafted 2026-10-23 on claims digests:
+  statements from papers only with their exact quote, own reasoning marked
+  **Synthesis:**, contested blocks, definition tables. Untested on a real
+  subject (journal-club T14 is the first).
 - [ ] **W11 wiki-query and wiki-review skills.** Review done 2026-10-22:
   `biblio wiki review packet|accept|flag|reopen` (accept needs `--by` a
   person, refuses lint errors and open flags; frontmatter edited in place)
@@ -175,24 +176,21 @@ Requests from journal-club are tagged R01 to R06 below.
 
 ## D. Digest (M2)
 
-- [ ] **D01 Read by section.** One reader that yields sections from GROBID
-  TEI, falling back to docling headings. *Done when* no LLM module truncates
-  text. (B6)
-- [ ] **D02 Digest store.** `bib/derivatives/digest/<mode>/<context>/<citekey>.*`,
-  addressed by citekey, mode, context, prompt version and model;
-  `biblio digest <mode>` command group. (B7)
+- [x] **D01 Read by section.** `biblio.sections`: docling markdown first
+  (the text the quote check uses), GROBID TEI as fallback (the reverse of the
+  first plan, so copied quotes verify exactly); references and admin sections
+  dropped. 2026-10-23.
+- [x] **D02 Digest store.** `bib/derivatives/digest/<mode>/<context>/<key>.{json,md}`
+  with prompt version, model, source and quote counts; `biblio digest list`.
 - [ ] **D03 summary and question modes.** Port `summarize.py` and `extract.py`
   onto D01 and D02, with quotes. (B5)
 - [ ] **D04 subject mode.** Draft source-page content for a wiki subject;
   feeds `wiki-ingest`.
-- [ ] **D05 claims mode.** Claim, evidence and gap candidates; from K03.
-  Target shape: journal-club's hand-written
-  `papers/alemanzapata_2026_DeltasSpindles/digest.md` (claims with evidence,
-  caveats, test statistics and n), plus a `talk` context that adds rigor
-  notes and figure roles (R06).
-  Rigor notes use a fixed vocabulary (design validity, confounders,
-  statistical pitfalls, evidence level), borrowed with credit from K-Dense's
-  MIT `scientific-critical-thinking` references.
+- [x] **D05 claims mode (R06).** `biblio digest claims KEY [--context wiki|talk]`:
+  claims with evidence, caveats, section and one verbatim quote each, checked
+  exact-only, one repair pass; `talk` adds rigor notes and figure roles.
+  Decoupled from K03 (the KG experiment can score it later). Tested with a
+  mocked LLM; first real run pending (claude CLI login expired on gamma2).
 - [ ] **D06 methods mode.** Comparison rows with quoted parameters; from
   `compare.py` and a03.
 - [ ] **D07 citations mode.** Citing sentences with intent labels

@@ -79,7 +79,7 @@ wrapper per skill. Elsewhere, `biblio skills install` copies them into
 | `wiki-maintain` | lint, read findings, propose and apply refactors with dry runs, re-lint | `lint`, `hubs`, refactor commands | yes (refactor commands are phase 2) |
 | `wiki-review` | help a person review: packets with claims beside quotes, unbacked citations and numbers; record their decision | `review packet\|accept\|flag\|reopen` | yes |
 | `zotero-add` | one paper from Zotero into the project (laptop to server) | `biblio add zotero` | yes |
-| `wiki-synthesize` | pages that combine sources: concept or theory pages with evidence for and against, method comparisons, open questions | digests (claims, methods), `lint` | no (phase 2/3) |
+| `wiki-synthesize` | pages that combine sources: concept or theory pages with evidence for and against, method comparisons, open questions; every statement from a paper carries a checked quote, own reasoning marked **Synthesis:** | `digest claims`, `stub`, `lint`, `review packet` | yes (draft) |
 | `wiki-query` | answer from the wiki, then from source full text by citekey and section; offer to file the answer | `rag` is not used | no (W11) |
 
 ## Working in the editors

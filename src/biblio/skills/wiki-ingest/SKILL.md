@@ -23,7 +23,11 @@ metadata:
 
 ## Workflow
 
-1. **Read the source in full.** For a paper, read
+1. **Start from a claims digest when you can.** For a paper, `biblio digest
+   claims <citekey>` gives its claims with evidence, caveats and a verbatim
+   quote each, checked against the full text (only quotes marked `exact` are
+   verified). Use it as your map of the paper, then read the sections it
+   points to. **Read the source in full** in any case: for a paper, read
    `bib/derivatives/docling/<citekey>/<citekey>.md` section by section (fetch
    it with biblio docling if missing). A summary alone is not enough.
 2. **Extract** what the subject needs, each item with its location:
