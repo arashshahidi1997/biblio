@@ -397,3 +397,57 @@ def test_annexed_figure_states_and_embeds_command(repo, capsys):
     with pytest.raises(SystemExit) as exc:
         main(["wiki", "embeds", "--root", str(repo)])
     assert exc.value.code == 0 and "file     bib/derivatives/figures" in capsys.readouterr().out
+
+
+def test_observed_in_section_may_name_sessions(repo):
+    """SPEC: a pitfall's 'Observed in' points at project cases (found in pixecog W02)."""
+    cfg = load_wiki_config(repo)
+    write(cfg.wiki_root / "pitfalls" / "edge.md", type="pitfall", body=(
+        "\n# Edge\n\nLede.\n\n## Symptom\n\nx\n\n## Cause\n\nx\n\n## How to detect\n\nx\n\n"
+        "## Mitigation\n\nx\n\n## Observed in\n\nsub-03 ses-08 hit the window ceiling.\n"))
+    assert "SCOPE001" not in codes(lint(cfg), "pitfalls/edge.md")
+
+
+# --- W02 findings (pixecog layer identification, 2026-10-22) ---------------
+
+def test_code_anchors_in_body_and_snakemake_rules(repo):
+    cfg = load_wiki_config(repo)
+    (repo / "code").mkdir()
+    (repo / "code" / "layers.py").write_text("def identify(x):\n    return x\n")
+    (repo / "code" / "Snakefile").write_text("rule hpclayers_identify:\n    input: 'a'\n")
+    write(cfg.wiki_root / "tools" / "t.md", type="tool", extra="code: [code/Snakefile::hpclayers_identify]\n",
+          body="\n# T\n\nLede uses `code/layers.py::identify` and `code/layers.py::identifyXX`.\n")
+    found = [f for f in lint(cfg) if f.page == "tools/t.md" and f.code.startswith("CODE")]
+    assert [(f.code, f.line) for f in found] == [("CODE002", found[0].line)]
+    assert "identifyXX" in found[0].message and found[0].line > 1
+
+
+def test_stub_status_keys_and_placeholder_lede(repo):
+    cfg = load_wiki_config(repo)
+    page = stub(cfg, "x", "concept", status="draft", tags=["event/ripple"])
+    text = page.read_text()
+    assert "status: draft\n" in text and "evidence: []\n" in text and "code: []\n" in text
+    assert "STR003" in codes(lint(cfg), "concepts/x.md")
+    page.write_text(text.replace("One-paragraph definition: what this is and why a reader would come here.",
+                                 "X is a thing."))
+    assert "STR003" not in codes(lint(cfg), "concepts/x.md")
+
+
+def test_inverse_relations_accepted(repo):
+    cfg = load_wiki_config(repo)
+    write(cfg.wiki_root / "pitfalls" / "p.md", type="pitfall", status="stub", extra="affects: [m]\n")
+    write(cfg.wiki_root / "tools" / "t2.md", type="tool", status="stub", extra="implements: [m]\n")
+    write(cfg.wiki_root / "markers" / "m.md", type="marker", status="stub")
+    assert not [f for f in lint(cfg) if f.code.startswith("FM") and f.page in ("pitfalls/p.md", "tools/t2.md")]
+
+
+def test_no_hub_suggestion_for_pages_a_hub_already_lists(repo):
+    cfg = load_wiki_config(repo)
+    stub(cfg, "ripples", "hub", tags=["event/ripple"])
+    for i in range(6):
+        stub(cfg, f"c{i}", "concept", tags=["event/ripple", "region/ca1"] if i < 5 else ["region/ca1"])
+    sugg = [f.message for f in lint(cfg) if f.code == "SUG003"]
+    assert not any("region/ca1" in m for m in sugg)                 # 5 of 6 are under the ripple hub
+    for i in range(6, 11):
+        stub(cfg, f"c{i}", "concept", tags=["region/ca1"])
+    assert any("region/ca1" in f.message for f in lint(cfg) if f.code == "SUG003")

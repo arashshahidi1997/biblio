@@ -81,7 +81,8 @@ def append_log(cfg: WikiConfig, op: str, pages: list[str], note: str = "") -> No
         fh.write(line)
 
 
-def page_template(cfg: WikiConfig, ptype: str, title: str, tags: list[str], scope: str, author: str) -> str:
+def page_template(cfg: WikiConfig, ptype: str, title: str, tags: list[str], scope: str, author: str,
+                  status: str = "stub") -> str:
     sections = cfg.page_types[ptype][1]
     tag_list = ", ".join(tags)
     fm = (
@@ -89,13 +90,15 @@ def page_template(cfg: WikiConfig, ptype: str, title: str, tags: list[str], scop
         f"title: {title}\n"
         f"type: {ptype}\n"
         f"scope: {scope}\n"
-        "status: stub\n"
+        f"status: {status}\n"
         "reviewed: null\n"
         f"author: {author}\n"
         f"updated: {date.today().isoformat()}\n"
         "aliases: []\n"
         f"tags: [{tag_list}]\n"
         "sources: []\n"
+        "evidence: []\n"
+        "code: []\n"
         "review_flags: []\n"
         "related: []\n"
         "---\n\n"
@@ -165,7 +168,7 @@ def _add_vocab_value(text: str, facet: str, value: str, path: Path) -> str:
 
 
 def stub(cfg: WikiConfig, name: str, ptype: str, *, title: str | None = None, tags: list[str] | None = None,
-         scope: str = "general", author: str = "human", log: bool = True) -> Path:
+         scope: str = "general", author: str = "human", status: str = "stub", log: bool = True) -> Path:
     if ptype not in cfg.page_types:
         raise ValueError(f"unknown page type '{ptype}'; known: {sorted(cfg.page_types)}")
     slug = slugify(name)
@@ -180,7 +183,7 @@ def stub(cfg: WikiConfig, name: str, ptype: str, *, title: str | None = None, ta
         append_log(cfg, "vocab", [cfg.vocab.name], "added " + ", ".join(added))
     folder.mkdir(parents=True, exist_ok=True)
     title = title or name.replace("-", " ").strip().capitalize()
-    path.write_text(page_template(cfg, ptype, title, tags or [], scope, author), encoding="utf-8")
+    path.write_text(page_template(cfg, ptype, title, tags or [], scope, author, status), encoding="utf-8")
     if log:
         append_log(cfg, "stub", [path.relative_to(cfg.wiki_root).as_posix()], f"type {ptype}")
     return path

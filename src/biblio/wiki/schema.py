@@ -36,6 +36,7 @@ PAGE_TYPES: dict[str, tuple[str, tuple[str, ...]]] = {
 RELATION_KEYS = (
     "related", "depends_on", "part_of", "localizes", "measured_by", "fails_by",
     "detected_by", "implemented_by", "example_of", "contradicts",
+    "affects", "implements",  # inverses: pitfall -> markers it affects, tool -> what it implements
 )
 
 KNOWN_KEYS = (

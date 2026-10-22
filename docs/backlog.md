@@ -102,12 +102,39 @@ Requests from journal-club are tagged R01 to R06 below.
   citation). Laptop test 2026-10-22: Obsidian ignores annex symlinks, an
   unlocked figure displays. VS Code untested. D11's manifest fields (credit,
   licence, `ref`) will feed the snippet.
-- [ ] **W02 First real subject (M1).** Use phase 1 on pixecog's layer
-  identification (pixecog wiki backlog L01 to L03): hub, ingest of the
-  audit, code pages. Record what the tools lacked. *Depends* W01.
-  Measure the skills, not just the tools: run `wiki-ingest` on 2-3 real
-  papers through Anthropic's `skill-creator` eval loop (with and without the
-  skill, reviewed side by side) and file the failures here.
+- [x] **W02 First real subject (M1).** pixecog layer identification
+  (its L01-L03), 2026-10-22: hub, 3 concepts, 6 methods, 17 markers (4
+  stubs), 12 pitfalls, 8 tool pages from the 2026-10-19 audit and the code,
+  written by four agents in parallel with `wiki stub` + `wiki-ingest` rules;
+  47 pages lint clean, 59 body code anchors verified; all `author: llm`,
+  awaiting review; untracked in pixecog (its `docs/wiki/` was never
+  committed). What the tools lacked, fixed the same day: lint checks code
+  anchors in the body and Snakemake `rule name:` anchors; `stub` writes
+  `evidence:` and `code:` and takes `--status`; placeholder lede flagged
+  (STR003); relations `affects` (pitfall to marker) and `implements` (tool);
+  `Observed in` may name sessions (SCOPE001); no hub suggestion for pages a
+  hub already lists. Not fixed: W18 to W22. Skill-creator evals not run yet.
+- [ ] **W18 Evidence IDs.** `evidence:` (notio note and analysis IDs) is never
+  checked; notes exist as `result-arash-20260918-225102-356299` while docs cite
+  `result-20260918-225102`, and audits shorten groups (`-0202`). Decide the
+  canonical form, resolve through notio, lint EVD001; make IDs clickable.
+- [ ] **W19 Citing project documents.** Section-level links into analysis docs
+  (`audit §3`) are prose only; numbers taken from them have no fidelity check
+  (P8 covers literature full text only). Heading-anchored links plus quote and
+  number checks against the cited section.
+- [ ] **W20 Scope beyond sub/ses tokens.** SCOPE001 misses depths (2400),
+  note IDs and analysis IDs on general sections. Defaults for ID patterns in
+  `project_tokens`; a number heuristic as a suggestion.
+- [ ] **W21 Template and SPEC fit.** `Our experience` as an optional H2 for
+  concept, method and tool pages; SPEC's ">5 H2 = split" contradicts the
+  method template (6 required); default `scope` for tool pages about project
+  code; whether `localizes` needs anatomy pages first; marker vs tool page
+  boundary for code detail. pixecog's SPEC still says wikilinks (§6.2) and its
+  section numbers drifted (W13 moves the spec here).
+- [ ] **W22 Stub and vocab ergonomics.** Relation flags on `stub`; a command
+  to bump `updated:`; add a facet from the CLI; `vocab.yml` writes safe for
+  parallel writers (W02 pre-added tags to avoid the race); SUG001 word count
+  states what it counts (a writer saw 804 vs 714).
 - [x] **W03 Link style (M1).** Relative markdown links, the default
   `link_style: markdown` (wikilinks opt-in): Obsidian resolves, inserts and
   rewrites them on rename; with relative link format a rename turns wikilinks

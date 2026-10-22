@@ -23,7 +23,9 @@ from .schema import AUTHORS, REQUIRED_KEYS, REVIEWED_STATUSES, SCOPES, STATUSES,
 
 SEVERITIES = ("error", "warning", "suggestion", "info")
 CODE_ANCHOR_RE = re.compile(r"^(?P<path>[^:]+?)(?:::(?P<symbol>[\w.]+))?$")
-EXPERIENCE_SECTIONS = ("our experience",)
+BODY_ANCHOR_RE = re.compile(r"`([\w.\-]+(?:/[\w.\-]+)+::[\w.]+)`")  # `code/utils/x.py::fn` in prose
+LEDE_PLACEHOLDER = "One-paragraph definition: what this is and why a reader would come here."
+EXPERIENCE_SECTIONS = ("our experience", "observed in")  # SPEC §5: project findings live here (or on case pages)
 
 
 @dataclass
@@ -180,7 +182,9 @@ def lint(cfg: WikiConfig, paths: list[Path] | None = None) -> list[Finding]:
                             f"'{target}' is linked from {len(referrers)} pages but has no page",
                             "P6", "stub"))
         hub_tags = {t for p in all_pages if p.type == "hub" for t in p.list_field("tags")}
-        tag_counts = Counter(t for p in all_pages if p.type != "hub" for t in set(p.list_field("tags")))
+        # pages already listed by some hub do not need another one for a narrower tag
+        uncovered = [p for p in all_pages if p.type != "hub" and not hub_tags & set(p.list_field("tags"))]
+        tag_counts = Counter(t for p in uncovered for t in set(p.list_field("tags")))
         for tag, count in sorted(tag_counts.items()):
             if count >= 5 and tag not in hub_tags:
                 add(Finding("suggestion", "SUG003", "-", None,
@@ -253,6 +257,9 @@ def _check_page(cfg, page: Page, add, sources: SourceIndex, vocab, resolver: _Re
         if ptype != "hub" and not page.lede:
             add(Finding(strict, "STR001", page.rel, page.body_offset,
                         "no lede paragraph before the first section", "P3"))
+        elif page.lede and page.lede.strip() == LEDE_PLACEHOLDER:
+            add(Finding(strict, "STR003", page.rel, page.body_offset,
+                        "lede is still the template placeholder", "P3"))
         present = [h.lower() for h, _ in page.h2()]
         for required in cfg.page_types[ptype][1]:
             options = [o.strip().lower() for o in required.split("|")]
@@ -317,19 +324,27 @@ def _check_page(cfg, page: Page, add, sources: SourceIndex, vocab, resolver: _Re
             add(Finding("error", "FID001", page.rel, quote.line,
                         f"quote not found in {', '.join('@' + k for k in quote.keys)}: \"{short}\"", "P8"))
 
-    # code anchors
-    for anchor in page.list_field("code"):
-        m = CODE_ANCHOR_RE.match(anchor.strip())
+    # code anchors: the frontmatter `code:` list and `path::symbol` in backticks in the body
+    anchors = [(a.strip(), 1) for a in page.list_field("code")]
+    seen = {a for a, _ in anchors}
+    for idx, raw in enumerate(page.body_lines):
+        for m in BODY_ANCHOR_RE.finditer(raw):
+            if m.group(1) not in seen:
+                seen.add(m.group(1))
+                anchors.append((m.group(1), page.body_offset + idx))
+    for anchor, line in anchors:
+        m = CODE_ANCHOR_RE.match(anchor)
         if not m:
             continue
         path = cfg.repo_root / m.group("path")
         if not path.exists():
-            add(Finding("warning", "CODE001", page.rel, 1, f"code anchor '{anchor}': file not found"))
+            add(Finding("warning", "CODE001", page.rel, line, f"code anchor '{anchor}': file not found"))
         elif m.group("symbol") and path.is_file():
             name = m.group("symbol").split(".")[-1]
             text = path.read_text(encoding="utf-8", errors="replace")
-            if not re.search(rf"^\s*(def|class)\s+{re.escape(name)}\b|^{re.escape(name)}\s*=", text, re.M):
-                add(Finding("warning", "CODE002", page.rel, 1, f"code anchor '{anchor}': '{name}' not defined"))
+            if not re.search(rf"^\s*(def|class)\s+{re.escape(name)}\b|^{re.escape(name)}\s*=|"
+                             rf"^(rule|checkpoint)\s+{re.escape(name)}\s*:", text, re.M):
+                add(Finding("warning", "CODE002", page.rel, line, f"code anchor '{anchor}': '{name}' not defined"))
 
     # scope: project tokens on general pages
     if fm.get("scope") == "general":
@@ -342,7 +357,7 @@ def _check_page(cfg, page: Page, add, sources: SourceIndex, vocab, resolver: _Re
                 m = rx.search(raw)
                 if m:
                     add(Finding("warning", "SCOPE001", page.rel, lineno,
-                                f"project token '{m.group(0)}' on a general page; move to 'Our experience' or a case page",
+                                f"project token '{m.group(0)}' on a general page; move to 'Our experience' ('Observed in' on pitfalls) or a case page",
                                 "P10", "extract"))
                     break
 

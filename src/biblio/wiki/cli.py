@@ -31,6 +31,8 @@ def add_parsers(sub) -> None:
     p.add_argument("--tag", action="append", default=[], help="Tag (facet/value); repeatable.")
     p.add_argument("--scope", default="general", choices=["general", "project"])
     p.add_argument("--author", default="human", choices=["human", "llm", "mixed"])
+    p.add_argument("--status", default="stub", choices=["stub", "draft"],
+                   help="Initial status (draft pages get the full structure checks).")
 
     p = wsub.add_parser("lint", help="Detect deviations from the wiki principles (exit 1 on errors).")
     _common(p)
@@ -109,7 +111,7 @@ def run(args) -> None:
         from .scaffold import stub
         try:
             path = stub(cfg, args.name, args.type, title=args.title, tags=args.tag,
-                        scope=args.scope, author=args.author)
+                        scope=args.scope, author=args.author, status=args.status)
         except (ValueError, FileExistsError) as exc:
             print(f"error: {exc}", file=sys.stderr)
             raise SystemExit(1)
