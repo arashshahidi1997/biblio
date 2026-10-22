@@ -314,6 +314,8 @@ eye; VS Code was not tried. Both link styles are resolved internal links in
 Obsidian's cache, which is what page preview uses, so hover is expected to work
 for both. A two-minute manual check in the open vault would settle it.
 
+Update, 2026-10-22: Arash checked by hand in the open vault that the links work in Obsidian (works). Hover previews and the image's look were not separately reported; VS Code is still untested.
+
 ### Bugs
 
 1. **`wiki init --tag` / `wiki stub --tag` give a wiki that fails lint at once.**
