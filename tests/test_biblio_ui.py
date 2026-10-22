@@ -136,7 +136,7 @@ def test_ui_docling_action_returns_clear_subprocess_error(monkeypatch: pytest.Mo
     def _boom(*args, **kwargs):
         raise subprocess.CalledProcessError(
             127,
-            ["conda", "run", "-n", "rag", "docling", "--help"],
+            ["pixi", "run", "-e", "docling", "docling", "--help"],
         )
 
     monkeypatch.setattr(ui_mod, "run_docling_for_key", _boom)
@@ -160,7 +160,7 @@ def test_ui_docling_action_returns_clear_subprocess_error(monkeypatch: pytest.Mo
     data = status.json()
     assert data["running"] is False
     assert "exit code 127" in data["error"]
-    assert "conda run -n rag docling" in data["error"]
+    assert "pixi run -e docling docling" in data["error"]
 
 
 def test_find_available_port_skips_busy_port() -> None:
@@ -264,15 +264,19 @@ def test_ui_setup_can_update_docling_command(tmp_path: Path) -> None:
     cfg = load_biblio_config(tmp_path / "bib" / "config" / "biblio.yml", root=tmp_path)
     client = TestClient(create_ui_app(cfg))
 
-    resp = client.post("/api/setup/docling-command", json={"mode": "conda", "env_name": "docling"})
+    resp = client.post("/api/setup/docling-command", json={"mode": "pixi", "env_name": "docling"})
     assert resp.status_code == 200
     payload = resp.json()
-    assert "conda env docling" in payload["message"]
+    assert "pixi environment docling" in payload["message"]
 
     updated = (tmp_path / "bib" / "config" / "biblio.yml").read_text(encoding="utf-8")
     assert 'cmd:' in updated
-    assert '- conda' in updated
+    assert '- pixi' in updated
     assert '- docling' in updated
+
+    resp = client.post("/api/setup/docling-command", json={"mode": "conda", "env_name": "docling"})
+    assert resp.status_code == 400
+    assert "no longer supported" in resp.json()["detail"]
 
 
 def test_ui_setup_can_install_docling_uv(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

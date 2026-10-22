@@ -34,7 +34,7 @@ export default function App() {
   const [setup, setSetup] = useState(null);
   const [setupError, setSetupError] = useState(null);
   const [setupCommand, setSetupCommand] = useState("");
-  const [setupCondaEnv, setSetupCondaEnv] = useState("docling");
+  const [setupPixiEnv, setSetupPixiEnv] = useState("");
   const [ragConfig, setRagConfig] = useState({
     embedding_model: "",
     chunk_size_chars: "1000",
@@ -104,8 +104,8 @@ export default function App() {
         setSetup(data);
         setSetupCommand(data.docling_command_text || "");
         const cmd = data.docling && Array.isArray(data.docling.command) ? data.docling.command : [];
-        const envIdx = cmd.findIndex((item) => item === "-n");
-        setSetupCondaEnv(envIdx >= 0 && cmd[envIdx + 1] ? cmd[envIdx + 1] : "docling");
+        const envIdx = cmd[0] === "pixi" ? cmd.findIndex((item) => item === "-e") : -1;
+        setSetupPixiEnv(envIdx >= 0 && cmd[envIdx + 1] ? cmd[envIdx + 1] : "");
         setRagConfig({
           embedding_model: data.rag && data.rag.embedding_model ? data.rag.embedding_model : "",
           chunk_size_chars: String(data.rag && data.rag.chunk_size_chars ? data.rag.chunk_size_chars : 1000),
@@ -918,8 +918,8 @@ export default function App() {
                 modelStatus={payload ? payload.status : null}
                 setupCommand={setupCommand}
                 setSetupCommand={setSetupCommand}
-                setupCondaEnv={setupCondaEnv}
-                setSetupCondaEnv={setSetupCondaEnv}
+                setupPixiEnv={setupPixiEnv}
+                setSetupPixiEnv={setSetupPixiEnv}
                 ragConfig={ragConfig}
                 setRagConfig={setRagConfig}
                 actionState={actionState}

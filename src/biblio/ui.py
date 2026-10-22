@@ -2504,17 +2504,21 @@ def create_ui_app(cfg: BiblioConfig):
     def setup_docling_command(payload: dict[str, Any]):
         mode = str(payload.get("mode") or "raw").strip()
         repo_root = current_cfg().repo_root
-        if mode == "conda":
+        if mode == "pixi":
             env_name = str(payload.get("env_name") or "").strip()
-            if not env_name:
-                raise fastapi.HTTPException(status_code=400, detail="Missing conda env name")
-            _update_docling_command(repo_root, ["conda", "run", "-n", env_name, "docling"])
+            cmd = ["pixi", "run", "-e", env_name, "docling"] if env_name else ["pixi", "run", "docling"]
+            _update_docling_command(repo_root, cmd)
             updated = reload_cfg()
             return {
                 "ok": True,
-                "message": f"Updated Docling command to use conda env {env_name}.",
+                "message": f"Updated Docling command to use pixi environment {env_name or '(default)'}.",
                 "setup": build_setup_report(updated),
             }
+        if mode == "conda":
+            raise fastapi.HTTPException(
+                status_code=400,
+                detail="conda is no longer supported; use a pixi environment, the uv install, or a raw command",
+            )
         command = str(payload.get("command") or "").strip()
         if not command:
             raise fastapi.HTTPException(status_code=400, detail="Missing command")

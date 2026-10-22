@@ -61,7 +61,7 @@ grobid:
 
 ```yaml
 docling:
-  cmd: docling                        # or a full path / conda-run wrapper
+  cmd: docling                        # or a full path, ["pixi", "run", "-e", "docling", "docling"], ["uvx", "docling"]
   to: [md, json]
   image_export_mode: referenced
 ```

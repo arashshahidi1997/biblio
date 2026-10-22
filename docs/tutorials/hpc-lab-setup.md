@@ -9,7 +9,7 @@ UCSF HPC. By the end you will have:
 
 ## Prerequisites
 
-- `biblio-tools` installed in your `rag` conda environment
+- `biblio-tools` installed as a uv tool (`uv tool install biblio-tools`) or in the project's pixi environment
 - Access to UCSF HPC with a personal storage volume at `/storage<N>/<username>/`
 - (Optional) a GROBID server running for metadata extraction
 

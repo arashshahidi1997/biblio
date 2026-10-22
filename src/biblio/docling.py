@@ -153,7 +153,7 @@ def run_docling_for_key(
             raise FileNotFoundError(
                 f"Docling command not found on PATH: {exe!r}. "
                 "Install Docling or set `docling.cmd` in bib/config/biblio.yml "
-                '(e.g. ["conda","run","-n","docling","docling"] or "docling").'
+                '(e.g. "docling", ["pixi","run","-e","docling","docling"] or ["uvx","docling"]).'
             )
 
     # Work inside OUTDIR so Docling doesn't mirror paths under it.

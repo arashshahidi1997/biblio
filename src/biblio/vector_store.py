@@ -1,7 +1,7 @@
 """Standalone ChromaDB indexer/searcher for biblio docling documents.
 
 Designed to run under a Python environment that has chromadb installed
-(e.g. the 'rag' conda env), called as a subprocess from the biblio UI server.
+(e.g. a separate pixi environment), called as a subprocess from the biblio UI server.
 
 Usage:
     python -m biblio.vector_store build   --root /path/to/repo [--persist-dir .cache/rag/chroma_db] [--chunk-size 800]

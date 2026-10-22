@@ -264,7 +264,7 @@ write them. Derived artifacts (Docling, GROBID) will need re-running after.
 **Docling** — view and change the Docling executable command. Options:
 
 - Save a raw command string
-- Use a conda environment by name
+- Use a pixi environment by name (`pixi run -e <env> docling`)
 - Install Docling into a local `uv`-managed environment
 
 **GROBID** — view GROBID server status and configure the server URL and optional

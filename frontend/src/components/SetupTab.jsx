@@ -282,8 +282,8 @@ export default function SetupTab({
   modelStatus,
   setupCommand,
   setSetupCommand,
-  setupCondaEnv,
-  setSetupCondaEnv,
+  setupPixiEnv,
+  setSetupPixiEnv,
   ragConfig,
   setRagConfig,
   actionState,
@@ -437,19 +437,19 @@ export default function SetupTab({
             </button>
           </div>
           <div className="field" style={{ marginTop: "0.9rem" }}>
-            <label>Conda env name</label>
+            <label>pixi environment (empty for the default)</label>
             <input
-              value={setupCondaEnv}
-              onChange={(ev) => setSetupCondaEnv(ev.target.value)}
+              value={setupPixiEnv}
+              onChange={(ev) => setSetupPixiEnv(ev.target.value)}
               placeholder="docling"
             />
           </div>
           <div className="actions">
             <button
-              disabled={actionState.busy || !setupCondaEnv.trim()}
-              onClick={() => triggerSetupAction("/api/setup/docling-command", { mode: "conda", env_name: setupCondaEnv })}
+              disabled={actionState.busy}
+              onClick={() => triggerSetupAction("/api/setup/docling-command", { mode: "pixi", env_name: setupPixiEnv })}
             >
-              Use conda env
+              Use pixi env
             </button>
             <button
               disabled={actionState.busy}
