@@ -19,7 +19,9 @@ from pathlib import Path
 # When "api", uses the anthropic Python SDK with ANTHROPIC_API_KEY.
 
 DEFAULT_BACKEND = "claude"
-DEFAULT_MODEL = "sonnet"  # claude CLI model name
+# Short model name for the claude CLI; the API backend maps it below.
+# Override with BIBLIO_LLM_MODEL (a short name or a full API model ID).
+DEFAULT_MODEL = os.environ.get("BIBLIO_LLM_MODEL", "sonnet")
 
 
 def _backend() -> str:
@@ -91,12 +93,24 @@ def _call_claude_cli(
 
 # ── Anthropic API backend (fallback) ────────────────────────────────────
 
-# Map short CLI model names to full API model IDs
+# Map short CLI model names to full API model IDs (current models, 2026-10)
 _API_MODEL_MAP = {
-    "sonnet": "claude-sonnet-4-20250514",
-    "opus": "claude-opus-4-20250514",
-    "haiku": "claude-haiku-4-5-20251001",
+    "sonnet": "claude-sonnet-5-5",
+    "opus": "claude-opus-5-5",
+    "haiku": "claude-haiku-4-5",
+    "fable": "claude-fable-5-1",
 }
+
+# Models whose safety classifiers can decline a request; for these the call
+# opts into server-side fallbacks, which re-run a declined request on the
+# model Anthropic recommends for that refusal category.
+_FALLBACK_MODELS = {"claude-opus-5-5", "claude-opus-5", "claude-sonnet-5-5", "claude-fable-5-1"}
+_FALLBACK_BETA = "server-side-fallback-2026-07-01"
+
+# Thinking is on by default on current models and its tokens count toward
+# max_tokens, so callers' small output caps get headroom. The cap is a
+# ceiling; only generated tokens are billed.
+_MIN_MAX_TOKENS = 16000
 
 
 def _call_api(
@@ -116,16 +130,33 @@ def _call_api(
         return {"text": None, "error": "anthropic package not installed (needed for api backend)"}
 
     api_model = _API_MODEL_MAP.get(model, model)
+    request = dict(
+        model=api_model,
+        max_tokens=max(max_tokens, _MIN_MAX_TOKENS),
+        system=system,
+        messages=[{"role": "user", "content": prompt}],
+    )
 
     try:
         client = anthropic.Anthropic(api_key=api_key)
-        message = client.messages.create(
-            model=api_model,
-            max_tokens=max_tokens,
-            system=system,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        text = message.content[0].text
-        return {"text": text, "error": None}
+        if api_model in _FALLBACK_MODELS:
+            message = client.beta.messages.create(
+                **request, betas=[_FALLBACK_BETA], extra_body={"fallbacks": "default"},
+            )
+        else:
+            message = client.messages.create(**request)
     except Exception as exc:
         return {"text": None, "error": str(exc)}
+
+    if getattr(message, "stop_reason", None) == "refusal":
+        details = getattr(message, "stop_details", None)
+        category = getattr(details, "category", None) if details else None
+        return {"text": None, "error": f"model declined the request (refusal: {category or 'unspecified'})"}
+    # Responses can start with thinking blocks; take the text blocks.
+    text = "".join(
+        getattr(block, "text", "") for block in (message.content or [])
+        if getattr(block, "type", None) == "text"
+    ).strip()
+    if not text:
+        return {"text": None, "error": f"no text in response (stop_reason: {getattr(message, 'stop_reason', None)})"}
+    return {"text": text, "error": None}

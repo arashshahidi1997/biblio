@@ -203,3 +203,33 @@ def test_site_finds_summaries_from_derivatives_dir(tmp_path):
     # The summary file should be found
     assert summary_file.exists()
     assert summary_file.name == "testkey.md"
+
+
+def test_llm_api_current_models_fallbacks_and_text_blocks(monkeypatch):
+    """API backend: current model IDs, fallbacks opt-in, thinking blocks skipped, refusals reported."""
+    import sys
+    from unittest.mock import MagicMock
+    from biblio import llm
+
+    message = MagicMock(stop_reason="end_turn")
+    message.content = [MagicMock(type="thinking", thinking=""), MagicMock(type="text", text="answer")]
+    fake = MagicMock()
+    fake.Anthropic.return_value.beta.messages.create.return_value = message
+    fake.Anthropic.return_value.messages.create.return_value = message
+    monkeypatch.setitem(sys.modules, "anthropic", fake)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "x")
+
+    assert llm.call_llm(system="s", prompt="p", model="sonnet", max_tokens=500) == {"text": "answer", "error": None}
+    kwargs = fake.Anthropic.return_value.beta.messages.create.call_args.kwargs
+    assert kwargs["model"] == "claude-sonnet-5-5"
+    assert kwargs["betas"] == ["server-side-fallback-2026-07-01"]
+    assert kwargs["extra_body"] == {"fallbacks": "default"}
+    assert kwargs["max_tokens"] >= 16000                     # thinking tokens count toward the cap
+
+    llm.call_llm(system="s", prompt="p", model="haiku")
+    assert fake.Anthropic.return_value.messages.create.call_args.kwargs["model"] == "claude-haiku-4-5"
+
+    message.stop_reason = "refusal"
+    message.stop_details = MagicMock(category="cyber")
+    result = llm.call_llm(system="s", prompt="p", model="opus")
+    assert result["text"] is None and "refusal: cyber" in result["error"]

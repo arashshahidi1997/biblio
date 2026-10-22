@@ -89,12 +89,13 @@ def test_autotag_llm_calls_api(
         ]
     })
 
-    mock_message = MagicMock()
-    mock_message.content = [MagicMock(text=llm_response)]
+    mock_message = MagicMock(stop_reason="end_turn")
+    mock_message.content = [MagicMock(type="thinking", thinking=""), MagicMock(type="text", text=llm_response)]
 
     # Create a fake anthropic module if not installed
     mock_anthropic = MagicMock()
     mock_anthropic.Anthropic.return_value.messages.create.return_value = mock_message
+    mock_anthropic.Anthropic.return_value.beta.messages.create.return_value = mock_message
 
     with patch("biblio.autotag.save_cache"):
         with patch.dict(sys.modules, {"anthropic": mock_anthropic}):

@@ -95,12 +95,13 @@ def test_cite_draft_llm_call():
         {"citekey": "Smith_2024", "snippet": "Some text.", "source_path": "a"},
     ]
 
-    mock_msg = MagicMock()
-    mock_msg.content = [MagicMock(text="Recent work \\cite{Smith_2024} shows...")]
+    mock_msg = MagicMock(stop_reason="end_turn")
+    mock_msg.content = [MagicMock(type="text", text="Recent work \\cite{Smith_2024} shows...")]
 
     mock_anthropic = MagicMock()
     mock_client = MagicMock()
     mock_client.messages.create.return_value = mock_msg
+    mock_client.beta.messages.create.return_value = mock_msg
     mock_anthropic.Anthropic.return_value = mock_client
 
     with patch("biblio.cite_draft._query_rag", return_value=fake_passages), \
@@ -221,12 +222,13 @@ def test_review_plan_llm_call():
         "library": {},
     }
 
-    mock_msg = MagicMock()
-    mock_msg.content = [MagicMock(text=json.dumps(plan_json))]
+    mock_msg = MagicMock(stop_reason="end_turn")
+    mock_msg.content = [MagicMock(type="text", text=json.dumps(plan_json))]
 
     mock_anthropic = MagicMock()
     mock_client = MagicMock()
     mock_client.messages.create.return_value = mock_msg
+    mock_client.beta.messages.create.return_value = mock_msg
     mock_anthropic.Anthropic.return_value = mock_client
 
     mock_sp = MagicMock()
