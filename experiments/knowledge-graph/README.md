@@ -62,8 +62,13 @@ gold/          hand annotations for scoring
 approaches/    one folder per approach: README, code, config
 common/        shared loaders and checks (corpus access, interchange validation)
 eval/          rubric and scoreboard
+literature/    foundations: 92 works on KGs, ontologies, claims, Zettelkasten, facets
 runs/          raw outputs, gitignored: runs/<approach>/<run-id>/
 ```
+
+Design choices cite [`literature/`](literature/README.md), which maps each
+design question (data model, claims and provenance, epistemic status, typed
+relations, gaps, atomic notes, facets, people) to its sources.
 
 ## Running
 

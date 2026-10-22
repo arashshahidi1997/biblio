@@ -5,6 +5,17 @@
 # (evidence lines with direction), ORKG (contributions with typed properties),
 # CiTO (typed citations) and Scholia (people).
 #
+# Sources (citekeys in literature/foundations.bib):
+#   node types     chan_2024_StepsTowards, clark_2014_MicropublicationsSemantic,
+#                  ciccarese_2008_SwanBiomedical, jaradeh_2019_OpenResearch
+#   levels         lakatos_1970_FalsificationMethodology (theory vs hypothesis)
+#   evidence       brush_2016_SepioSemantic
+#   relations      smith_2005_RelationsBiomedical, buckinghamshum_2006_ModelingNaturalistic
+#   citations      peroni_2012_FabioCito, nicholson_2021_SciteSmart
+#   provenance     groth_2010_AnatomyNanopublication, lebo_2013_ProvO
+#   statuses       shipman_1999_FormalityConsidered (types assigned late, by review)
+#   people         priem_2022_OpenalexFully, nielsen_2017_ScholiaScientometrics
+#
 # `level` gives the zoom level, from broad (0) to detailed (5). An approach
 # scores on hierarchy when it can connect nodes across levels.
 
