@@ -193,11 +193,17 @@ def run(args) -> None:
         if not cfg.wiki_root.is_dir():
             print(f"error: no wiki at {rel(cfg.wiki_root)} (run `biblio wiki init`)", file=sys.stderr)
             raise SystemExit(2)
-        paths = [p.resolve() for p in args.paths] if args.paths else None
+        from .lint import resolve_page_args
+        paths = None
+        if args.paths:
+            paths, unmatched = resolve_page_args(cfg, args.paths)
+            if unmatched:
+                print(f"error: no wiki page matches {', '.join(unmatched)}", file=sys.stderr)
+                raise SystemExit(2)
         findings = lint(cfg, paths)
         keep = SEVERITIES[: SEVERITIES.index(args.min_severity) + 1]
         shown = [f for f in findings if f.severity in keep]
-        print(format_findings(shown, args.format, None if paths else page_count(cfg)))
+        print(format_findings(shown, args.format, len(paths) if paths else page_count(cfg)))
         raise SystemExit(1 if any(f.severity == "error" for f in findings) else 0)
 
     if args.wiki_cmd == "hubs":

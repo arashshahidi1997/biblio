@@ -1,31 +1,108 @@
 """Check that quoted text appears in the cited paper's full text.
 
-Matching tolerates whitespace, punctuation, hyphenation at line breaks and
-Unicode variants. A quote matches exactly when its normalized text is a
-substring of the normalized paper; it matches approximately when at least
-``FUZZY_MIN`` of its 3-word shingles occur in the paper (one or two words
-changed). Paraphrases do not match.
+Matching tolerates whitespace, punctuation, hyphenation at line breaks,
+Unicode variants and docling's split ligatures ("identif ied"). A quote is
+
+- ``exact`` when its normalized text is a substring of the normalized paper;
+- ``approximate`` when it aligns with one contiguous passage except for a few
+  words, none of which can change the meaning (lint warning, with the diff);
+- ``changed`` when it aligns but a differing word is a negation, comparative,
+  direction word or number ("less" -> "more"): an error, because the quote
+  then says something the paper does not;
+- ``missing`` otherwise, or ``no-text`` without a full text.
+
+Only ``exact`` counts as verified.
 """
 from __future__ import annotations
 
+import difflib
 import re
 import unicodedata
+from collections import Counter
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
 SHINGLE = 3
-FUZZY_MIN = 0.8
+MIN_COVERAGE = 0.8      # share of the quote's words found in order in one passage
+MIN_WORDS = 4           # shorter quotes must match exactly
+
+# words whose change can flip a claim: never "approximately" right
+MUST_MATCH = re.compile(
+    r"^(?:\d[\d.]*|not|no|never|none|nor|neither|without|cannot|cant|nt|only|all|both|either|"
+    r"less|more|most|least|fewer|greater|smaller|larger|higher|lower|bigger|shorter|longer|"
+    r"increas\w*|decreas\w*|rais\w*|ris\w*|rose|fell|fall\w*|reduc\w*|enhanc\w*|elevat\w*|"
+    r"suppress\w*|abolish\w*|block\w*|before|after|above|below|deeper|shallower|earlier|later|"
+    r"positive|negative|significant\w*|insignificant|absent|present)$")
 
 
 def normalize(text: str) -> str:
     text = unicodedata.normalize("NFKC", text).replace("­", "")
     text = re.sub(r"-\s*\n\s*", "", text)          # hyphenation at line breaks
     text = re.sub(r"[^\w\s]|_", " ", text)          # punctuation and markdown markup
-    return re.sub(r"\s+", " ", text).strip().lower()
+    text = re.sub(r"\s+", " ", text).strip().lower()
+    return re.sub(r"f (?=[fil])", "f", text)         # docling ligature splits: "identif ied", "dif ferent"
 
 
 def shingles(words: list[str]) -> set[tuple[str, ...]]:
     return {tuple(words[i:i + SHINGLE]) for i in range(max(1, len(words) - SHINGLE + 1))}
+
+
+@dataclass
+class Match:
+    status: str                 # exact | approximate | changed | missing | no-text
+    diff: str = ""              # "paper words -> quote words; ..." for approximate and changed
+    passage: str = ""           # the aligned passage of the paper (normalized)
+
+
+class _Text:
+    def __init__(self, raw: str):
+        self.norm = normalize(raw)
+        self.words = self.norm.split()
+        self.index: dict[tuple[str, ...], list[int]] = {}
+        for i in range(max(0, len(self.words) - SHINGLE + 1)):
+            self.index.setdefault(tuple(self.words[i:i + SHINGLE]), []).append(i)
+
+
+def align(quote_words: list[str], text: _Text) -> Match:
+    """Best contiguous passage for a quote that is not an exact substring."""
+    n = len(quote_words)
+    if n < MIN_WORDS:
+        return Match("missing")
+    votes: Counter = Counter()
+    for i in range(n - SHINGLE + 1):
+        for pos in text.index.get(tuple(quote_words[i:i + SHINGLE]), ()):
+            votes[pos - i] += 1
+    best: tuple[int, list, list] | None = None
+    for start, _ in votes.most_common(5):
+        lo, hi = max(0, start - 3), min(len(text.words), start + n + 3)
+        window = text.words[lo:hi]
+        sm = difflib.SequenceMatcher(None, quote_words, window, autojunk=False)
+        blocks = [b for b in sm.get_matching_blocks() if b.size]
+        matched = sum(b.size for b in blocks)
+        if blocks and (best is None or matched > best[0]):
+            best = (matched, blocks, window)
+    if best is None or best[0] / n < MIN_COVERAGE:
+        return Match("missing")
+    _, blocks, window = best
+    # compare the quote with the passage spanning the first to the last matched word
+    span = window[blocks[0].b: blocks[-1].b + blocks[-1].size]
+    q_span = quote_words[blocks[0].a: blocks[-1].a + blocks[-1].size]
+    changes, meaningful = [], False
+    for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(None, q_span, span, autojunk=False).get_opcodes():
+        if tag == "equal":
+            continue
+        q_part, p_part = q_span[i1:i2], span[j1:j2]
+        meaningful |= any(MUST_MATCH.match(w) for w in q_part + p_part)
+        changes.append(f"'{' '.join(p_part) or '(nothing)'}' -> '{' '.join(q_part) or '(nothing)'}'")
+    # words of the quote outside the aligned span are unmatched too
+    lost = quote_words[:blocks[0].a] + quote_words[blocks[-1].a + blocks[-1].size:]
+    if lost:
+        meaningful |= any(MUST_MATCH.match(w) for w in lost)
+        changes.append(f"unmatched: '{' '.join(lost)}'")
+    if not changes:
+        return Match("exact", passage=" ".join(span))
+    return Match("changed" if meaningful else "approximate", "; ".join(changes), " ".join(span))
 
 
 class QuoteChecker:
@@ -33,32 +110,28 @@ class QuoteChecker:
 
     def __init__(self, path_for: Callable[[str], Path]):
         self.path_for = path_for
-        self._texts: dict[str, tuple[str, set] | None] = {}
+        self._texts: dict[str, _Text | None] = {}
 
-    def _text(self, citekey: str):
+    def _text(self, citekey: str) -> _Text | None:
         if citekey not in self._texts:
             path = self.path_for(citekey)
-            if path.is_file():
-                norm = normalize(path.read_text(encoding="utf-8", errors="replace"))
-                self._texts[citekey] = (norm, shingles(norm.split()))
-            else:
-                self._texts[citekey] = None
+            self._texts[citekey] = _Text(path.read_text(encoding="utf-8", errors="replace")) if path.is_file() else None
         return self._texts[citekey]
 
     def has_text(self, citekey: str) -> bool:
         return self._text(citekey) is not None
 
-    def check(self, citekey: str, quote: str) -> str:
-        """Return 'exact', 'fuzzy', 'missing' or 'no-text'."""
-        entry = self._text(citekey)
-        if entry is None:
-            return "no-text"
-        text, text_shingles = entry
+    def match(self, citekey: str, quote: str) -> Match:
+        text = self._text(citekey)
+        if text is None:
+            return Match("no-text")
         q = normalize(quote)
         if not q:
-            return "missing"
-        if q in text:
-            return "exact"
-        q_shingles = shingles(q.split())
-        hit = len(q_shingles & text_shingles) / len(q_shingles)
-        return "fuzzy" if hit >= FUZZY_MIN else "missing"
+            return Match("missing")
+        if q in text.norm:
+            return Match("exact")
+        return align(q.split(), text)
+
+    def check(self, citekey: str, quote: str) -> str:
+        """The status alone: 'exact', 'approximate', 'changed', 'missing' or 'no-text'."""
+        return self.match(citekey, quote).status

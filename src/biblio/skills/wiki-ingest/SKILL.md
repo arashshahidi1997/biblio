@@ -50,9 +50,11 @@ metadata:
      `[Sharp-wave ripple](../concepts/sharp-wave-ripple.md)`.
    - Literature claims cite `[@citekey]`. Back each claim taken from a paper
      with a short verbatim quote, `> "verbatim" [@citekey]`, copied exactly
-     from the full text (OCR slips included); lint checks every quote against
-     the paper, so the quote is what makes the claim checkable for the
-     reviewer. Add every cited key to `sources:`.
+     from the full text (docling's split ligatures such as "identif ied" may
+     be written whole). Lint checks every quote against the paper: only exact
+     matches pass; an approximate match is a warning (FID003) and a changed
+     negation, comparative or number an error (FID004). The quote is what
+     makes the claim checkable for the reviewer. Add every cited key to `sources:`.
    - Project results go only in "Our experience" or a `case` page, cited by
      stable ID (P10).
    - Conflicting sources: record both, add `> **Contested.**` and a

@@ -46,12 +46,15 @@ class SourceIndex:
         self.cfg = cfg
         self.project_keys: set[str] = set()
         self.dois: dict[str, str] = {}
+        self.biblio_cfg = self._load_biblio_cfg()
         self.bibliographies = _project_bibliographies(cfg)
+        if not cfg.bibliography_explicit:
+            # the project's own sources count even before `biblio bibtex merge` (as in refs triage)
+            self.bibliographies += [p for p in self._srcbib_files() if p not in self.bibliographies]
         for path in self.bibliographies:
             keys, dois = bib_keys_and_dois(path)
             self.project_keys |= keys
             self.dois.update(dois)
-        self.biblio_cfg = self._load_biblio_cfg()
         self.pool_keys: dict[Path, set[str]] = {}
         for pool_root in self.pool_roots:
             bib = self._pool_bib(pool_root)
@@ -67,6 +70,12 @@ class SourceIndex:
             return load_biblio_config(default_config_path(root=self.cfg.repo_root), root=self.cfg.repo_root)
         except Exception:
             return None
+
+    def _srcbib_files(self) -> list[Path]:
+        merge = getattr(self.biblio_cfg, "bibtex_merge", None)
+        src_dir = merge.src_dir if merge else self.cfg.repo_root / "bib" / "srcbib"
+        pattern = merge.src_glob if merge else "*.bib"
+        return sorted(p for p in Path(src_dir).glob(pattern) if p.is_file()) if Path(src_dir).is_dir() else []
 
     @property
     def pool_roots(self) -> tuple[Path, ...]:

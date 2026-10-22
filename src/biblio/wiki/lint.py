@@ -129,6 +129,10 @@ def lint(cfg: WikiConfig, paths: list[Path] | None = None) -> list[Finding]:
 
     if not sources.has_bibliography:
         add(Finding("info", "CIT000", "-", None, "no bibliography found; citekeys not checked"))
+    elif not sources.bibliographies:
+        add(Finding("warning", "CIT005", "-", None,
+                    "no project bibliography (bib/srcbib/*.bib, merged.bib or compiled.bib); "
+                    "only the pools are checked, so the project's own papers show as CIT001", "P8"))
     if vocab is None:
         add(Finding("info", "TAG000", "-", None, "no vocabulary found; tags not checked"))
 
@@ -312,15 +316,25 @@ def _check_page(cfg, page: Page, add, sources: SourceIndex, vocab, resolver: _Re
         add(Finding("info", "CIT004", page.rel, 1, f"@{key} is in sources: but never cited in the text", "P8"))
 
     # fidelity
+    rank = {"exact": 0, "approximate": 1, "changed": 2, "missing": 3, "no-text": 4}
     for quote in page.quotes:
-        verdicts = {key: checker.check(key, quote.text) for key in quote.keys}
-        if any(v in ("exact", "fuzzy") for v in verdicts.values()):
+        if not quote.keys:
             continue
-        if all(v == "no-text" for v in verdicts.values()):
+        matches = {key: checker.match(key, quote.text) for key in quote.keys}
+        key, best = min(matches.items(), key=lambda kv: rank[kv[1].status])
+        short = quote.text if len(quote.text) <= 70 else quote.text[:67] + "..."
+        if best.status == "exact":
+            continue
+        if best.status == "approximate":
+            add(Finding("warning", "FID003", page.rel, quote.line,
+                        f"quote matches @{key} only approximately ({best.diff}); copy it verbatim", "P8"))
+        elif best.status == "changed":
+            add(Finding("error", "FID004", page.rel, quote.line,
+                        f"quote changes a word that carries meaning in @{key} ({best.diff}): \"{short}\"", "P8"))
+        elif best.status == "no-text":
             add(Finding("info", "FID002", page.rel, quote.line,
                         f"cannot verify quote: no full text for {', '.join('@' + k for k in quote.keys)}", "P8"))
         else:
-            short = quote.text if len(quote.text) <= 70 else quote.text[:67] + "..."
             add(Finding("error", "FID001", page.rel, quote.line,
                         f"quote not found in {', '.join('@' + k for k in quote.keys)}: \"{short}\"", "P8"))
 
@@ -387,6 +401,28 @@ def format_findings(findings: list[Finding], fmt: str = "text", n_pages: int | N
     out.append(f"\n{pages}{s['error']} errors, {s['warning']} warnings, "
                f"{s['suggestion']} suggestions, {s['info']} notes")
     return "\n".join(out).lstrip("\n")
+
+
+def resolve_page_args(cfg: WikiConfig, args: list[Path]) -> tuple[list[Path], list[str]]:
+    """Pages named by CLI arguments: files or folders, relative to the cwd, the repo or the wiki root.
+
+    Returns (pages, arguments that matched no page). Folders expand to the pages inside them.
+    """
+    pages_all = {p.resolve() for p in iter_page_paths(cfg.wiki_root)}
+    found: list[Path] = []
+    unmatched: list[str] = []
+    for arg in args:
+        cands = [arg] if arg.is_absolute() else [Path.cwd() / arg, cfg.repo_root / arg, cfg.wiki_root / arg]
+        target = next((c.resolve() for c in cands if c.exists()), None)
+        if target is None:
+            unmatched.append(str(arg))
+            continue
+        hits = sorted(p for p in pages_all if p == target or target in p.parents) if target.is_dir() else (
+            [target] if target in pages_all else [])
+        if not hits:
+            unmatched.append(str(arg))
+        found.extend(h for h in hits if h not in found)
+    return found, unmatched
 
 
 def page_count(cfg: WikiConfig) -> int:

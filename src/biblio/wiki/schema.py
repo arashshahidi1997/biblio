@@ -67,6 +67,7 @@ class WikiConfig:
     project_tokens: tuple[str, ...] = DEFAULT_PROJECT_TOKENS
     max_words: int = 800
     bibliography_explicit: bool = False      # set in wiki.yml; otherwise project defaults are merged
+    vocab_explicit: bool = False             # set in wiki.yml; otherwise the wiki's own vocab.yml wins
     link_style: str = "markdown"        # "markdown" | "wikilink" (used when biblio writes links)
 
     @property
@@ -124,4 +125,5 @@ def load_wiki_config(repo_root: Path, wiki_root: Path | None = None) -> WikiConf
         max_words=int(data.get("max_words", 800)),
         link_style=str(data.get("link_style", "markdown")),
         bibliography_explicit=bool(data.get("bibliography")),
+        vocab_explicit=bool(data.get("vocab")),
     )

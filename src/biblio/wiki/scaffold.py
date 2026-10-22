@@ -81,13 +81,20 @@ def append_log(cfg: WikiConfig, op: str, pages: list[str], note: str = "") -> No
         fh.write(line)
 
 
+def yaml_scalar(value: str) -> str:
+    """A YAML scalar for one frontmatter value, quoted only when needed ("A: b", "#x", "yes")."""
+    import yaml
+    text = yaml.safe_dump(value, default_flow_style=True, allow_unicode=True, width=10_000).strip()
+    return text[:-4].rstrip() if text.endswith("\n...") else text
+
+
 def page_template(cfg: WikiConfig, ptype: str, title: str, tags: list[str], scope: str, author: str,
                   status: str = "stub") -> str:
     sections = cfg.page_types[ptype][1]
-    tag_list = ", ".join(tags)
+    tag_list = ", ".join(yaml_scalar(t) for t in tags)
     fm = (
         "---\n"
-        f"title: {title}\n"
+        f"title: {yaml_scalar(title)}\n"
         f"type: {ptype}\n"
         f"scope: {scope}\n"
         f"status: {status}\n"
@@ -213,7 +220,7 @@ def init(cfg: WikiConfig, subject: str | None = None, tags: list[str] | None = N
             created.append(path)
     if created:
         append_log(cfg, "init", [p.name for p in created], "skeleton")
-    if cfg.vocab is None:  # the config was loaded before this skeleton existed
+    if not cfg.vocab_explicit:  # the config was loaded before this skeleton's vocab.yml existed
         cfg.vocab = root / "vocab.yml"
     if subject:
         created.append(stub(cfg, subject, "hub", title=subject.replace("-", " ").capitalize(), tags=tags or []))

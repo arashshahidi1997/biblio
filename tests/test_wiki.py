@@ -131,8 +131,11 @@ def test_lint_checks_quotes_citations_links_scope(repo):
     findings = lint(cfg, [page])
     found = codes(findings, "concepts/ripple-coupling.md")
     fid = sorted(f.message for f in findings if f.code == "FID001")
-    # exact quotes and formatting noise pass; a fabricated quote and a one-word paraphrase do not
-    assert len(fid) == 2 and "rose" in fid[0] and "moon" in fid[1]
+    changed = [f.message for f in findings if f.code == "FID004"]
+    # exact quotes and formatting noise pass; a fabricated quote is not found; a changed direction word
+    # ("increased" -> "rose") is an error of its own
+    assert len(fid) == 1 and "moon" in fid[0]
+    assert len(changed) == 1 and "'increased' -> 'rose'" in changed[0]
     assert "LNK001" in found                                   # [[missing-page]]
     scope = [f for f in findings if f.code == "SCOPE001"]
     assert len(scope) == 1 and "sub-01" in scope[0].message    # "Our experience" is exempt
@@ -557,3 +560,105 @@ def test_skills_dir_entry_point_target():
     pyproject = tomllib.loads((Path(__file__).resolve().parents[1] / "pyproject.toml").read_text())
     assert pyproject["project"]["entry-points"]["projio.skills"]["biblio"] == "biblio.skills_bundle:skills_dir"
     assert {p.parent.name for p in skills_dir().glob("*/SKILL.md")} >= {"wiki-ingest", "wiki-review", "zotero-add"}
+
+
+# --- R13: only exact quotes are verified (journal-club trial) -------------------
+
+SOURCE_TEXT = ("Results. C2 ripples were less affected by the cortical plasticity manipulation and became "
+               "more numerous, while C4 ripples had the longest duration of all identif ied classes "
+               "(n = 12 rats). The ref lected wave was not detected in sham animals.")
+
+
+@pytest.mark.parametrize("quote,status", [
+    ("C2 ripples were less affected by the cortical plasticity manipulation", "exact"),
+    ("C4 ripples had the longest duration of all identified classes", "exact"),        # ligature split
+    ("The reflected wave was not detected in sham animals", "exact"),
+    ("C2 ripples were more affected by the cortical plasticity manipulation", "changed"),
+    ("C2 ripples were not affected by the cortical plasticity manipulation", "changed"),
+    ("C4 ripples had the longest duration of all identified classes (n = 14 rats)", "changed"),
+    ("The reflected wave was detected in sham animals", "changed"),                     # dropped 'not'
+    ("C2 ripples were less influenced by the cortical plasticity manipulation", "approximate"),
+    ("Gamma bursts dominate the neocortex during waking hours", "missing"),
+    ("ripples were less", "exact"),
+])
+def test_quote_statuses(tmp_path, quote, status):
+    f = tmp_path / "p.md"
+    f.write_text(SOURCE_TEXT)
+    m = QuoteChecker(lambda key: f).match("k", quote)
+    assert m.status == status, m
+
+
+def test_approximate_quote_reports_diff_and_scattered_words_do_not_match(tmp_path):
+    f = tmp_path / "p.md"
+    f.write_text(SOURCE_TEXT)
+    checker = QuoteChecker(lambda key: f)
+    m = checker.match("k", "C2 ripples were less influenced by the cortical plasticity manipulation")
+    assert "'affected' -> 'influenced'" in m.diff
+    # every 3-word chunk exists somewhere, but not as one passage: the old check passed this
+    assert checker.check("k", "C4 ripples were less affected by the cortical plasticity manipulation and "
+                              "became more numerous") in ("changed", "approximate", "missing")
+    assert checker.check("k", "were less affected by the longest duration of all identified classes") == "missing"
+
+
+def test_lint_and_packet_mark_fidelity(repo):
+    cfg = load_wiki_config(repo)
+    body = REVIEW_BODY + ('\n> "Neocortical up-states precede hippocampal sharp-wave ripples by about 60 ms" '
+                          '[@sirota_2003_CommunicationNeocortex]\n'
+                          '\n> "Neocortical up-states precede hippocampal sharp-wave ripples by roughly 50 ms" '
+                          '[@sirota_2003_CommunicationNeocortex]\n')
+    page = _reviewable(cfg, body=body)
+    found = {f.code: f for f in lint(cfg, [page])}
+    assert "FID004" in found and "'50' -> '60'" in found["FID004"].message
+    assert "FID003" in found and found["FID003"].severity == "warning"
+    text = rv.packet(cfg, page)
+    assert "verified exact" in text and "MEANING CHANGED" in text and "APPROXIMATE" in text
+
+
+# --- journal-club trial: R09 R10 R11 R12 ------------------------------------------
+
+def test_init_tag_ignores_bibliography_tag_vocab(tmp_path):
+    """R09: .projio/biblio/tag_vocab.yml (namespace:value) must not shadow the new wiki's vocab.yml."""
+    tv = tmp_path / ".projio" / "biblio" / "tag_vocab.yml"
+    tv.parent.mkdir(parents=True)
+    tv.write_text("namespaces:\n  task: {values: [x]}\n  corpus: {values: [y]}\n")
+    cfg = load_wiki_config(tmp_path)
+    assert cfg.vocab == tv                                  # the fallback, before the skeleton exists
+    init(cfg, subject="sleep-coupling", tags=["event/spindle", "state/nrem-sleep"])
+    assert "values: [spindle]" in (cfg.wiki_root / "vocab.yml").read_text()
+    assert "spindle" not in tv.read_text()
+
+
+def test_stub_quotes_titles_and_tags(repo):
+    """R10: a colon in a title must not break the frontmatter."""
+    cfg = load_wiki_config(repo)
+    page = stub(cfg, "aleman-2026", "source", title="Aleman-Zapata et al. 2026: ripple subtypes",
+                tags=["event/ripple"], status="draft")
+    assert "title: 'Aleman-Zapata et al. 2026: ripple subtypes'" in page.read_text()
+    assert parse_page(page, cfg.wiki_root).title == "Aleman-Zapata et al. 2026: ripple subtypes"
+    assert "FM001" not in codes(lint(cfg, [page]), "sources/aleman-2026.md")
+
+
+def test_lint_folder_arguments_expand_and_unmatched_fail(repo, capsys):
+    """R11: a folder used to check nothing and report 0 errors."""
+    cfg = load_wiki_config(repo)
+    write(cfg.wiki_root / "concepts" / "bad.md", status="reviewed", body="\n# Bad\n\nLede.\n")
+    with pytest.raises(SystemExit) as exc:
+        main(["wiki", "lint", "concepts", "--root", str(repo)])
+    out = capsys.readouterr().out
+    assert exc.value.code == 1 and "FM004" in out and "1 pages:" in out
+    with pytest.raises(SystemExit) as exc:
+        main(["wiki", "lint", "no/such/folder", "--root", str(repo)])
+    assert exc.value.code == 2 and "no wiki page matches" in capsys.readouterr().err
+
+
+def test_lint_reads_srcbib_without_merged_bib(tmp_path):
+    """R12: before `biblio bibtex merge`, the project's own papers are known from bib/srcbib."""
+    src = tmp_path / "bib" / "srcbib"
+    src.mkdir(parents=True)
+    (src / "jc.bib").write_text("@article{aleman_2026_Deltas,\n  title = {Deltas},\n  year = {2026}\n}\n")
+    cfg = load_wiki_config(tmp_path)
+    init(cfg)
+    write(cfg.wiki_root / "concepts" / "c.md", sources="aleman_2026_Deltas", tags="",
+          body="\n# C\n\nCites [@aleman_2026_Deltas].\n")
+    found = lint(cfg)
+    assert "CIT001" not in codes(found, "concepts/c.md") and "CIT005" not in codes(found)

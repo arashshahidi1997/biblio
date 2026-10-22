@@ -89,7 +89,11 @@ def packet(cfg: WikiConfig, path: Path) -> str:
     page = parse_page(path, cfg.wiki_root)
     fm = page.frontmatter
     findings = lint(cfg, [path])
-    fid_lines = {f.line for f in findings if f.code.startswith("FID")}
+    from .fidelity import QuoteChecker
+    checker = QuoteChecker(SourceIndex(cfg).fulltext)
+    label = {"exact": "verified exact", "approximate": "APPROXIMATE", "changed": "MEANING CHANGED",
+             "missing": "NOT FOUND in source", "no-text": "no full text"}
+    rank = {"exact": 0, "approximate": 1, "changed": 2, "missing": 3, "no-text": 4}
     sources = SourceIndex(cfg)
     out = [f"## {page.title}  (`{page.rel}`)", ""]
     rev = fm.get("reviewed")
@@ -111,7 +115,11 @@ def packet(cfg: WikiConfig, path: Path) -> str:
 
     out += ["", f"### Quotes ({len(page.quotes)})", ""]
     for q in page.quotes:
-        mark = "NOT FOUND in source" if q.line in fid_lines else ("verified" if q.keys else "no citation")
+        if q.keys:
+            m = min((checker.match(k, q.text) for k in q.keys), key=lambda m: rank[m.status])
+            mark = label[m.status] + (f" ({m.diff})" if m.diff else "")
+        else:
+            mark = "no citation"
         text = q.text if len(q.text) <= 160 else q.text[:157] + "..."
         out.append(f"- line {q.line}, {mark}: \"{text}\" " + " ".join(f"[@{k}]" for k in q.keys))
     if not page.quotes:

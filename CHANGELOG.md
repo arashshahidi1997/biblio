@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.2.1 (2026-10-22)
+
+Fixes from journal-club's 0.2.0 trial (R09-R13).
+
+### Changed
+- **Quote fidelity is exact-only**: a quote is verified only on an exact match (after normalizing whitespace, punctuation, hyphenation and docling ligature splits). Near matches are aligned to one passage and reported with a word diff: FID003 warning, or FID004 error when a negation, comparative, direction word or number differs. The review packet shows the same verdicts.
+- `wiki lint` reads `bib/srcbib/*.bib` too; CIT005 when a project has no bibliography of its own.
+
+### Fixed
+- `wiki lint <folder>` checked nothing and reported 0 errors; folders now expand, and unmatched paths exit 2.
+- `wiki init --tag` failed on the first run when `.projio/biblio/tag_vocab.yml` existed.
+- `wiki stub --title "A: b"` wrote invalid YAML.
+
 ## 0.2.0 (2026-10-22)
 
 ### Added
