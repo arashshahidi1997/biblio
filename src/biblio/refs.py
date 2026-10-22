@@ -32,11 +32,17 @@ _MIN_PREFIX = 30
 
 
 def normalize_doi(doi: str | None) -> str:
+    """Lowercase bare DOI; drops URL prefixes and the trailing junk GROBID sometimes attaches
+    ("10.1152/physrev.00032.2012.-over" -> "10.1152/physrev.00032.2012")."""
     d = (doi or "").strip().lower()
     for prefix in ("https://doi.org/", "http://doi.org/", "https://dx.doi.org/", "doi:"):
         if d.startswith(prefix):
             d = d[len(prefix):]
-    return d.strip().rstrip(".")
+    m = re.search(r"10\.\d{4,9}/\S+", d)
+    if m:
+        d = m.group(0)
+    d = re.split(r"\.-|\s", d, maxsplit=1)[0]
+    return d.strip().rstrip(".,;:)]>\"'")
 
 
 def normalize_title(title: str | None) -> str:
@@ -360,12 +366,25 @@ def _row(ref: dict[str, Any], index: HoldingIndex) -> dict[str, Any]:
     }
 
 
-def _attach_openalex(rows: list[dict[str, Any]], oa_refs: list[dict[str, Any]], index: HoldingIndex) -> int:
-    """Give DOI-less rows a DOI from OpenAlex; append references GROBID missed. Returns rows improved."""
+def _attach_openalex(rows: list[dict[str, Any]], oa_refs: list[dict[str, Any]],
+                     index: HoldingIndex) -> dict[str, int]:
+    """Link rows to the paper's OpenAlex references.
+
+    Rows with a DOI get OpenAlex's title and year (``title_openalex``, ``year_openalex``; GROBID's
+    stay in ``title``/``year``); DOI-less rows get a DOI by title and year; references GROBID
+    missed are appended (``source: openalex``). Returns counts: improved, added, unmatched.
+    """
     used: set[str] = set()
+    by_doi = {o["doi"]: o for o in oa_refs if o["doi"]}
     for row in rows:
-        if row["doi"]:
-            used.update(o["openalex"] for o in oa_refs if o["doi"] == row["doi"])
+        o = by_doi.get(row["doi"]) if row["doi"] else None
+        if o is not None:
+            used.add(o["openalex"])
+            row["openalex"] = o["openalex"]
+            if o["title"]:
+                row["title_openalex"] = o["title"]
+            if o["year"]:
+                row["year_openalex"] = o["year"]
     improved = 0
     nt_rows = [(row, normalize_title(row["title"])) for row in rows]
     for row, nt in nt_rows:
@@ -386,16 +405,40 @@ def _attach_openalex(rows: list[dict[str, Any]], oa_refs: list[dict[str, Any]], 
                         row["held"] = [{"where": h.where, "key": h.key, "status": h.status} for h in hits]
                         improved += 1
                 break
+    unmatched = sum(1 for row in rows if not row.get("openalex"))
     n = len(rows)
+    added = 0
     for o in oa_refs:
         if o["openalex"] in used or not (o["doi"] or o["title"]):
             continue
         n += 1
+        added += 1
         extra = _row({"n": n, "title": o["title"], "year": o["year"], "doi": o["doi"]}, index)
         extra["openalex"] = o["openalex"]
         extra["source"] = "openalex"
         rows.append(extra)
-    return improved
+    return {"improved": improved, "added": added, "unmatched": unmatched}
+
+
+def _mark_duplicates(rows: list[dict[str, Any]]) -> list[str]:
+    """Same-DOI references (``duplicate_of``) and papers a pool holds under two keys; returns notes."""
+    notes, first = [], {}
+    for row in rows:
+        if row["doi"] and row["doi"] in first:
+            row["duplicate_of"] = first[row["doi"]]
+            notes.append(f"#{row['n']} has the same DOI as #{first[row['doi']]} ({row['doi']})")
+        elif row["doi"]:
+            first[row["doi"]] = row["n"]
+    seen = set()
+    for row in rows:
+        by_where: dict[str, list[str]] = {}
+        for h in row["held"]:
+            by_where.setdefault(h["where"], []).append(h["key"])
+        for where, keys in by_where.items():
+            if len(keys) > 1 and (where, tuple(sorted(keys))) not in seen:
+                seen.add((where, tuple(sorted(keys))))
+                notes.append(f"{where} holds one paper under {len(keys)} keys: {', '.join(sorted(keys))}")
+    return notes
 
 
 def build_index(cfg: BiblioConfig, *, zotero: Path | None = None) -> HoldingIndex:
@@ -439,9 +482,12 @@ def triage(
             if oa_refs is None:
                 notes.append("OpenAlex: work not cached (fetch disabled)")
             else:
-                improved = _attach_openalex(rows, oa_refs, index)
-                notes.append(f"OpenAlex: {len(oa_refs)} referenced works, {improved} references improved")
+                st = _attach_openalex(rows, oa_refs, index)
+                notes.append(f"OpenAlex: {len(oa_refs)} referenced works; {st['improved']} references improved; "
+                             f"{st['added']} works GROBID missed (added, marked OpenAlex only); "
+                             f"{st['unmatched']} GROBID references not among them")
 
+    notes.extend(_mark_duplicates(rows))
     counts = {s: sum(1 for r in rows if r["status"] == s) for s in STATUSES}
     return {
         "citekey": citekey,
@@ -491,8 +537,13 @@ def to_markdown(result: dict[str, Any]) -> str:
                   "| # | First author | Year | Title | DOI | Held |", "|---|---|---|---|---|---|"]
         for r in rows:
             held = ", ".join(f"{h['where']}:{h['key']}" for h in r["held"])
-            title = r["title"].replace("|", "\\|")
-            lines.append(f"| {r['n']} | {r['first']} | {r['year'] or ''} | {title} | {r['doi']} | {held} |")
+            title = (r.get("title_openalex") or r["title"]).replace("|", "\\|")
+            if r.get("source") == "openalex":
+                title += " *(OpenAlex only)*"
+            if r.get("duplicate_of"):
+                title += f" *(same DOI as #{r['duplicate_of']})*"
+            year = r.get("year_openalex") or r["year"] or ""
+            lines.append(f"| {r['n']} | {r['first']} | {year} | {title} | {r['doi']} | {held} |")
     return "\n".join(lines) + "\n"
 
 

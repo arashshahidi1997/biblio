@@ -173,3 +173,43 @@ def test_cli(project, capsys):
     main(["refs", "triage", KEY, "--root", str(project.repo_root)])
     out = capsys.readouterr().out
     assert "5 references: 1 fulltext, 1 pdf, 1 metadata, 2 absent" in out
+
+
+# --- journal-club follow-ups on R03 ----------------------------------------------
+
+@pytest.mark.parametrize("raw,clean", [
+    ("10.1152/physrev.00032.2012.-over", "10.1152/physrev.00032.2012"),
+    ("https://doi.org/10.1038/NN.2384.", "10.1038/nn.2384"),
+    ("doi:10.1523/jneurosci.4288-13.2014)", "10.1523/jneurosci.4288-13.2014"),
+    ("see 10.7554/elife.84911 online", "10.7554/elife.84911"),
+])
+def test_normalize_doi_strips_grobid_junk(raw, clean):
+    assert refs.normalize_doi(raw) == clean
+
+
+def test_duplicates_openalex_titles_and_counts(project, monkeypatch):
+    grobid = project.repo_root / "bib" / "derivatives" / "grobid" / KEY / "references.json"
+    data = json.loads(grobid.read_text())
+    data.append({"title": "", "authors": [], "year": "2009", "doi": "10.1038/nn.2384"})   # same DOI as #1
+    grobid.write_text(json.dumps(data))
+    oa_refs = [{"openalex": "W1", "doi": "10.1038/nn.2384",
+                "title": "Selective suppression of hippocampal ripples impairs spatial memory", "year": 2009},
+               {"openalex": "W9", "doi": "10.1/missed", "title": "A reference GROBID never saw", "year": 2015}]
+    monkeypatch.setattr(refs, "openalex_references", lambda cfg, doi, fetch=True: oa_refs)
+    result = refs.triage(project, KEY, use_openalex=True)
+    rows = {r["n"]: r for r in result["references"]}
+    assert rows[6]["duplicate_of"] == 1
+    assert rows[1]["title_openalex"].endswith("impairs spatial memory") and rows[1]["title"].endswith("ripples")
+    note = next(n for n in result["notes"] if n.startswith("OpenAlex"))
+    assert "1 works GROBID missed" in note and "GROBID references not among them" in note
+    assert any("same DOI as #1" in n for n in result["notes"])
+    md = refs.to_markdown(result)
+    assert "impairs spatial memory" in md and "*(OpenAlex only)*" in md and "*(same DOI as #1)*" in md
+
+
+def test_pool_duplicate_keys_are_noted(project, tmp_path):
+    bib = tmp_path / "sirocampus" / ".projio" / "biblio" / "merged.bib"
+    bib.write_text(bib.read_text() + "\n@article{Girardeau_2009_SelectiveSuppression,\n  title = {Selective suppression of "
+                   "hippocampal ripples impairs spatial memory},\n  year = {2009},\n  doi = {10.1038/nn.2384}\n}\n")
+    notes = refs.triage(project, KEY)["notes"]
+    assert any("pool:sirocampus holds one paper under 2 keys" in n for n in notes)
