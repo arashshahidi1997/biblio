@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.2.3 (2026-10-22)
+
+From journal-club's trial (R03 follow-ups, R14, R16).
+
+### Added
+- `biblio --version`; the version's single source is `biblio.__version__`.
+- `wiki figure --caption title|full|none` (default: the caption's first sentence); lint SUG004 for pages linked from a hub's pages but listed in no hub; a `task` facet in the default vocabulary.
+
+### Changed
+- `refs triage`: GROBID's DOI junk is stripped; same-DOI references are marked; OpenAlex's title and year are shown when its DOI matches; the OpenAlex note counts works GROBID missed and the reverse; pools holding one paper under two keys are noted.
+- `wiki figure --page` is looked up in the wiki root first and must exist; captions are cleaned of docling ligature splits, lost-dash digit runs warned about; figure embeds and captions do not count toward the page word limit.
+- Docs: skill discovery through projio.
+
 ## 0.2.2 (2026-10-22)
 
 ### Changed

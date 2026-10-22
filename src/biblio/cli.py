@@ -92,6 +92,7 @@ def _launch_screen_session(*, name: str, bash_cmd: str) -> None:
 
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="biblio", description="Portable bib/ Docling scaffolding and runner.")
+    p.add_argument("--version", action="version", version=_version_string())
     sub = p.add_subparsers(dest="command", required=True)
 
     p_init = sub.add_parser("init", help="Initialize a repo-local bib/ Docling scaffold.")
@@ -880,6 +881,17 @@ def _add_zotero(args: argparse.Namespace, cfg: Any, cfg_path: Path, repo_root: P
                 print(f"  {name}: failed ({exc})")
     elif res.pdf_path and res.pdf_path.is_file():
         print(f"  next: biblio grobid run --key {res.citekey} && biblio docling run --key {res.citekey}")
+
+
+def _version_string() -> str:
+    from . import __version__
+    try:
+        from importlib.metadata import version
+        installed = version("biblio-tools")
+    except Exception:  # noqa: BLE001  not installed (running from a checkout)
+        installed = None
+    note = f" (installed metadata says {installed}; reinstall to refresh it)" if installed and installed != __version__ else ""
+    return f"biblio {__version__}{note}"
 
 
 def main(argv: Iterable[str] | None = None) -> None:

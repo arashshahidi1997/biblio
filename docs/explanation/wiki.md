@@ -67,16 +67,20 @@ blocks (`> **Contested.** ...`) and Obsidian callouts are not treated as quotes.
 
 ## Skills
 
-Shipped with biblio and installed into a project with `biblio skills install`
-(copies into `.claude/skills/`).
+Shipped with biblio (`src/biblio/skills/`). In a projio project they need no
+install: projio discovers them through biblio's `projio.skills` entry point,
+`skill_read` returns them, and `projio sync` writes a `.claude/commands/`
+wrapper per skill. Elsewhere, `biblio skills install` copies them into
+`.claude/skills/`.
 
-| Skill | Purpose | Uses |
-|-------|---------|------|
-| `wiki-maintain` | lint, read findings, propose and apply refactors with dry runs, re-lint | `lint`, `hubs`, refactor commands |
-| `wiki-ingest` | a source (paper, note, code) into the pages it touches; plan first when more than 3 pages change | digests, `stub`, `lint` |
-| `wiki-synthesize` | pages that combine sources: concept or theory pages with evidence for and against, method comparisons, open questions | digests (claims, methods), `lint` |
-| `wiki-query` | answer from the wiki, then from source full text by citekey and section; offer to file the answer | `rag` is not used |
-| `wiki-review` | prepare a review packet for a person: page, sources, quotes, findings | `lint`, `status` |
+| Skill | Purpose | Uses | Shipped |
+|-------|---------|------|---------|
+| `wiki-ingest` | a source (paper, note, code) into the pages it touches; with a person present, plan first when more than 3 pages change | `stub`, `lint`, `hubs`, `figure` | yes |
+| `wiki-maintain` | lint, read findings, propose and apply refactors with dry runs, re-lint | `lint`, `hubs`, refactor commands | yes (refactor commands are phase 2) |
+| `wiki-review` | help a person review: packets with claims beside quotes, unbacked citations and numbers; record their decision | `review packet\|accept\|flag\|reopen` | yes |
+| `zotero-add` | one paper from Zotero into the project (laptop to server) | `biblio add zotero` | yes |
+| `wiki-synthesize` | pages that combine sources: concept or theory pages with evidence for and against, method comparisons, open questions | digests (claims, methods), `lint` | no (phase 2/3) |
+| `wiki-query` | answer from the wiki, then from source full text by citekey and section; offer to file the answer | `rag` is not used | no (W11) |
 
 ## Working in the editors
 
@@ -103,18 +107,16 @@ Shipped with biblio and installed into a project with `biblio skills install`
 
 ## Phases
 
-1. **Deterministic core** (done): `init`, `stub`, `lint` (with fidelity),
-   `hubs`, `status`, `biblio skills install`; skills `wiki-maintain` and
-   `wiki-ingest` as drafts. Next: exercise on the pixecog layer-identification
-   subject.
+1. **Deterministic core** (done, 0.2.x): `init`, `stub`, `lint` (exact-only
+   quote fidelity), `hubs`, `status`, `embeds`, `figure`, `review`; skills
+   `wiki-ingest`, `wiki-maintain`, `wiki-review`. Used on pixecog (layer
+   identification, 47 pages) and journal-club (sleep coupling).
 2. **Restructuring and views:** `relink`, `merge`, `extract`, `suggest`,
    `views`; skill `wiki-synthesize`.
 3. **Digest-driven work:** the `subject`, `claims` and `methods` digest modes
-   feed ingest and synthesis; `promote`; skills `wiki-query` and `wiki-review`.
+   feed ingest and synthesis; `promote`; skill `wiki-query`.
 
 ## Open
 
-1. Skills shipped in biblio need projio to discover them (projio only bundles
-   its own `data/skills/` today); until then `biblio skills install` copies them.
-2. The wiki specification moves from pixecog into biblio's docs once reviewed,
+1. The wiki specification moves from pixecog into biblio's docs once reviewed,
    so the method and the tools version together.

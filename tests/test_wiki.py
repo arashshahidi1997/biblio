@@ -762,3 +762,23 @@ def test_figure_caption_modes_and_word_count(repo, tmp_path, capsys):
     with pytest.raises(SystemExit):
         main(["wiki", "figure", FIG_KEY, "2", "--page", "concepts/nope.md", "--root", str(repo)])
     assert "no page" in capsys.readouterr().err
+
+
+# --- R16 ----------------------------------------------------------------------------
+
+def test_version_and_task_facet_and_hub_hint(repo, capsys, tmp_path):
+    from biblio import __version__
+    with pytest.raises(SystemExit):
+        main(["--version"])
+    assert capsys.readouterr().out.startswith(f"biblio {__version__}")
+
+    fresh = load_wiki_config(tmp_path / "fresh")
+    init(fresh)
+    assert "task: {description: Behavioral task or paradigm" in (fresh.wiki_root / "vocab.yml").read_text()
+
+    cfg = load_wiki_config(repo)
+    stub(cfg, "ripples", "hub", tags=["event/ripple"])
+    write(cfg.wiki_root / "concepts" / "in-hub.md", body="\n# A\n\nSee [the task](../methods/ost.md).\n")
+    write(cfg.wiki_root / "methods" / "ost.md", type="method", tags="", body="\n# OST\n\nLede.\n")
+    found = [f for f in lint(cfg) if f.code == "SUG004"]
+    assert len(found) == 1 and found[0].page == "methods/ost.md" and "concepts/in-hub.md" in found[0].message

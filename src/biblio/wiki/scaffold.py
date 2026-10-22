@@ -36,6 +36,7 @@ namespaces:
   technique: {description: Method or analysis technique, values: []}
   device: {description: Recording device, values: []}
   species: {description: Species, values: []}
+  task: {description: Behavioral task or paradigm, values: []}
 
 aliases: {}
 """

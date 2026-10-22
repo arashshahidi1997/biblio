@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "biblio-tools"
-version = "0.2.2"
+dynamic = ["version"]
 description = "Portable bibliography workspace tool"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -62,3 +62,6 @@ include = ["biblio", "biblio.*"]
 
 [tool.setuptools.package-data]
 biblio = ["templates/**/*.tmpl", "static/**", "profiles/*.yml", "skills/*/SKILL.md"]
+
+[tool.setuptools.dynamic]
+version = {attr = "biblio.__version__"}

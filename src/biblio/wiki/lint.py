@@ -148,6 +148,7 @@ def lint(cfg: WikiConfig, paths: list[Path] | None = None) -> list[Finding]:
                         "P2", "relink"))
 
     inbound: Counter = Counter()
+    linked_from: dict[Path, set[str]] = defaultdict(set)
     wanted: dict[str, set[str]] = defaultdict(set)
     for page in all_pages:
         for link in page.links:
@@ -155,21 +156,32 @@ def lint(cfg: WikiConfig, paths: list[Path] | None = None) -> list[Finding]:
                 for target in resolver.wiki(link.target):
                     if target != page.path:
                         inbound[target] += 1
+                        linked_from[target].add(page.rel)
                 if not resolver.wiki(link.target):
                     wanted[link.target].add(page.rel)
             else:
                 target = (page.path.parent / link.target).resolve()
                 if target != page.path:
                     inbound[target] += 1
+                    linked_from[target].add(page.rel)
         for key in cfg.relation_keys:
             for value in page.list_field(key):
                 for target in resolver.wiki(_strip_link(value)):
                     inbound[target] += 1
+                    linked_from[target].add(page.rel)
+    hub_tag_set = {t for p in all_pages if p.type == "hub" for t in p.list_field("tags")}
+    in_a_hub = {p.rel for p in all_pages if p.type == "hub" or hub_tag_set & set(p.list_field("tags"))}
 
     for page in pages:
         _check_page(cfg, page, add, sources, vocab, resolver, checker, project_res)
         if inbound[page.path] == 0 and page.type not in ("hub", "question"):
             add(Finding("info", "ORPH001", page.rel, None, "no page links here", "P5", "hub"))
+        elif page.rel not in in_a_hub and page.type not in ("hub", "question"):
+            linkers = sorted(linked_from[page.path] & in_a_hub)
+            if linkers:
+                add(Finding("suggestion", "SUG004", page.rel, None,
+                            f"linked from {', '.join(linkers[:3])} but listed in no hub; "
+                            "give it one of that hub's tags", "P12", "hub"))
 
     # views
     for path in stale_views(cfg, all_pages):
