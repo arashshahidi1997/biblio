@@ -39,6 +39,7 @@ nav:
       - Sync RAG Sources: how-to/rag.md
   - Explanation:
       - explanation/index.md
+      - Scope: explanation/scope.md
       - Ecosystem Links: explanation/ecosystem-links.md
       - Workspace Model: explanation/workspace.md
       - Why Docling And OpenAlex: explanation/docling-openalex.md
