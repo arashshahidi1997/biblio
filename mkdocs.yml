@@ -37,10 +37,12 @@ nav:
       - Build The Bibliography Site: how-to/site.md
       - Use The Local UI: how-to/ui.md
       - Sync RAG Sources: how-to/rag.md
+  - Backlog: backlog.md
   - Explanation:
       - explanation/index.md
       - Scope: explanation/scope.md
       - Wiki Toolkit: explanation/wiki.md
+      - Principles, Resources, Ideas: explanation/principles.md
       - Ecosystem Links: explanation/ecosystem-links.md
       - Workspace Model: explanation/workspace.md
       - Why Docling And OpenAlex: explanation/docling-openalex.md
