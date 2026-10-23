@@ -56,49 +56,67 @@ def _load_doi_map(cfg: BiblioConfig) -> dict[str, str]:
         return {}
 
 
+def plan_docling_batch(
+    cfg: BiblioConfig,
+    *,
+    keys: list[str] | None = None,
+    filter_glob: str | None = None,
+    force: bool = False,
+) -> tuple[list[str], list[tuple[str, str]]]:
+    """Which citekeys a docling batch converts, and why the others are skipped.
+
+    Returns ``(pending, skipped)``; ``skipped`` holds ``(citekey, reason)``
+    with reason ``done``, ``done in pool``, ``no PDF`` or
+    ``not in the bibliography, no PDF``. With ``keys`` only those keys are
+    considered (R28: a batch in a shared copy must not convert another
+    session's papers); a named key with a PDF runs even if it is not in the
+    bibliography yet. Papers with valid outputs in the shared pool count as
+    done; DOI is used for pool matching when citekeys differ.
+    """
+    from .docling import resolve_docling_outputs
+
+    known = load_active_citekeys(cfg)
+    known_set = set(known)
+    candidates = [k.lstrip("@") for k in keys] if keys is not None else known
+    if filter_glob:
+        candidates = [k for k in candidates if fnmatch.fnmatch(k, filter_glob)]
+
+    doi_map = _load_doi_map(cfg) if cfg.pool_search else {}
+
+    pending: list[str] = []
+    skipped: list[tuple[str, str]] = []
+    for key in candidates:
+        if not pdf_path_for_key(cfg, key).exists():
+            skipped.append((key, "no PDF" if key in known_set else "not in the bibliography, no PDF"))
+            continue
+        if force:
+            pending.append(key)
+            continue
+        _, source = resolve_docling_outputs(cfg, key, doi=doi_map.get(key))
+        if source == "local":
+            skipped.append((key, "done"))
+        elif source == "pool":
+            skipped.append((key, "done in pool"))
+        else:
+            pending.append(key)
+    return pending, skipped
+
+
 def find_pending_docling(
     cfg: BiblioConfig,
     *,
     filter_glob: str | None = None,
     force: bool = False,
+    keys: list[str] | None = None,
 ) -> tuple[list[str], list[str]]:
     """Find citekeys that have PDFs but no valid docling output yet.
 
     Returns ``(pending, already_done)`` — both lists contain bare citekeys.
-    Keys without a PDF on disk are silently excluded from both lists.
-    Papers with valid outputs in the shared pool are treated as already done.
-    Uses DOI for pool matching when citekeys differ between project and pool.
+    Keys without a PDF on disk are excluded from both lists (see
+    :func:`plan_docling_batch` for the reasons).
     """
-    from .docling import resolve_docling_outputs
-
-    all_keys = load_active_citekeys(cfg)
-
-    if filter_glob:
-        all_keys = [k for k in all_keys if fnmatch.fnmatch(k, filter_glob)]
-
-    # Load DOI map for pool matching
-    doi_map = _load_doi_map(cfg) if cfg.pool_search else {}
-
-    pending: list[str] = []
-    already_done: list[str] = []
-
-    for key in all_keys:
-        pdf = pdf_path_for_key(cfg, key)
-        if not pdf.exists():
-            continue
-
-        if force:
-            pending.append(key)
-            continue
-
-        doi = doi_map.get(key)
-        _, source = resolve_docling_outputs(cfg, key, doi=doi)
-        if source in ("pool", "local"):
-            already_done.append(key)
-        else:
-            pending.append(key)
-
-    return pending, already_done
+    pending, skipped = plan_docling_batch(cfg, keys=keys, filter_glob=filter_glob, force=force)
+    return pending, [k for k, why in skipped if why.startswith("done")]
 
 
 def _process_one_key(

@@ -12,36 +12,64 @@ _LIST_ITEM_RE = re.compile(rf"^\s*[-*]\s+@{_KEY}\b")
 _BARE_RE = re.compile(rf"^\s*@{_KEY}\b")
 
 
-def load_active_citekeys(cfg: BiblioConfig) -> list[str]:
-    """Return all citekeys from the merged bibliography.
+_BIB_HEAD_RE = re.compile(r"^@(\w+)\s*\{\s*([^,\s]+)\s*,", re.M)
 
-    This is the canonical source of "active" citekeys — every entry in the
-    merged bib is considered active.  Falls back to parsing srcbib directly
-    if the merge output does not exist yet.
+
+def _srcbib_keys(cfg: "BiblioConfig") -> list[str]:
+    """Keys in bib/srcbib by a header scan (fast; no BibTeX parse)."""
+    src_dir = cfg.bibtex_merge.src_dir
+    if not src_dir.exists():
+        return []
+    keys: list[str] = []
+    seen: set[str] = set()
+    for bib_path in sorted(src_dir.glob(cfg.bibtex_merge.src_glob)):
+        text = bib_path.read_text(encoding="utf-8", errors="replace")
+        for kind, key in _BIB_HEAD_RE.findall(text):
+            if kind.lower() in ("comment", "string", "preamble") or key in seen:
+                continue
+            keys.append(key)
+            seen.add(key)
+    return keys
+
+
+def load_active_citekeys(cfg: BiblioConfig) -> list[str]:
+    """Return all citekeys in the bibliography: the merged bib plus srcbib.
+
+    The merged bib is the union of ``bib/srcbib/*.bib``, so a key that is in
+    srcbib but not yet merged (a paper just added with ``biblio add``) is
+    active too; without this the batch tools would not see it until the
+    next ``biblio bibtex merge`` (R28).
     """
     from ._pybtex_utils import parse_bibtex_file, require_pybtex
 
+    keys: set[str] = set(_srcbib_keys(cfg))
     merged = cfg.bibtex_merge.out_bib
     if merged.exists():
         require_pybtex("citekey listing")
-        db = parse_bibtex_file(merged)
-        return sorted(db.entries.keys())
+        keys.update(parse_bibtex_file(merged).entries.keys())
+    return sorted(keys)
 
-    # Fallback: read srcbib directly
-    src_dir = cfg.bibtex_merge.src_dir
-    if src_dir.exists():
-        require_pybtex("citekey listing")
-        keys: list[str] = []
-        seen: set[str] = set()
-        for bib_path in sorted(src_dir.glob(cfg.bibtex_merge.src_glob)):
-            db = parse_bibtex_file(bib_path)
-            for k in sorted(db.entries.keys()):
-                if k not in seen:
-                    keys.append(k)
-                    seen.add(k)
-        return keys
 
-    return []
+def read_key_list(keys: str | None = None, from_path: str | Path | None = None) -> list[str]:
+    """Citekeys from ``--keys a,b`` and/or ``--from list.txt``, in order, unique, no '@'.
+
+    The file holds one key per line (commas also split); blank lines and
+    ``#`` comments are skipped, and a markdown list item (``- @key``) works.
+    """
+    raw: list[str] = []
+    if keys:
+        raw.extend(keys.split(","))
+    if from_path:
+        for line in Path(from_path).read_text(encoding="utf-8").splitlines():
+            line = line.split("#", 1)[0].strip()
+            line = re.sub(r"^[-*]\s+", "", line)
+            raw.extend(line.split(","))
+    out: list[str] = []
+    for k in raw:
+        k = k.strip().lstrip("@").strip()
+        if k and k not in out:
+            out.append(k)
+    return out
 
 
 def parse_citekeys_from_markdown(markdown_text: str) -> list[str]:

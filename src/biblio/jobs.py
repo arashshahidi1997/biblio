@@ -230,8 +230,9 @@ def launch_docling_batch_background(
     concurrency: int = 1,
     force: bool = False,
     filter_glob: str | None = None,
+    keys: list[str] | None = None,
 ) -> tuple[str, int]:
-    """Spawn a background subprocess that runs batch docling.
+    """Spawn a background subprocess that runs batch docling (only ``keys`` when given).
 
     Returns ``(job_id, total_pending)`` immediately.
     The ``total_pending`` is determined before the subprocess starts so the
@@ -243,7 +244,7 @@ def launch_docling_batch_background(
 
     cfg_path = default_config_path(root=root)
     cfg = load_biblio_config(cfg_path, root=root)
-    pending, _done = find_pending_docling(cfg, filter_glob=filter_glob, force=force)
+    pending, _done = find_pending_docling(cfg, filter_glob=filter_glob, force=force, keys=keys)
     total = len(pending)
 
     job_id = new_run_id("docling_batch")
@@ -257,6 +258,7 @@ def launch_docling_batch_background(
         filter_glob=filter_glob,
         job_id=job_id,
         job_file=str(job_file),
+        keys=keys,
     )
 
     proc = subprocess.Popen(
@@ -445,6 +447,7 @@ def _build_batch_worker_script(
     filter_glob: str | None,
     job_id: str,
     job_file: str,
+    keys: list[str] | None = None,
 ) -> str:
     """Build the Python code for the background batch subprocess."""
     return f"""\
@@ -474,6 +477,7 @@ try:
         cfg,
         filter_glob={filter_glob!r},
         force={force!r},
+        keys={keys!r},
     )
 
     def _progress_cb(prog):

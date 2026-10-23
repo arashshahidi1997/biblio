@@ -276,6 +276,15 @@ Requests from journal-club are tagged R01 to R06 below.
   and OpenAlex outputs resolved from the shared pool.
 - [ ] **I02 GROBID coverage.** Empty GROBID folders in pixecog (4 of 38 in the
   test corpus); rerun and record failures.
+- [x] **I08 Extract named papers (R28).** `biblio docling batch --keys a,b |
+  --from list.txt` converts exactly those papers (a batch in a shared copy no
+  longer picks up another session's pending paper); `grobid run` takes the
+  same options. srcbib keys count as active before `bibtex merge`, so a paper
+  just added is visible to every batch tool. The batch lists each skipped key
+  with its reason (`done`, `done in pool`, `no PDF`, `not in the
+  bibliography, no PDF`) and exits 1 when a named key cannot be converted.
+  The background job (`jobs.launch_docling_batch_background`) takes `keys`;
+  projio's `biblio_docling_batch` MCP tool does not pass it yet.
 - [ ] **I06 Stale keys in resolved.jsonl.** pixecog's
   `openalex/resolved.jsonl` holds 424 records, including old-style keys
   (`Swanson_2025_Topography` beside `swanson_2025_TopographyPutative`).

@@ -60,11 +60,14 @@ biblio docling run --key author2024_Title
 biblio docling run --all --screen               # run in detached GNU screen session
 biblio docling batch                            # batch-process all pending papers
 biblio docling batch --concurrency 4            # parallel workers
+biblio docling batch --keys a_2020_X,b_2021_Y   # only these papers; others untouched
+biblio docling batch --from new-keys.txt        # one citekey per line
 
 # grobid
 biblio grobid check                             # test GROBID server connectivity
 biblio grobid run --all                         # extract structured refs from all PDFs
 biblio grobid run --key author2024_Title
+biblio grobid run --keys a_2020_X,b_2021_Y      # or --from new-keys.txt
 biblio grobid match --all                       # match GROBID refs against local corpus
 
 # openalex

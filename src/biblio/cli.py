@@ -177,6 +177,9 @@ def _build_parser() -> argparse.ArgumentParser:
     p_batch.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")
     p_batch.add_argument("--concurrency", type=int, default=1, help="Max parallel docling jobs (default: 1). Use with care on shared HPC nodes.")
     p_batch.add_argument("--filter", dest="filter_glob", default=None, help="fnmatch glob to filter citekeys (e.g. 'smith*').")
+    p_batch.add_argument("--keys", help="Only these citekeys (comma-separated); nothing else is converted.")
+    p_batch.add_argument("--from", dest="keys_from", type=Path,
+                         help="Only the citekeys in this file (one per line, # comments).")
     p_batch.add_argument("--force", action="store_true", help="Re-run Docling even if outputs exist.")
     p_batch.add_argument(
         "--screen",
@@ -389,6 +392,9 @@ def _build_parser() -> argparse.ArgumentParser:
     grobid_run_group = grobid_run.add_mutually_exclusive_group(required=True)
     grobid_run_group.add_argument("--key", help="Single citekey (with or without leading @).")
     grobid_run_group.add_argument("--all", action="store_true", help="Run for all citekeys in the merged bibliography.")
+    grobid_run_group.add_argument("--keys", help="Several citekeys, comma-separated.")
+    grobid_run_group.add_argument("--from", dest="keys_from", type=Path,
+                                  help="The citekeys in this file (one per line, # comments).")
     grobid_run.add_argument("--force", action="store_true", help="Re-run even if outputs already exist.")
 
     grobid_match = grobid_sub.add_parser("match", help="Match GROBID references against the local corpus.")
@@ -906,6 +912,21 @@ def _add_zotero(args: argparse.Namespace, cfg: Any, cfg_path: Path, repo_root: P
         print(f"  next: biblio grobid run --key {res.citekey} && biblio docling run --key {res.citekey}")
 
 
+def _print_skipped(skipped: list[tuple[str, str]], *, named: bool) -> None:
+    """Skipped keys with their reason: each one when keys were named, else counts per reason."""
+    if not skipped:
+        return
+    if named or len(skipped) <= 20:
+        for key, why in skipped:
+            print(f"  [SKIP] {key}: {why}", file=sys.stderr, flush=True)
+        return
+    counts: dict[str, int] = {}
+    for _, why in skipped:
+        counts[why] = counts.get(why, 0) + 1
+    for why, n in sorted(counts.items()):
+        print(f"  [SKIP] {n} {why}", file=sys.stderr, flush=True)
+
+
 def _version_string() -> str:
     from . import __version__
     try:
@@ -1056,6 +1077,10 @@ def main(argv: Iterable[str] | None = None) -> None:
                     batch_args += ["--concurrency", str(args.concurrency)]
                 if args.filter_glob:
                     batch_args += ["--filter", args.filter_glob]
+                if args.keys:
+                    batch_args += ["--keys", args.keys]
+                if args.keys_from:
+                    batch_args += ["--from", str(args.keys_from.expanduser().resolve())]
                 bash_cmd = _build_screen_bash_command(
                     repo_root=repo_root,
                     python_exe=sys.executable,
@@ -1069,23 +1094,31 @@ def main(argv: Iterable[str] | None = None) -> None:
                 print("List:    screen -ls", flush=True)
                 return
 
-            from .batch import find_pending_docling, run_docling_batch
+            from .batch import plan_docling_batch, run_docling_batch
+            from .citekeys import read_key_list
 
-            pending, already_done = find_pending_docling(
-                cfg, filter_glob=args.filter_glob, force=args.force,
+            only = read_key_list(args.keys, args.keys_from) if (args.keys or args.keys_from) else None
+            if only is not None and not only:
+                raise SystemExit("[ERROR] --keys/--from gave no citekeys")
+            pending, skipped = plan_docling_batch(
+                cfg, keys=only, filter_glob=args.filter_glob, force=args.force,
             )
+            already_done = [k for k, why in skipped if why.startswith("done")]
             cmd_preview = " ".join(cfg.docling_cmd)
             print(
                 f"[INFO] repo_root={repo_root} config={cfg_path} docling_cmd={cmd_preview}",
                 file=sys.stderr, flush=True,
             )
             print(
-                f"[INFO] pending={len(pending)} already_done={len(already_done)} concurrency={args.concurrency}",
+                f"[INFO] pending={len(pending)} skipped={len(skipped)} concurrency={args.concurrency}",
                 file=sys.stderr, flush=True,
             )
+            _print_skipped(skipped, named=only is not None)
+            # a named key that cannot be converted is an error; unnamed keys without a PDF are not
+            named_missing = only is not None and any(not w.startswith("done") for _, w in skipped)
             if not pending:
-                print("[OK] Nothing to process — all citekeys already have docling output.", flush=True)
-                return
+                print("[OK] Nothing to process.", flush=True)
+                raise SystemExit(1 if named_missing else 0)
 
             def _cli_progress(prog):
                 elapsed = _fmt_duration(prog.elapsed_s)
@@ -1104,13 +1137,13 @@ def main(argv: Iterable[str] | None = None) -> None:
             elapsed = _fmt_duration(result.elapsed_s)
             print(
                 f"[DONE] processed={result.processed} failed={result.failed} "
-                f"skipped={len(already_done)} elapsed={elapsed}",
+                f"skipped={len(skipped)} (done {len(already_done)}) elapsed={elapsed}",
                 flush=True,
             )
             if result.failures:
                 for f in result.failures:
                     print(f"  [FAIL] {f['citekey']}: {f['error']}", file=sys.stderr)
-            raise SystemExit(0 if result.failed == 0 else 1)
+            raise SystemExit(0 if result.failed == 0 and not named_missing else 1)
 
         if args.doc_cmd != "run":
             raise SystemExit(2)
@@ -1480,10 +1513,14 @@ def main(argv: Iterable[str] | None = None) -> None:
             if not result.ok:
                 raise SystemExit(1)
         elif args.grobid_cmd == "run":
-            if args.all:
-                keys = load_active_citekeys(cfg)
+            if args.all or args.keys or args.keys_from:
+                if args.all:
+                    keys = load_active_citekeys(cfg)
+                else:
+                    from .citekeys import read_key_list
+                    keys = read_key_list(args.keys, args.keys_from)
                 if not keys:
-                    print("No citekeys found in merged bibliography", file=sys.stderr)
+                    print("No citekeys found", file=sys.stderr)
                     raise SystemExit(2)
                 print(
                     f"[INFO] repo_root={repo_root} keys={len(keys)} grobid_url={cfg.grobid.url}",
