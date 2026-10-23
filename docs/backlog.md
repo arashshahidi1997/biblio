@@ -312,7 +312,17 @@ Requests from journal-club are tagged R01 to R06 below.
 
 ## S. Slimming (M4)
 
-- [ ] **S01 MCP.** Choose the few tools that stay (decision in the scope doc). (B3)
+- [x] **S01 MCP.** Decided by projio's spec `docs/specs/agent-interface-layers.md`
+  (branch `docs/agent-interface-layers`): biblio is CLI-first; MCP keeps
+  `paper_lookup` (`biblio.mcp.paper_lookup`: citekey, DOI or author-year,
+  project and pools, where the derivatives are) and `biblio_job`
+  (`biblio.mcp.job`: docling, grobid, oa_fetch and digest jobs that run the
+  CLI with `keys`, status from its log, kill), plus `biblio_status`,
+  `biblio_ingest`, `biblio_compile`. 34 tools deprecated for one release.
+  Usage that decided it: 17 of 37 tools ever called in 350 sessions. Open:
+  remove the deprecated tools and their `biblio.mcp` functions next release;
+  CLI forms for crossref resolve, PDF validate, library quality, enrich and
+  author/institution discovery before those go. (B3)
 - [ ] **S02 RAG.** Optional extra, off by default, or removed until evaluated
   (decision). (B4)
 - [ ] **S03 Writing helpers** (`cite_draft.py`, `lit_review.py`, `review`)
