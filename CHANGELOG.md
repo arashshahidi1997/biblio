@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.3.4 (2026-10-24)
+
+From journal-club's requests after the 2026-10-23 talk (R27-R32), the default
+order of the handoff (D13, W23, W05-W07), and the agent-interface review.
+
+### Added
+- `biblio add zotero REF... | --from refs.txt [--library user|group:<id>|all]` (R27): several refs per call, titles as refs, group libraries searched with `--local`, duplicates resolved to the copy with a stored PDF and listed, a PDF the API cannot serve copied from Zotero's `storage/` folder, a summary at the end.
+- `biblio docling batch --keys | --from` and `biblio grobid run --keys | --from` (R28): only the named papers; each skipped key with its reason.
+- `biblio quotes check FILE... [--json] [--fix-lines]` (R29): every `- id, citekey, section, L<n>: "quote"` item checked against project and pool full texts, located on the line `grep -n` gives.
+- `biblio locate ITEM... | --from list.txt [--zotero sqlite|export|local] [--openalex]` (R30): per DOI or "Author Year Title", where the paper is held (project, pool, Zotero library and item, PDF or not) or a doi.org link.
+- `biblio digest claims KEY... | --keys | --from [--screen] [--concurrency] [--stale]` (R31), with a stored run summary; `biblio digest claims-table` (D13): claims of several digests side by side, filtered.
+- Cleaned full text (R32): ligatures, symbol-font glyphs, accents, HTML entities and run-together words repaired line for line when a text is read; `biblio fulltext --changes | --lines A-B | --raw`.
+- `biblio wiki relink | merge | extract` (W05-W07), dry run unless `--apply`, logged; merged pages stay as redirect stubs.
+- Synthesis provenance (W23): `Rests on: citekey:C3, ...` after a **Synthesis:** paragraph, checked by lint (SYN001-SYN004).
+- `biblio.mcp.paper_lookup` and `biblio.mcp.job` for projio's `paper_lookup` and `biblio_job` MCP tools (project and pools, any ref; background jobs that run the CLI with keys).
+- Skills: `literature-sourcing` (new), `biblio-batch-curate` (moved from projio); a test that every command a skill names exists.
+
+### Changed
+- srcbib keys count as active before `biblio bibtex merge`, so a paper just added is visible to every batch tool.
+- The quote checker accepts a quote matching the cleaned or the raw text.
+
+### Fixed
+- Line numbers of full texts: docling writes stray carriage returns, which were counted as line breaks (buzsaki_2015 was 21 lines off); one numbering, as `grep -n`, everywhere.
+
 ## 0.3.3 (2026-10-23)
 
 ### Changed
