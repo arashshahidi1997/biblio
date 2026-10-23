@@ -225,3 +225,26 @@ def test_claims_batch_skips_redoes_stale_and_reports(cfg):
     json_path.write_text(json.dumps(d))
     s = dg.digest_claims_batch(cfg, [KEY], llm=llm, model="m", stale=True)
     assert s["rows"][0]["status"] == "done" and len(llm.calls) == 2
+
+
+def test_claims_table_filters_across_digests(cfg):
+    for ctx, key, claims in (
+        ("wiki", "a_2020_X", [{"id": "C1", "claim": "Spindles follow ripples.", "kind": "finding",
+                               "section_title": "Results", "quote": "q1", "quote_status": "exact"},
+                              {"id": "C2", "claim": "Deltas precede spindles.", "kind": "interpretation",
+                               "section_title": "Discussion", "quote": "q2", "quote_status": "missing"}]),
+        ("talk", "b_2021_Y", [{"id": "C1", "claim": "Ripples | spindles couple.", "kind": "finding",
+                               "section_title": "Results", "section_line": 40, "quote": "q3", "quote_status": "exact",
+                               "caveats": [{"text": "only 3 rats", "quote": "n = 3"}]}]),
+    ):
+        path, _ = dg.digest_paths(cfg, key, "claims", ctx)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({"meta": {}, "claims": claims}))
+    rows = dg.claims_table(cfg, grep="spindle")
+    assert [(r["citekey"], r["id"]) for r in rows] == [("a_2020_X", "C1"), ("a_2020_X", "C2"), ("b_2021_Y", "C1")]
+    assert [r["id"] for r in dg.claims_table(cfg, kind="interpretation")] == ["C2"]
+    assert [r["citekey"] for r in dg.claims_table(cfg, section="result", exact_only=True)] == ["a_2020_X", "b_2021_Y"]
+    assert dg.claims_table(cfg, grep="3 rats")[0]["caveats"] == "only 3 rats"
+    md = dg.claims_table_markdown(dg.claims_table(cfg, ["b_2021_Y", "nobody_2000_Z"]), quotes=True)
+    assert "| b_2021_Y | C1 | finding | Ripples / spindles couple. | Results (L40) | \"q3\" (exact) |" in md
+    assert "1 claims from 1 papers. No claims digest: nobody_2000_Z." in md

@@ -13,7 +13,7 @@ metadata:
   short-description: Claims digests of several papers -> cross-paper pages with verified quotes
   tags: [wiki, synthesis, literature, knowledge-base]
   tooling:
-    cli: [biblio digest claims, biblio digest list, biblio wiki stub, biblio wiki lint, biblio wiki hubs, biblio wiki review packet]
+    cli: [biblio digest claims, biblio digest claims-table, biblio digest list, biblio wiki stub, biblio wiki lint, biblio wiki hubs, biblio wiki review packet]
 ---
 
 # Wiki synthesize
@@ -47,7 +47,10 @@ cross-paper reasoning is kept visibly apart from what the papers say.
    only paraphrases (often the authors' own caveats), find the exact words with
    `biblio fulltext <citekey> --grep "<words>"` or `--section <id>` (it reads the
    same text the quote check uses, in the project or a pool), or leave it out.
-4. **Map.** Put the relevant claims side by side: which agree, which
+4. **Map.** Put the relevant claims side by side with `biblio digest
+   claims-table <citekey>... --grep "<words>" [--kind finding] [--quotes]`
+   (one table across digests; without citekeys, every digest), then judge
+   which agree, which
    disagree, which use different definitions or methods for the same word
    (often the real story: two labs' "ripple types" may not be the same
    thing). Note each paper's evidence strength from its digest: animals vs

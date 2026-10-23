@@ -94,6 +94,8 @@ biblio fulltext KEY --changes                   # every cleaning substitution, b
 biblio digest claims KEY [--context talk]       # claims with checked quotes
 biblio digest claims --from keys.txt --screen   # a list in the background; existing digests skipped
 biblio digest claims --from keys.txt --stale    # also redo digests made with an older prompt
+biblio digest claims-table --grep spindle --kind finding   # claims of all digests side by side
+biblio digest claims-table K1 K2 --section discussion --quotes --exact-only
 biblio quotes check sources.md                  # every '- id, key, section, L<n>: "quote"' item; exit 1 unless all exact
 biblio quotes check a.md b.md --json out.json   # results as JSON
 biblio quotes check sources.md --fix-lines      # rewrite wrong L<n> with the located line

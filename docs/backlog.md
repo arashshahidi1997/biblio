@@ -267,9 +267,13 @@ Requests from journal-club are tagged R01 to R06 below.
   substitutions; `--lines A-B`, `--raw`. Nothing is written into pools.
   On journal-club's Oliva 2016: `(~5 ms)`, `Sharp-wave ripples (SPW-Rs) in
   the hippocampus are`; its two source files still check 278/278 and 86/86.
-- [ ] **D13 Cross-digest view.** `biblio digest claims-table KEY... [--grep]`:
-  claims from several digests side by side, filtered by words, kind or
-  section; the "map" step of `wiki-synthesize` read 7 digests (120 KB) by hand.
+- [x] **D13 Cross-digest view.** `biblio digest claims-table [KEY...|--keys|--from]
+  [--grep RX] [--kind finding,...] [--section S] [--context] [--quotes]
+  [--exact-only] [--json]`: claims of several digests (default all) in one
+  markdown table with section line and quote check; a key without a digest is
+  named. On journal-club: `--grep spindle --kind finding` gives 69 claims from
+  11 papers in one call (the "map" step of `wiki-synthesize` read 7 digests,
+  120 KB, by hand).
 - [ ] **W23 Synthesis provenance.** A **Synthesis:** paragraph cites no paper;
   give it a `rests_on:` pointer to the claims it combines (citekey:claim id),
   checked by lint, so a reviewer can trace it.

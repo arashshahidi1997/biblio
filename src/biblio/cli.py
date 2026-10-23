@@ -726,6 +726,19 @@ def _build_parser() -> argparse.ArgumentParser:
     dig_claims.add_argument("--model", help="LLM model (default: BIBLIO_LLM_MODEL or sonnet).")
     dig_claims.add_argument("--force", action="store_true", help="Redo an existing digest.")
     dig_claims.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    dig_table = dig_sub.add_parser(
+        "claims-table", help="Claims of several digests side by side, filtered by words, kind or section.")
+    dig_table.add_argument("citekey", nargs="*", help="Papers (default: every claims digest).")
+    dig_table.add_argument("--keys", help="Citekeys, comma-separated.")
+    dig_table.add_argument("--from", dest="keys_from", type=Path, help="Citekeys in a file, one per line.")
+    dig_table.add_argument("--grep", help="Case-insensitive regex over claim, evidence, caveats and quote.")
+    dig_table.add_argument("--kind", help="finding, interpretation or method (comma-separated).")
+    dig_table.add_argument("--section", help="Substring of the section title (e.g. Discussion).")
+    dig_table.add_argument("--context", choices=["wiki", "talk"], help="Only digests of this context.")
+    dig_table.add_argument("--quotes", action="store_true", help="Show each claim's quote.")
+    dig_table.add_argument("--exact-only", action="store_true", help="Only claims whose quote checked exact.")
+    dig_table.add_argument("--json", dest="json_out", type=Path, help="Also write the rows as JSON.")
+    dig_table.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
     dig_list = dig_sub.add_parser("list", help="Stored digests with their mode, context, model and quote checks.")
     dig_list.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
 
@@ -2118,6 +2131,17 @@ def main(argv: Iterable[str] | None = None) -> None:
         from .digest import digest_claims, digest_paths, list_digests
         repo_root = (args.root.expanduser().resolve() if args.root else find_repo_root())
         cfg = load_biblio_config(default_config_path(root=repo_root), root=repo_root)
+        if args.digest_cmd == "claims-table":
+            from .citekeys import read_key_list
+            from .digest import claims_table, claims_table_markdown
+            keys = read_key_list(",".join(args.citekey) or None, None)
+            keys += [k for k in read_key_list(args.keys, args.keys_from) if k not in keys]
+            rows = claims_table(cfg, keys or None, context=args.context, grep=args.grep, kind=args.kind,
+                                section=args.section, exact_only=bool(args.exact_only))
+            print(claims_table_markdown(rows, quotes=bool(args.quotes)), end="")
+            if args.json_out:
+                args.json_out.write_text(json.dumps(rows, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+            return
         if args.digest_cmd == "list":
             rows = list_digests(cfg)
             for r in rows:

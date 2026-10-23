@@ -473,3 +473,84 @@ def batch_summary_markdown(summary: dict[str, Any]) -> str:
         lines.append(f"| {r['citekey']} | {r['status']}{(': ' + r['error']) if r.get('error') else ''} | "
                      f"{r.get('claims', '')} | {q.get('exact', '')}{'/' + str(sum(q.values())) if q else ''} | {other} |")
     return "\n".join(lines) + "\n"
+
+
+def claims_table(
+    cfg: BiblioConfig,
+    keys: list[str] | None = None,
+    *,
+    context: str | None = None,
+    grep: str | None = None,
+    kind: str | None = None,
+    section: str | None = None,
+    exact_only: bool = False,
+) -> list[dict[str, Any]]:
+    """Claims from several stored digests side by side (D13), filtered.
+
+    ``keys`` None means every stored claims digest. ``grep`` is a
+    case-insensitive regex over claim, evidence, caveats and quote; ``kind``
+    is finding / interpretation / method (comma-separated for several);
+    ``section`` a substring of the section title. A paper with digests in both
+    contexts contributes the talk digest only when ``context`` says so
+    (``wiki`` first otherwise).
+    """
+    import re
+    rx = re.compile(grep, re.I) if grep else None
+    kinds = {k.strip().lower() for k in kind.split(",")} if kind else None
+    contexts = [context] if context else ["wiki", "talk"]
+    wanted = [k.lstrip("@") for k in keys] if keys else None
+    picked: dict[str, Path] = {}
+    for ctx in contexts:
+        d = digest_dir(cfg, "claims", ctx)
+        for path in sorted(d.glob("*.json")) if d.is_dir() else []:
+            if (wanted is None or path.stem in wanted) and path.stem not in picked:
+                picked[path.stem] = path
+    rows: list[dict[str, Any]] = []
+    order = wanted or sorted(picked)
+    for key in order:
+        path = picked.get(key)
+        if path is None:
+            rows.append({"citekey": key, "missing": True})
+            continue
+        digest = json.loads(path.read_text(encoding="utf-8"))
+        for c in digest.get("claims") or []:
+            caveats = c.get("caveats")
+            if isinstance(caveats, list):
+                caveats = "; ".join(str(x.get("text") or x.get("caveat") or x.get("quote") or x)
+                                    if isinstance(x, dict) else str(x) for x in caveats)
+            text = " ".join(str(c.get(f) or "") for f in ("claim", "evidence", "quote")) + " " + str(caveats or "")
+            if rx and not rx.search(text):
+                continue
+            if kinds and str(c.get("kind") or "").lower() not in kinds:
+                continue
+            if section and section.lower() not in str(c.get("section_title") or "").lower():
+                continue
+            if exact_only and c.get("quote_status") != "exact":
+                continue
+            rows.append({"citekey": key, "context": path.parent.name, "id": c.get("id"), "kind": c.get("kind"),
+                         "claim": c.get("claim"), "evidence": c.get("evidence"), "caveats": caveats or "",
+                         "section": c.get("section_title") or c.get("section"), "line": c.get("section_line"),
+                         "quote": c.get("quote"), "quote_status": c.get("quote_status")})
+    return rows
+
+
+def claims_table_markdown(rows: list[dict[str, Any]], *, quotes: bool = False) -> str:
+    def cell(v: Any) -> str:
+        return " ".join(str(v or "").split()).replace("|", "/")
+
+    head = "| paper | id | kind | claim | section | quote |" if quotes else "| paper | id | kind | claim | section | check |"
+    lines = [head, "|---|---|---|---|---|---|"]
+    missing = []
+    for r in rows:
+        if r.get("missing"):
+            missing.append(r["citekey"])
+            continue
+        last = (f'"{cell(r["quote"])}" ({r["quote_status"]})' if quotes else cell(r["quote_status"]))
+        where = cell(r["section"]) + (f" (L{r['line']})" if r.get("line") else "")
+        lines.append(f"| {r['citekey']} | {r['id']} | {cell(r['kind'])} | {cell(r['claim'])} | {where} | {last} |")
+    n = len(rows) - len(missing)
+    papers = len({r["citekey"] for r in rows if not r.get("missing")})
+    out = "\n".join(lines) + f"\n\n{n} claims from {papers} papers."
+    if missing:
+        out += f" No claims digest: {', '.join(missing)}."
+    return out + "\n"
