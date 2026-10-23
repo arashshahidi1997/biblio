@@ -43,6 +43,25 @@ class Section:
     words: int
 
 
+def read_fulltext(path: Path) -> str:
+    """A full text as stored: newlines untranslated, so a stray carriage return is no line break."""
+    return path.read_bytes().decode("utf-8", errors="replace")
+
+
+def text_lines(text: str) -> list[str]:
+    """Lines as ``grep -n`` counts them: split at "\\n" only.
+
+    The one line numbering for full texts (R29). ``str.splitlines`` and
+    universal-newline reading also break at "\\r", form feeds and U+2028,
+    which docling writes now and then (21 stray "\\r" in buzsaki_2015 put
+    every line after them 21 off).
+    """
+    lines = text.split("\n")
+    if lines and lines[-1] == "":
+        lines.pop()
+    return lines
+
+
 def fulltext_path(cfg: BiblioConfig, citekey: str) -> Path | None:
     """The paper's docling markdown: the project's copy, else a pool's."""
     key = citekey.lstrip("@")
@@ -68,7 +87,7 @@ def split_markdown(text: str) -> list[Section]:
         if content and not dropping:
             sections.append(Section("", title, content, start, len(content.split())))
 
-    for no, line in enumerate(text.splitlines(), 1):
+    for no, line in enumerate(text_lines(text), 1):
         m = _HEADING.match(line)
         if m:
             flush()
@@ -111,7 +130,7 @@ def read_sections(cfg: BiblioConfig, citekey: str) -> tuple[list[Section], Path,
     key = citekey.lstrip("@")
     md = fulltext_path(cfg, key)
     if md is not None:
-        return split_markdown(md.read_text(encoding="utf-8", errors="replace")), md, "docling"
+        return split_markdown(read_fulltext(md)), md, "docling"
     from .grobid import grobid_out_root
     from .pool import resolve_pool_derivative
     for d in (grobid_out_root(cfg) / key, resolve_pool_derivative(cfg, key, "grobid")):

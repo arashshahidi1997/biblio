@@ -678,6 +678,16 @@ def _build_parser() -> argparse.ArgumentParser:
     p_ft.add_argument("--section", help="Print one section by id (S12) or title.")
     p_ft.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
 
+    p_quotes = sub.add_parser("quotes", help="Quotes in any markdown file, checked against the cited papers.")
+    quotes_sub = p_quotes.add_subparsers(dest="quotes_cmd", required=True)
+    q_check = quotes_sub.add_parser(
+        "check", help="Check '- <id>, <citekey>, <section>, L<n>: \"<quote>\"' items; exit 1 unless all exact.")
+    q_check.add_argument("files", nargs="+", type=Path)
+    q_check.add_argument("--json", dest="json_out", type=Path, help="Write the results as JSON here ('-' for stdout).")
+    q_check.add_argument("--fix-lines", action="store_true", help="Rewrite wrong L<n> in place with the located line.")
+    q_check.add_argument("--all", dest="show_all", action="store_true", help="Print exact quotes too, not only problems.")
+    q_check.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+
     p_dig = sub.add_parser("digest", help="Digests of one paper by mode and context (claims with verified quotes).")
     dig_sub = p_dig.add_subparsers(dest="digest_cmd", required=True)
     dig_claims = dig_sub.add_parser("claims", help="The paper's claims with evidence, caveats and a verbatim quote each.")
@@ -1923,7 +1933,8 @@ def main(argv: Iterable[str] | None = None) -> None:
             print(f"## [{sec.id}] {sec.title} (line {sec.line})\n\n{sec.text}")
         elif args.grep:
             rx = _re.compile(args.grep, _re.I)
-            lines = source.read_text(encoding="utf-8", errors="replace").splitlines()
+            from .sections import read_fulltext, text_lines
+            lines = text_lines(read_fulltext(source))
             starts = sorted((x.line, x) for x in sections if x.line)
             hits = 0
             for no, line in enumerate(lines, 1):
@@ -1937,6 +1948,44 @@ def main(argv: Iterable[str] | None = None) -> None:
             for x in sections:
                 print(f"{x.id:5} line {x.line:<5} {x.words:5} words  {x.title}")
         return
+
+    if args.command == "quotes":
+        import json as _json
+        from .quotes import as_json, check_file, fix_lines
+        repo_root = (args.root.expanduser().resolve() if args.root else find_repo_root())
+        cfg = load_biblio_config(default_config_path(root=repo_root), root=repo_root)
+        report: dict[str, list] = {}
+        bad = 0
+        for path in args.files:
+            if not path.is_file():
+                raise SystemExit(f"[ERROR] no such file: {path}")
+            results, unchecked = check_file(cfg, path)
+            report[str(path)] = as_json(results)
+            counts: dict[str, int] = {}
+            for r in results:
+                counts[r.status] = counts.get(r.status, 0) + 1
+                problem = r.status != "exact" or not r.line_ok
+                if problem or args.show_all:
+                    line = f"L{r.line}" if r.line is not None else "L-"
+                    moved = "" if r.line_ok else f" (written L{r.written_line})"
+                    print(f"{path.name}:{r.file_line}: {r.id:6} {r.status:11} {line}{moved} {r.citekey} "
+                          f"[{r.heading}] {r.where}" + (f"\n    {r.diff}" if r.diff else ""))
+            wrong_lines = sum(1 for r in results if not r.line_ok)
+            summary = ", ".join(f"{n} {k}" for k, n in sorted(counts.items()))
+            print(f"[{'OK' if all(r.status == 'exact' for r in results) else 'FAIL'}] {path}: "
+                  f"{len(results)} quotes ({summary or 'none found'}); {wrong_lines} line(s) differ")
+            if unchecked:
+                print(f"  not checked (no L<n>): {path.name} lines {', '.join(map(str, unchecked))}")
+            if args.fix_lines and wrong_lines:
+                print(f"  fixed {fix_lines(path, results)} line number(s) in {path}")
+            bad += sum(1 for r in results if r.status != "exact")
+        if args.json_out:
+            payload = _json.dumps(report, indent=1, ensure_ascii=False)
+            if str(args.json_out) == "-":
+                print(payload)
+            else:
+                args.json_out.write_text(payload + "\n", encoding="utf-8")
+        raise SystemExit(1 if bad else 0)
 
     if args.command == "digest":
         from .digest import digest_claims, digest_paths, list_digests

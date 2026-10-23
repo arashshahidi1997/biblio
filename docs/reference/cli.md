@@ -83,6 +83,14 @@ biblio add zotero ABCD1234 --local              # item key, DOI or citekey; loca
 biblio add zotero 10.1093/sleep/zsag001         # web API (zotero.library_id + BIBLIO_ZOTERO_API_KEY)
 biblio add zotero KEY --local --dry-run         # show the item and biblio's key, write nothing
 
+# full text, digests and quotes
+biblio fulltext KEY                             # sections with line numbers (project or pool)
+biblio fulltext KEY --grep "spindle"            # lines as grep -n counts them in <key>.md
+biblio digest claims KEY [--context talk]       # claims with checked quotes
+biblio quotes check sources.md                  # every '- id, key, section, L<n>: "quote"' item; exit 1 unless all exact
+biblio quotes check a.md b.md --json out.json   # results as JSON
+biblio quotes check sources.md --fix-lines      # rewrite wrong L<n> with the located line
+
 # graph expansion
 biblio graph expand                             # both directions (default)
 biblio graph expand --direction references      # papers your corpus cites

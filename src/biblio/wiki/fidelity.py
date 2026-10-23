@@ -24,6 +24,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
+from ..sections import read_fulltext, text_lines
+
 SHINGLE = 3
 MIN_COVERAGE = 0.8      # share of the quote's words found in order in one passage
 MIN_WORDS = 4           # shorter quotes must match exactly
@@ -60,7 +62,7 @@ class Match:
 
 class _Text:
     def __init__(self, raw: str):
-        self.raw_lines = raw.splitlines()
+        self.raw_lines = text_lines(raw)
         self.norm = normalize(raw)
         self.words = self.norm.split()
         self.index: dict[tuple[str, ...], list[int]] = {}
@@ -119,7 +121,7 @@ class QuoteChecker:
     def _text(self, citekey: str) -> _Text | None:
         if citekey not in self._texts:
             path = self.path_for(citekey)
-            self._texts[citekey] = _Text(path.read_text(encoding="utf-8", errors="replace")) if path.is_file() else None
+            self._texts[citekey] = _Text(read_fulltext(path)) if path.is_file() else None
         return self._texts[citekey]
 
     def has_text(self, citekey: str) -> bool:
@@ -161,6 +163,22 @@ class QuoteChecker:
                                 if re.match(r"^#{1,6}\s", ln)), "")
                 return idx + 1, heading
         return None
+
+    def occurs_at(self, citekey: str, quote: str, line: int) -> bool:
+        """Whether the quote starts on ``line`` (1-based; it may run on to the next lines)."""
+        text = self._text(citekey)
+        words = normalize(quote).split()
+        if text is None or not words or not 1 <= line <= len(text.raw_lines):
+            return False
+        here = normalize("\n".join(text.raw_lines[line - 1:line + 3]))
+        return f" {' '.join(words[:5])} " in f" {here} "
+
+    def heading_at(self, citekey: str, line: int) -> str:
+        text = self._text(citekey)
+        if text is None:
+            return ""
+        return next((ln.lstrip("#").strip() for ln in reversed(text.raw_lines[:line])
+                     if re.match(r"^#{1,6}\s", ln)), "")
 
     def number_in(self, citekey: str, number: str) -> bool | None:
         """Whether a number (as written on the page) occurs in the full text; None without a text."""

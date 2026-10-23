@@ -233,6 +233,18 @@ Requests from journal-club are tagged R01 to R06 below.
   `inconsistencies` (both passages quoted). On alemanzapata_2026: 18 claims
   incl. the missed C5, all quotes exact, 10 terms, 2 real inconsistencies,
   no false rigor note. 2026-10-23.
+- [x] **D14 Quote check for any file (R29).** `biblio quotes check FILE...
+  [--json OUT] [--fix-lines]` reads journal-club's source format (`- <id>,
+  <citekey>, <section>, L<n>: "<quote>" — exact`; `same` or a key named in
+  the prose before the item; quoted sections; `L<n> (note):`), checks each
+  quote in project then pool full text, reports exact / approximate (with
+  the diff) / changed / missing, the located line, heading and pool, exits 1
+  unless all exact, and lists items that claim a check without `L<n>`. One
+  line numbering (`sections.text_lines`, `\n` only): docling writes stray
+  `\r`, which universal newlines counted as breaks (buzsaki_2015: 21 lines
+  off); `fulltext --grep`, sections, the checker and the review packet now
+  agree with `grep -n`. A quote that occurs twice keeps the written line.
+  On journal-club's two source files: 119/119 and 86/86 exact, no line off.
 - [ ] **D13 Cross-digest view.** `biblio digest claims-table KEY... [--grep]`:
   claims from several digests side by side, filtered by words, kind or
   section; the "map" step of `wiki-synthesize` read 7 digests (120 KB) by hand.
