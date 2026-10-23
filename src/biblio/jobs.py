@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -533,3 +534,126 @@ except Exception:
     existing["error"] = tb
     _write(existing)
 """
+
+
+# ---------------------------------------------------------------------------
+# CLI jobs: one biblio command run in the background (the MCP job handle)
+# ---------------------------------------------------------------------------
+
+CLI_JOB_KINDS = ("docling", "grobid", "oa_fetch", "digest")
+
+
+def cli_job_argv(kind: str, keys: list[str] | None = None, *, force: bool = False, concurrency: int = 1,
+                 context: str = "wiki", stale: bool = False) -> list[str]:
+    """The biblio CLI arguments a job of ``kind`` runs (the same command a person would type)."""
+    keys = [k.lstrip("@") for k in keys or [] if k.strip()]
+    joined = ",".join(keys)
+    if kind == "docling":
+        argv = ["docling", "batch"] + (["--keys", joined] if keys else [])
+        argv += ["--concurrency", str(concurrency)] if concurrency > 1 else []
+    elif kind == "grobid":
+        argv = ["grobid", "run"] + (["--keys", joined] if keys else ["--all"])
+    elif kind == "oa_fetch":
+        argv = ["bibtex", "fetch-pdfs-oa"] + (["--citekeys", *keys] if keys else [])
+    elif kind == "digest":
+        if not keys:
+            raise ValueError("a digest job needs keys")
+        argv = ["digest", "claims", "--keys", joined, "--context", context]
+        argv += ["--concurrency", str(concurrency)] if concurrency > 1 else []
+        argv += ["--stale"] if stale else []
+    else:
+        raise ValueError(f"unknown job kind {kind!r}; known: {', '.join(CLI_JOB_KINDS)}")
+    return argv + (["--force"] if force else [])
+
+
+_CLI_WORKER = """\
+import json, subprocess, sys
+from datetime import datetime, timezone
+from pathlib import Path
+job = Path({job_file!r})
+with open({log!r}, "ab") as log:
+    rc = subprocess.run({cmd!r}, cwd={root!r}, stdout=log, stderr=subprocess.STDOUT).returncode
+data = json.loads(job.read_text(encoding="utf-8"))
+if data.get("status") == "running":
+    data["status"] = "completed" if rc == 0 else "failed"
+data["exit_code"] = rc
+data["finished"] = datetime.now(timezone.utc).isoformat()
+job.write_text(json.dumps(data, indent=2, sort_keys=True) + "\\n", encoding="utf-8")
+"""
+
+
+def launch_cli_job(root: Path, kind: str, keys: list[str] | None = None, **opts: Any) -> dict[str, Any]:
+    """Start ``biblio <argv for kind>`` detached; returns the job record (``job_id``, ``argv``, ``log``)."""
+    argv = cli_job_argv(kind, keys, **opts)
+    job_id = new_run_id(f"job_{kind}")
+    job_file = _job_path(root, job_id)
+    log = _jobs_dir(root) / f"{job_id}.log"
+    log.parent.mkdir(parents=True, exist_ok=True)
+    cmd = [sys.executable, "-m", "biblio.cli", *argv[:2], "--root", str(root), *argv[2:]]
+    record = {"job_id": job_id, "type": "cli", "kind": kind, "argv": ["biblio", *argv], "status": "running",
+              "citekey": ",".join(keys or []) or "(all)", "started": utc_now_iso(), "finished": None,
+              "log": str(log), "exit_code": None, "pid": None, "result": None, "error": None}
+    _write_job(root, job_id, record)
+    proc = subprocess.Popen([sys.executable, "-c", _CLI_WORKER.format(job_file=str(job_file), log=str(log),
+                                                                      cmd=cmd, root=str(root))],
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+    record["pid"] = proc.pid
+    _write_job(root, job_id, record)
+    return record
+
+
+_PROGRESS = re.compile(r"^\s*\[(?:RUN |OK |FAIL )?(\d+)/(\d+)\]")
+_SUMMARY = re.compile(r"^\s*\[(DONE|OK|FAIL|ERROR|SKIP|MISS|failed|done)\b|^\s*(?:\d+ papers|\[INFO\] pending)")
+
+
+def cli_job_status(root: Path, job_id: str, *, lines: int = 15) -> dict[str, Any] | None:
+    """A CLI job's state, progress (the last "[n/total]" line) and its summary lines; None if unknown.
+
+    Jobs started by the older launchers (docling, batch, OA fetch) are read too.
+    """
+    data = _read_job(root, job_id)
+    if data is None:
+        return None
+    if data.get("type") != "cli":
+        info = get_job_status(root, job_id)
+        return {k: v for k, v in info.__dict__.items() if v is not None} if info else None
+    if data["status"] == "running" and data.get("pid") and not _pid_alive(data["pid"]):
+        data = _read_job(root, job_id) or data            # the worker may have just finished
+        if data["status"] == "running":
+            data.update(status="failed", error="process ended without recording an exit code",
+                        finished=utc_now_iso())
+            _write_job(root, job_id, data)
+    text = Path(data["log"]).read_text(encoding="utf-8", errors="replace") if Path(data["log"]).is_file() else ""
+    log_lines = text.splitlines()
+    progress = None
+    for ln in reversed(log_lines):
+        m = _PROGRESS.match(ln)
+        if m:
+            progress = {"done": int(m.group(1)), "total": int(m.group(2)), "line": ln.strip()[:200]}
+            break
+    summary = [ln.strip()[:300] for ln in log_lines if _SUMMARY.match(ln)][-lines:]
+    out = {k: data.get(k) for k in ("job_id", "kind", "argv", "status", "exit_code", "started", "finished",
+                                    "log", "error")}
+    out["progress"] = progress
+    out["summary"] = summary
+    if data["status"] != "running" and not summary:
+        out["tail"] = [ln[:300] for ln in log_lines[-lines:]]
+    return out
+
+
+def kill_cli_job(root: Path, job_id: str) -> dict[str, Any]:
+    """Stop a running job (its whole process group)."""
+    import os
+    import signal
+    data = _read_job(root, job_id)
+    if data is None:
+        return {"error": f"no job {job_id}"}
+    if data.get("status") != "running" or not data.get("pid"):
+        return {"job_id": job_id, "status": data.get("status"), "note": "not running"}
+    try:
+        os.killpg(os.getpgid(int(data["pid"])), signal.SIGTERM)
+    except (OSError, ProcessLookupError) as exc:
+        return {"job_id": job_id, "error": str(exc)}
+    data.update(status="killed", finished=utc_now_iso())
+    _write_job(root, job_id, data)
+    return {"job_id": job_id, "status": "killed"}

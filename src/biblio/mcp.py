@@ -6,6 +6,7 @@ All functions accept ``root`` and handle config loading internally.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -1571,3 +1572,163 @@ def enrich_topic_tags(
         return populate_library_tags(root, citekeys=citekeys, dry_run=dry_run)
     except Exception as e:
         return {"error": str(e)}
+
+
+# ---------------------------------------------------------------------------
+# Agent-facing tools (projio spec: agent interface layers)
+# ---------------------------------------------------------------------------
+
+_REF_KEY = re.compile(r"^@?[A-Za-z][\w:+.-]*$")
+
+
+def _holdings_of(cfg, key: str, doi: str | None) -> dict[str, Any]:
+    """Where a paper's derivatives are: full text (project or pool), PDF, GROBID, figures, digests."""
+    from .digest import digest_dir
+    from .docling import pdf_path_for_key
+    from .grobid import resolve_grobid_outputs
+    from .sections import fulltext_path
+
+    md = fulltext_path(cfg, key)
+    where = None
+    if md is not None:
+        try:
+            md.relative_to(cfg.out_root)
+            where = "project"
+        except ValueError:
+            parts = md.parts
+            i = len(parts) - 1 - parts[::-1].index("derivatives") if "derivatives" in parts else len(parts) - 3
+            base = Path(*parts[:i])
+            where = f"pool:{(base.parent if base.name == 'bib' else base).name}"
+    _, grobid_source = resolve_grobid_outputs(cfg, key, doi=doi)
+    digests = []
+    for mode_dir in sorted((cfg.repo_root / "bib" / "derivatives" / "digest").glob("*/*")):
+        path = mode_dir / f"{key}.json"
+        if path.is_file():
+            try:
+                meta = json.loads(path.read_text(encoding="utf-8")).get("meta", {})
+            except (OSError, ValueError):
+                meta = {}
+            digests.append({"mode": mode_dir.parent.name, "context": mode_dir.name,
+                            "prompt_version": meta.get("prompt_version"), "quotes": meta.get("quotes")})
+    return {
+        "fulltext": where,
+        "fulltext_path": str(md) if md else None,
+        "pdf": pdf_path_for_key(cfg, key).is_file(),
+        "grobid": None if grobid_source == "missing" else grobid_source,
+        "figures": (cfg.repo_root / "bib" / "derivatives" / "figures" / key / "manifest.yml").is_file(),
+        "digests": digests,
+    }
+
+
+def paper_lookup(refs: list[str], *, root: Path, detail: str = "summary") -> dict[str, Any]:
+    """Papers by citekey, DOI or "Author Year Title", in the project or a pool.
+
+    Per ref: the bibliographic record, the library entry, where its
+    derivatives are (full text, PDF, GROBID, figures, digests), and, if it is
+    not in the project, the best holding found by ``biblio locate`` (pools,
+    a doi.org link). ``detail="context"`` adds the full text's sections
+    (id, title, line, words), the GROBID header and OpenAlex topics.
+    Replaces ``citekey_resolve``, ``paper_context`` and ``library_get``.
+    """
+    cfg = _load_cfg(root)
+    from .library import load_library
+    from .locate import as_json, locate
+
+    library = load_library(cfg)
+    bib_db = _load_bib_database(cfg)
+    cache: dict[str, Any] = {}
+
+    def _index():
+        if "index" not in cache:
+            from .refs import build_index
+            cache["index"] = build_index(cfg)
+        return cache["index"]
+
+    out: list[dict[str, Any]] = []
+    for ref in refs:
+        ref = ref.strip()
+        key = ref.lstrip("@")
+        row: dict[str, Any] = {"ref": ref}
+        in_project = bool(_REF_KEY.match(ref) and bib_db and key in bib_db.entries)
+        if in_project:
+            bib = _bib_entry_to_dict(bib_db.entries[key])
+            row.update(citekey=key, where="project", bib=bib, library=library.get(key) or None)
+            row["held"] = _holdings_of(cfg, key, bib.get("doi"))
+        elif _REF_KEY.match(ref) and any(h.key == key for h in _index().holdings):
+            hits = [h for h in _index().holdings if h.key == key]          # a pool's citekey
+            first = next((h for h in hits if h.title), hits[0])
+            row.update(citekey=key, title=first.title or None, doi=first.doi or None,
+                       link=f"https://doi.org/{first.doi}" if first.doi else None,
+                       holdings=[{"where": h.where, "key": h.key, "status": h.status} for h in hits])
+            row["held"] = _holdings_of(cfg, key, first.doi or None)
+            row["where"] = f"{row['held']['fulltext']}: full text" if row["held"]["fulltext"] else hits[0].where
+        else:
+            loc = as_json(locate(cfg, [ref]))[0]
+            row.update(where=loc["status"], doi=loc["doi"] or None, link=loc["link"] or None,
+                       title=loc["title"] or None, holdings=loc["holdings"])
+            key = next((h["key"] for h in loc["holdings"] if h["where"] != "zotero"), key if _REF_KEY.match(ref)
+                       else None)
+            if key:
+                row["citekey"] = key
+                row["held"] = _holdings_of(cfg, key, loc["doi"] or None)
+                if row["held"]["fulltext"] and row["where"] == "not held":
+                    row["where"] = f"{row['held']['fulltext']}: full text"
+        if detail == "context" and row.get("citekey") and (row.get("held") or {}).get("fulltext"):
+            from .sections import read_sections
+            try:
+                sections, _, kind = read_sections(cfg, row["citekey"])
+                row["sections"] = [{"id": s.id, "title": s.title, "line": s.line, "words": s.words}
+                                   for s in sections]
+                row["sections_from"] = kind
+            except FileNotFoundError:
+                pass
+            ctx = paper_context(row["citekey"], root=root)
+            row["grobid_header"] = ctx.get("grobid_header")
+            row["openalex"] = ctx.get("openalex")
+        out.append(row)
+    return {"papers": out, "not_held": [r["ref"] for r in out if r.get("where") == "not held"]}
+
+
+def job(action: str, *, root: Path, kind: str = "", keys: list[str] | None = None, job_id: str = "",
+        force: bool = False, concurrency: int = 1, context: str = "wiki", stale: bool = False) -> dict[str, Any]:
+    """Start, poll, list or stop a background biblio job (docling, grobid, oa_fetch, digest).
+
+    ``start`` runs the same CLI command a person would (``biblio docling batch
+    --keys ...`` and so on); with ``keys`` only those papers are touched. For
+    docling the plan is returned at once: what will be converted and what is
+    skipped and why.
+    """
+    from . import jobs
+    if action == "start":
+        if kind not in jobs.CLI_JOB_KINDS:
+            return {"error": f"kind must be one of {', '.join(jobs.CLI_JOB_KINDS)}"}
+        plan = None
+        if kind == "docling":
+            from .batch import plan_docling_batch
+            cfg = _load_cfg(root)
+            pending, skipped = plan_docling_batch(cfg, keys=keys or None, force=force)
+            plan = {"pending": len(pending), "pending_keys": pending[:50],
+                    "skipped": [{"citekey": k, "reason": r} for k, r in skipped
+                                if keys or not r.startswith("done")][:50],
+                    "already_done": sum(1 for _, r in skipped if r.startswith("done"))}
+            if not pending:
+                return {"started": False, "plan": plan, "note": "nothing to convert"}
+        try:
+            rec = jobs.launch_cli_job(root, kind, keys, force=force, concurrency=concurrency,
+                                      context=context, stale=stale)
+        except ValueError as exc:
+            return {"error": str(exc)}
+        out = {"started": True, "job_id": rec["job_id"], "argv": rec["argv"], "log": rec["log"]}
+        if plan:
+            out["plan"] = plan
+        return out
+    if action == "status":
+        st = jobs.cli_job_status(root, job_id)
+        return st if st is not None else {"error": f"no job {job_id}"}
+    if action == "kill":
+        return jobs.kill_cli_job(root, job_id)
+    if action == "list":
+        rows = jobs.list_jobs(root)[-20:]
+        return {"jobs": [{k: r.get(k) for k in ("job_id", "kind", "type", "status", "citekey", "started", "finished")}
+                         for r in rows]}
+    return {"error": "action must be start, status, list or kill"}
