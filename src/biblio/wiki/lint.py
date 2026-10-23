@@ -213,6 +213,78 @@ def lint(cfg: WikiConfig, paths: list[Path] | None = None) -> list[Finding]:
     return findings
 
 
+SYNTHESIS_RE = re.compile(r"^\s*(?:>\s*)?\*\*Synthesis:?\*\*:?", re.I)
+RESTS_ON_RE = re.compile(r"(?:\*{1,2}|_)?\b(?:rests[ _]on)\b:?(?:\*{1,2}|_)?:?\s*(?P<refs>.+)$", re.I)
+_POINTER_RE = re.compile(r"@?([A-Za-z][\w:+.-]*?):(C\d+)\b")
+
+
+def _claim_ids(cfg, key: str, cache: dict) -> set[str] | None:
+    """Claim ids in the paper's claims digests (any context), or None without a digest."""
+    if key not in cache:
+        import json
+        ids: set[str] | None = None
+        root = cfg.repo_root / "bib" / "derivatives" / "digest" / "claims"
+        for path in sorted(root.glob(f"*/{key}.json")) if root.is_dir() else []:
+            try:
+                claims = json.loads(path.read_text(encoding="utf-8")).get("claims") or []
+            except (OSError, ValueError):
+                continue
+            ids = (ids or set()) | {str(c.get("id")) for c in claims if isinstance(c, dict)}
+        cache[key] = ids
+    return cache[key]
+
+
+def _check_synthesis(cfg, page: Page, add, listed: set[str]) -> None:
+    """W23: every **Synthesis:** paragraph names the claims it combines (``Rests on: key:C3, key:C5``)."""
+    lines = page.body_lines
+    cache = getattr(cfg, "_claim_cache", None)
+    if cache is None:
+        cache = {}
+        try:
+            cfg._claim_cache = cache
+        except (AttributeError, TypeError):   # frozen config: cache per page
+            pass
+    i = 0
+    while i < len(lines):
+        if not SYNTHESIS_RE.match(lines[i]):
+            i += 1
+            continue
+        start = i
+        j = i + 1
+        while j < len(lines) and lines[j].strip():
+            j += 1
+        block = lines[start:j]
+        k = j
+        while k < len(lines) and not lines[k].strip():
+            k += 1
+        if k < len(lines) and RESTS_ON_RE.match(lines[k].strip()):   # pointer line right after the paragraph
+            block = block + [lines[k]]
+        lineno = page.body_offset + start
+        pointer = next((RESTS_ON_RE.search(ln) for ln in block if RESTS_ON_RE.search(ln)), None)
+        if pointer is None:
+            add(Finding("warning", "SYN001", page.rel, lineno,
+                        "**Synthesis:** paragraph without 'Rests on: citekey:C<n>, ...' (the claims it combines)",
+                        "P8"))
+        else:
+            refs = _POINTER_RE.findall(pointer.group("refs"))
+            if not refs:
+                add(Finding("warning", "SYN001", page.rel, lineno,
+                            "'Rests on:' names no claims; write citekey:C<n> (from `biblio digest claims-table`)",
+                            "P8"))
+            for key, cid in refs:
+                ids = _claim_ids(cfg, key, cache)
+                if ids is None:
+                    add(Finding("info", "SYN003", page.rel, lineno,
+                                f"rests on {key}:{cid}, but {key} has no claims digest to check against", "P8"))
+                elif cid not in ids:
+                    add(Finding("error", "SYN002", page.rel, lineno,
+                                f"rests on {key}:{cid}, but its claims digest has no claim {cid}", "P8"))
+                if key not in listed:
+                    add(Finding("warning", "SYN004", page.rel, lineno,
+                                f"rests on {key}, which is not in sources:", "P8"))
+        i = j
+
+
 def _strip_link(value: str) -> str:
     value = value.strip()
     m = re.match(r"^\[\[([^\]|#]+)", value)
@@ -373,6 +445,8 @@ def _check_page(cfg, page: Page, add, sources: SourceIndex, vocab, resolver: _Re
             if not re.search(rf"^\s*(def|class)\s+{re.escape(name)}\b|^{re.escape(name)}\s*=|"
                              rf"^(rule|checkpoint)\s+{re.escape(name)}\s*:", text, re.M):
                 add(Finding("warning", "CODE002", page.rel, line, f"code anchor '{anchor}': '{name}' not defined"))
+
+    _check_synthesis(cfg, page, add, set(listed))
 
     # scope: project tokens on general pages
     if fm.get("scope") == "general":

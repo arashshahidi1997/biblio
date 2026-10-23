@@ -65,7 +65,10 @@ cross-paper reasoning is kept visibly apart from what the papers say.
      block (quotes there are checked like any other), and what would decide it.
    - Your own cross-paper reasoning (a pattern no single paper states) goes
      in a paragraph that starts with **Synthesis:** and cites no paper as its
-     source. It is a proposal for the reviewer, not a fact.
+     source. It is a proposal for the reviewer, not a fact. End it with a line
+     `Rests on: citekey:C3, citekey:C7` naming the digest claims it combines
+     (ids from `biblio digest claims-table`), so the reviewer can trace it;
+     lint checks each pointer against the digests (SYN001 to SYN004).
    - Definitions that differ between papers: a small table (paper, term,
      operational definition, quote).
    - Open problems: a `question` page each, linked.

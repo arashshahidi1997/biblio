@@ -274,9 +274,13 @@ Requests from journal-club are tagged R01 to R06 below.
   named. On journal-club: `--grep spindle --kind finding` gives 69 claims from
   11 papers in one call (the "map" step of `wiki-synthesize` read 7 digests,
   120 KB, by hand).
-- [ ] **W23 Synthesis provenance.** A **Synthesis:** paragraph cites no paper;
-  give it a `rests_on:` pointer to the claims it combines (citekey:claim id),
-  checked by lint, so a reviewer can trace it.
+- [x] **W23 Synthesis provenance.** A **Synthesis:** paragraph cites no paper;
+  it now ends with `Rests on: citekey:C3, citekey:C7` (in the paragraph or
+  the line after it), and lint checks it: SYN001 warning without a pointer,
+  SYN002 error for a claim id the paper's claims digests lack, SYN003 info
+  when the paper has no digest, SYN004 warning when the paper is not in
+  `sources:`. The wiki-synthesize skill asks for it. journal-club's wiki has
+  13 such paragraphs without a pointer (SYN001, warnings only).
 
 ## K. Knowledge-graph experiment
 

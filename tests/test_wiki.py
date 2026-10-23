@@ -890,3 +890,34 @@ def test_hub_match_all_and_exclude_tags(repo):
     text = hub.read_text()
     assert "both" in text and "ripple-only" not in text
     assert not [f for f in lint(cfg) if f.code.startswith("FM") and f.page == "hubs/hub-coupling.md"]
+
+
+def test_synthesis_paragraphs_name_the_claims_they_rest_on(repo):
+    """W23: **Synthesis:** paragraphs point at digest claims (citekey:C<n>), checked by lint."""
+    import json
+    cfg = load_wiki_config(repo)
+    d = repo / "bib" / "derivatives" / "digest" / "claims" / "wiki"
+    d.mkdir(parents=True)
+    (d / "sirota_2003_CommunicationNeocortex.json").write_text(json.dumps(
+        {"meta": {}, "claims": [{"id": "C1", "claim": "Up-states precede ripples."}]}))
+    body = """
+# Coupling across papers
+
+Lede.
+
+**Synthesis:** up-states and ripples are coupled in every preparation seen.
+Rests on: sirota_2003_CommunicationNeocortex:C1, sirota_2003_CommunicationNeocortex:C9
+
+**Synthesis:** a second pattern with no pointer.
+
+**Synthesis:** a third one.
+
+*Rests on:* other_2020_Paper:C2
+"""
+    page = write(cfg.wiki_root / "concepts" / "coupling.md", sources="sirota_2003_CommunicationNeocortex", body=body)
+    found = [(f.code, f.line) for f in lint(cfg, [page]) if f.code.startswith("SYN")]
+    msgs = {f.code: f.message for f in lint(cfg, [page]) if f.code.startswith("SYN")}
+    codes_ = [c for c, _ in found]
+    assert codes_.count("SYN002") == 1 and "C9" in msgs["SYN002"]      # C1 exists, C9 does not
+    assert codes_.count("SYN001") == 1                                 # the second paragraph
+    assert "SYN003" in codes_ and "SYN004" in codes_                   # other_2020_Paper: no digest, not a source
