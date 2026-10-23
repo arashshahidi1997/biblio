@@ -261,3 +261,75 @@ def _att(key, title, link="imported_file"):
 def test_pdf_preference(children, expected):
     from biblio.zotero_add import _pdf_attachments
     assert _pdf_attachments(children)[0]["key"] == expected
+
+
+# --- journal-club R27: a list, group libraries, duplicates ---
+
+GROUP_PAPER = {"key": "7AP9TICH", "data": {
+    "key": "7AP9TICH", "itemType": "journalArticle", "title": "Hippocampal place-cell sequences depict future paths",
+    "creators": [{"creatorType": "author", "firstName": "Brad", "lastName": "Pfeiffer"},
+                 {"creatorType": "author", "firstName": "David", "lastName": "Foster"}],
+    "date": "2013", "DOI": "10.1038/nature12112", "publicationTitle": "Nature",
+}}
+EMPTY_TWIN = {"key": "TWIN0001", "data": {**PAPER["data"], "key": "TWIN0001"}}   # the user's capture, no PDF
+
+
+class GroupZot(FakeZot):
+    def children(self, key):
+        return [{"key": "GATT0001", "data": {"key": "GATT0001", "itemType": "attachment", "linkMode": "imported_file",
+                                             "contentType": "application/pdf"}}] if key == "7AP9TICH" else []
+
+
+class UserZot(FakeZot):
+    def groups(self):
+        return [{"id": 4242, "data": {"id": 4242, "name": "SirotaLab"}}]
+
+    def children(self, key):
+        return CHILDREN if key == "ABCD1234" else []
+
+
+def _libs_client(zcfg):
+    if zcfg.library_type == "group":
+        return _client(GroupZot(items=(GROUP_PAPER,), files={"GATT0001": PDF}))
+    return _client(UserZot(items=(EMPTY_TWIN, PAPER, OTHER)))
+
+
+def test_open_libraries_and_resolve_across_them():
+    libs = zotero_add.open_libraries(ZCFG, "all", client_cls=_libs_client)
+    assert [lib.label for lib in libs] == ["user", "group:4242 (SirotaLab)"]
+    item, lib, notes = zotero_add.resolve_item(libs, "10.1038/nature12112")
+    assert item["key"] == "7AP9TICH" and lib.label.startswith("group:4242")
+    item, lib, notes = zotero_add.resolve_item(libs, "10.1093/sleep/zsag001")
+    assert item["key"] == "ABCD1234"                     # the copy with a stored PDF, not the empty capture
+    assert notes == ["duplicate user TWIN0001 (no PDF) not used"]
+    item, _, _ = zotero_add.resolve_item(libs, "Hippocampal place-cell sequences depict future paths")
+    assert item["key"] == "7AP9TICH"                     # by title
+    with pytest.raises(ZoteroLookupError, match="searched user, group:4242"):
+        zotero_add.resolve_item(libs, "10.9999/nothing")
+
+
+def test_cli_adds_a_list_with_summary(cfg, monkeypatch, capsys, tmp_path):
+    from biblio.cli import main
+    monkeypatch.setattr(zotero_add, "ZoteroClient", _libs_client)
+    refs = tmp_path / "refs.txt"
+    refs.write_text("# today's captures\n10.1093/sleep/zsag001\n10.1038/nature12112\n10.9999/nothing\n")
+    with pytest.raises(SystemExit) as exc:
+        main(["add", "zotero", "--from", str(refs), "--local", "--root", str(cfg.repo_root)])
+    assert exc.value.code == 1                            # one ref not found
+    out = capsys.readouterr().out
+    assert "[OK] pfeiffer_2013_HippocampalPlace (added) <- Zotero 7AP9TICH [group:4242 (SirotaLab)]" in out
+    assert "note: duplicate user TWIN0001 (no PDF) not used" in out
+    assert "[DONE] 3 refs: 2 added, 1 not found, 1 duplicates" in out
+    assert "next: biblio grobid run --keys alemanzapata_2026_DeltasSpindles,pfeiffer_2013_HippocampalPlace" in out
+    assert (cfg.repo_root / "bib" / "articles" / "pfeiffer_2013_HippocampalPlace"
+            / "pfeiffer_2013_HippocampalPlace.pdf").read_bytes() == PDF
+
+
+def test_pdf_from_local_storage_when_the_api_cannot_serve_it(cfg, monkeypatch, tmp_path):
+    store = tmp_path / "Zotero" / "storage" / "GATT0001"
+    store.mkdir(parents=True)
+    (store / "Pfeiffer 2013.pdf").write_bytes(PDF)
+    monkeypatch.setattr(zotero_add, "zotero_storage_dirs", lambda: [tmp_path / "Zotero" / "storage"])
+    zot = GroupZot(items=(GROUP_PAPER,), files={})
+    res = add_from_zotero(cfg, ZCFG, "7AP9TICH", libraries=[zotero_add.Library("group:4242", zot)])
+    assert res.pdf_status == "copied" and res.pdf_path.read_bytes() == PDF

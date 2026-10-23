@@ -82,6 +82,8 @@ biblio add orcid 0000-0001-2345-6789
 biblio add zotero ABCD1234 --local              # item key, DOI or citekey; local API on the Zotero machine
 biblio add zotero 10.1093/sleep/zsag001         # web API (zotero.library_id + BIBLIO_ZOTERO_API_KEY)
 biblio add zotero KEY --local --dry-run         # show the item and biblio's key, write nothing
+biblio add zotero --from refs.txt --local       # a list (keys, DOIs, citekeys, titles); groups searched too
+biblio add zotero DOI --local --library group:4242   # one group library only
 
 # full text, digests and quotes
 biblio fulltext KEY                             # sections with line numbers (project or pool)

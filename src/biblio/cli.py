@@ -277,9 +277,14 @@ def _build_parser() -> argparse.ArgumentParser:
     add_oa.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
     add_oa.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")
     add_zot = add_sub.add_parser(
-        "zotero", help="Add one paper from Zotero: entry under biblio's citekey, PDF copied."
+        "zotero", help="Add papers from Zotero: entries under biblio's citekeys, PDFs copied."
     )
-    add_zot.add_argument("ref", help="Zotero item key (ABCD1234), citekey (Better BibTeX or biblio's), or DOI.")
+    add_zot.add_argument("ref", nargs="*",
+                         help="Zotero item key (ABCD1234), citekey (Better BibTeX or biblio's), DOI or title.")
+    add_zot.add_argument("--from", dest="refs_from", type=Path,
+                         help="Refs in a file, one per line (# comments).")
+    add_zot.add_argument("--library", default=None,
+                         help="user, group:<id>, or all (default with --local: all, the user's library first).")
     add_zot.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
     add_zot.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml).")
     add_zot.add_argument("--local", action="store_true",
@@ -898,7 +903,7 @@ def _extract_browser_cookies(proxy_base: str) -> str | None:
 def _add_zotero(args: argparse.Namespace, cfg: Any, cfg_path: Path, repo_root: Path) -> None:
     import yaml as _yaml
     from .zotero import load_zotero_config
-    from .zotero_add import ZoteroLookupError, add_from_zotero, local_config
+    from .zotero_add import ZoteroLookupError, add_from_zotero, local_config, open_libraries
 
     raw = _yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {} if cfg_path.exists() else {}
     zcfg = load_zotero_config(raw, repo_root)
@@ -907,33 +912,81 @@ def _add_zotero(args: argparse.Namespace, cfg: Any, cfg_path: Path, repo_root: P
     elif zcfg is None:
         raise SystemExit("[ERROR] No zotero section in biblio.yml; use --local on the machine running Zotero, "
                          "or set zotero.library_id and BIBLIO_ZOTERO_API_KEY for the web API.")
+    refs = list(args.ref)
+    if args.refs_from:
+        refs += [ln.split("#", 1)[0].strip() for ln in args.refs_from.read_text(encoding="utf-8").splitlines()]
+    refs = [r for r in dict.fromkeys(r.strip() for r in refs) if r]
+    if not refs:
+        raise SystemExit("[ERROR] name a ref (item key, DOI, citekey or title), or --from list.txt")
+    where = "the local API (is Zotero running, with local API access enabled?)" if zcfg.local else "the web API"
     try:
-        res = add_from_zotero(cfg, zcfg, args.ref, dry_run=bool(args.dry_run))
-    except ZoteroLookupError as exc:
-        raise SystemExit(f"[ERROR] {exc}")
+        libs = open_libraries(zcfg, args.library or ("all" if zcfg.local else "own"))
     except Exception as exc:  # noqa: BLE001  connection refused, 403, ...
-        where = "the local API (is Zotero running, with local API access enabled?)" if zcfg.local else "the web API"
         raise SystemExit(f"[ERROR] Zotero request failed via {where}: {exc}")
-    verb = {"dry-run": "found", "found": "already in project", "refreshed": "entry refreshed"}.get(
-        res.action, res.action)
-    print(f"[OK] {res.citekey} ({verb}) <- Zotero {res.zotero_key}: {res.title[:70]}")
-    has_pdf = res.pdf_status in ("copied", "present")
-    print(f"  pdf: {res.pdf_status}" + (f" -> {res.pdf_path}" if has_pdf or args.dry_run else ""))
-    for note in res.notes:
-        print(f"  note: {note}")
+
+    tally: dict[str, list[str]] = {"added": [], "already present": [], "no PDF": [], "not found": [],
+                                   "duplicates": [], "failed": []}
+    keys: list[str] = []
+    for ref in refs:
+        try:
+            res = add_from_zotero(cfg, zcfg, ref, dry_run=bool(args.dry_run), libraries=libs)
+        except ZoteroLookupError as exc:
+            if len(refs) == 1:
+                raise SystemExit(f"[ERROR] {exc}")
+            print(f"[MISS] {ref}: {exc}")
+            tally["not found" if "no Zotero item" in str(exc) else "failed"].append(ref)
+            continue
+        except Exception as exc:  # noqa: BLE001
+            if len(refs) == 1:
+                raise SystemExit(f"[ERROR] Zotero request failed via {where}: {exc}")
+            print(f"[FAIL] {ref}: {exc}")
+            tally["failed"].append(ref)
+            continue
+        verb = {"dry-run": "found", "found": "already in project", "refreshed": "entry refreshed"}.get(
+            res.action, res.action)
+        lib = "" if res.library == "user" else f" [{res.library}]"
+        print(f"[OK] {res.citekey} ({verb}) <- Zotero {res.zotero_key}{lib}: {res.title[:70]}")
+        has_pdf = res.pdf_status in ("copied", "present")
+        print(f"  pdf: {res.pdf_status}" + (f" -> {res.pdf_path}" if has_pdf or args.dry_run else ""))
+        for note in res.notes:
+            print(f"  note: {note}")
+        keys.append(res.citekey)
+        tally["added" if res.action in ("added", "dry-run") else "already present"].append(res.citekey)
+        if not has_pdf and not args.dry_run:
+            tally["no PDF"].append(res.citekey)
+        if any(n.startswith("duplicate") for n in res.notes):
+            tally["duplicates"].append(res.citekey)
     if args.dry_run:
+        _zotero_summary(tally, len(refs))
         return
-    if args.extract and res.pdf_path and res.pdf_path.is_file():
+    with_pdf = [k for k in keys if k not in tally["no PDF"]]
+    if args.extract and with_pdf:
         from .docling import run_docling_for_key
         from .grobid import run_grobid_for_key
-        for name, fn in (("grobid", run_grobid_for_key), ("docling", run_docling_for_key)):
-            try:
-                fn(cfg, res.citekey)
-                print(f"  {name}: done")
-            except Exception as exc:  # noqa: BLE001
-                print(f"  {name}: failed ({exc})")
-    elif res.pdf_path and res.pdf_path.is_file():
-        print(f"  next: biblio grobid run --key {res.citekey} && biblio docling run --key {res.citekey}")
+        for key in with_pdf:
+            for name, fn in (("grobid", run_grobid_for_key), ("docling", run_docling_for_key)):
+                try:
+                    fn(cfg, key)
+                    print(f"  {key} {name}: done")
+                except Exception as exc:  # noqa: BLE001
+                    print(f"  {key} {name}: failed ({exc})")
+    elif with_pdf:
+        if len(with_pdf) == 1:
+            print(f"  next: biblio grobid run --key {with_pdf[0]} && biblio docling run --key {with_pdf[0]}")
+        else:
+            ks = ",".join(with_pdf)
+            print(f"  next: biblio grobid run --keys {ks} && biblio docling batch --keys {ks}")
+    if len(refs) > 1:
+        _zotero_summary(tally, len(refs))
+    if tally["not found"] or tally["failed"]:
+        raise SystemExit(1)
+
+
+def _zotero_summary(tally: dict[str, list[str]], n: int) -> None:
+    print(f"[DONE] {n} refs: " + ", ".join(f"{len(v)} {k}" for k, v in tally.items() if v or k in ("added",)))
+    for label in ("no PDF", "not found", "duplicates", "failed"):
+        if tally[label]:
+            print(f"  {label}: {', '.join(tally[label])}")
 
 
 def _print_skipped(skipped: list[tuple[str, str]], *, named: bool) -> None:

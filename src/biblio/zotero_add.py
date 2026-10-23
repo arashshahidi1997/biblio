@@ -43,6 +43,7 @@ class AddResult:
     pdf_path: Path | None = None
     pdf_status: str = ""  # "copied", "present", "none", "not-pdf", "failed"
     notes: list[str] = field(default_factory=list)
+    library: str = "user"
 
 
 # ---------------------------------------------------------------------------
@@ -95,24 +96,37 @@ def _search_terms(citekey: str) -> list[str]:
     return terms
 
 
-def find_item(zot: Any, ref: str) -> dict[str, Any]:
-    """One top-level Zotero item for an item key, a DOI, or a citekey."""
+def _norm_title(text: str) -> str:
+    return " ".join(re.sub(r"[^\w\s]", " ", text.lower()).split())
+
+
+def find_items(zot: Any, ref: str) -> list[dict[str, Any]]:
+    """Every top-level item one library has for an item key, a DOI, a citekey or a title."""
     ref = ref.strip().lstrip("@")
     m = _ITEM_KEY.match(ref)
     if m:
-        item = zot.item(m.group(1))
+        try:
+            item = zot.item(m.group(1))
+        except Exception:  # noqa: BLE001  404 in this library
+            return []
         if item.get("data", {}).get("itemType") in _SKIP_TYPES:
             parent = item["data"].get("parentItem")
             if not parent:
                 raise ZoteroLookupError(f"{ref} is a standalone {item['data']['itemType']}, not a paper")
             item = zot.item(parent)
-        return item
+        return [item]
 
     doi = normalize_doi(ref)
     if doi.startswith("10."):
-        hits = [it for it in _top_level(zot.items(q=doi, qmode="everything", limit=25))
+        return [it for it in _top_level(zot.items(q=doi, qmode="everything", limit=25))
                 if normalize_doi(it["data"].get("DOI") or _extra_doi(it["data"])) == doi]
-        return _one(hits, ref)
+
+    if " " in ref:  # a title (or most of one)
+        want = _norm_title(ref)
+        words = [w for w in want.split() if len(w) > 3][:6] or want.split()[:6]
+        found = _top_level(zot.items(q=" ".join(words), limit=50))
+        return [it for it in found if want and (_norm_title(it["data"].get("title") or "").startswith(want)
+                                                or _norm_title(it["data"].get("title") or "") == want)]
 
     for term in _search_terms(ref):
         found = _top_level(zot.items(q=term, limit=100))
@@ -120,8 +134,13 @@ def find_item(zot: Any, ref: str) -> dict[str, Any]:
         if not hits:  # biblio's own convention, e.g. a key copied from a pool
             hits = [it for it in found if canonical_citekey_str(record_from_item(it)) == ref]
         if hits:
-            return _one(hits, ref)
-    raise ZoteroLookupError(f"no Zotero item found for {ref!r}")
+            return hits
+    return []
+
+
+def find_item(zot: Any, ref: str) -> dict[str, Any]:
+    """One top-level Zotero item for an item key, a DOI, a citekey or a title."""
+    return _one(find_items(zot, ref), ref)
 
 
 def _one(hits: list[dict[str, Any]], ref: str) -> dict[str, Any]:
@@ -132,6 +151,88 @@ def _one(hits: list[dict[str, Any]], ref: str) -> dict[str, Any]:
         listing = ", ".join(f"{it['data']['key']} ({(it['data'].get('title') or '')[:50]})" for it in hits)
         raise ZoteroLookupError(f"{ref!r} matches {len(keys)} items, pass an item key: {listing}")
     return hits[0]
+
+
+@dataclass
+class Library:
+    label: str          # "user" or "group:<id> (<name>)"
+    zot: Any
+
+
+def open_libraries(zotero_cfg: ZoteroConfig, which: str = "all", client_cls: Any = None) -> list[Library]:
+    """The libraries to search: ``user``, ``group:<id>`` or ``all`` (the user's, then every group).
+
+    The local API serves group libraries too (Zotero 7); a group that cannot
+    be opened is skipped.
+    """
+    import dataclasses
+    client_cls = client_cls or ZoteroClient
+    base = client_cls(zotero_cfg)
+    own = "user" if zotero_cfg.library_type == "user" else f"group:{zotero_cfg.library_id}"
+    which = (which or "all").strip()
+    if which.startswith("group:"):
+        gid = which.split(":", 1)[1]
+        cfg = dataclasses.replace(zotero_cfg, library_id=gid, library_type="group")
+        return [Library(f"group:{gid}", client_cls(cfg)._zot)]
+    libs = [Library(own, base._zot)]
+    if which == "all" and zotero_cfg.library_type == "user":
+        try:
+            groups = base._zot.groups() or []
+        except Exception:  # noqa: BLE001  no group access
+            groups = []
+        for g in groups:
+            gid = str(g.get("id") or g.get("data", {}).get("id") or "")
+            if not gid:
+                continue
+            name = (g.get("data") or {}).get("name") or ""
+            cfg = dataclasses.replace(zotero_cfg, library_id=gid, library_type="group")
+            libs.append(Library(f"group:{gid}" + (f" ({name})" if name else ""), client_cls(cfg)._zot))
+    return libs
+
+
+def _paper_id(item: dict[str, Any]) -> str:
+    d = item.get("data", item)
+    return normalize_doi(d.get("DOI") or _extra_doi(d)) or _norm_title(d.get("title") or "")
+
+
+def _best_pdf_rank(zot: Any, item_key: str) -> tuple:
+    try:
+        atts = _pdf_attachments(zot.children(item_key))
+    except Exception:  # noqa: BLE001
+        return (9,)
+    return _pdf_rank(atts[0]) if atts else (9,)
+
+
+def resolve_item(libs: list[Library], ref: str) -> tuple[dict[str, Any], Library, list[str]]:
+    """The item for ``ref`` across libraries, and notes on the duplicates passed over (R27).
+
+    Items for the same paper (DOI, else title) are duplicates: the one with a
+    stored PDF wins (the user's library first on a tie). Different papers are
+    an error that lists them.
+    """
+    hits: list[tuple[dict[str, Any], Library]] = []
+    for lib in libs:
+        try:
+            hits += [(it, lib) for it in find_items(lib.zot, ref)]
+        except ZoteroLookupError:
+            raise
+        except Exception:  # noqa: BLE001  one library unreachable: try the others
+            continue
+    if not hits:
+        where = ", ".join(lib.label for lib in libs)
+        raise ZoteroLookupError(f"no Zotero item found for {ref!r} (searched {where})")
+    if len({_paper_id(it) for it, _ in hits}) > 1:
+        listing = ", ".join(f"{lib.label} {it['data']['key']} ({(it['data'].get('title') or '')[:50]})"
+                            for it, lib in hits)
+        raise ZoteroLookupError(f"{ref!r} matches {len(hits)} different papers, pass an item key: {listing}")
+    if len(hits) == 1:
+        return hits[0][0], hits[0][1], []
+    ranked = sorted(((_best_pdf_rank(lib.zot, it["data"]["key"]), i, it, lib) for i, (it, lib) in enumerate(hits)),
+                    key=lambda r: (r[0], r[1]))
+    _, _, item, lib = ranked[0]
+    others = [f"duplicate {o_lib.label} {o_it['data']['key']} ({'PDF' if rank != (9,) else 'no PDF'}) not used"
+              for rank, _, o_it, o_lib in ranked[1:]]
+    return item, lib, others
 
 
 # ---------------------------------------------------------------------------
@@ -183,25 +284,47 @@ def _pdf_attachments(children: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return sorted(pdfs, key=_pdf_rank)  # stable: Zotero's order breaks ties
 
 
-def fetch_pdf(zot: Any, item_key: str, dest: Path) -> str:
+def zotero_storage_dirs() -> list[Path]:
+    """Where the Zotero app keeps attachment files on this machine (``storage/<attachment key>/``)."""
+    import os
+    homes = [os.environ.get("ZOTERO_DATA_DIR", ""), "~/Zotero", "~/snap/zotero-snap/common/Zotero",
+             "~/.zotero/zotero"]
+    return [Path(h).expanduser() / "storage" for h in homes if h and (Path(h).expanduser() / "storage").is_dir()]
+
+
+def _from_storage(att_key: str, dest: Path) -> bool:
+    for root in zotero_storage_dirs():
+        for pdf in sorted((root / att_key).glob("*.pdf")):
+            if pdf.read_bytes()[:5] == b"%PDF-":
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                dest.write_bytes(pdf.read_bytes())
+                return True
+    return False
+
+
+def fetch_pdf(zot: Any, item_key: str, dest: Path, *, local: bool = False) -> str:
+    """Copy the item's best PDF to ``dest``; with ``local`` the Zotero storage folder is the fallback."""
     try:
         attachments = _pdf_attachments(zot.children(item_key))
     except Exception:  # noqa: BLE001
         return "failed"
     if not attachments:
         return "none"
+    status = "failed"
     for att in attachments:
         try:
             content = zot.file(att["data"]["key"])
         except Exception:  # noqa: BLE001
-            continue
+            content = None
         if isinstance(content, (bytes, bytearray)) and content[:5] == b"%PDF-":
             dest.parent.mkdir(parents=True, exist_ok=True)
             dest.write_bytes(content)
             return "copied"
         if content:
-            return "not-pdf"
-    return "failed"
+            status = "not-pdf"
+        if local and att["data"].get("linkMode") == "imported_file" and _from_storage(att["data"]["key"], dest):
+            return "copied"
+    return status
 
 
 def add_from_zotero(
@@ -211,10 +334,14 @@ def add_from_zotero(
     *,
     dry_run: bool = False,
     client: ZoteroClient | None = None,
+    libraries: list[Library] | None = None,
 ) -> AddResult:
-    client = client or ZoteroClient(zotero_cfg)
-    zot = client._zot
-    item = find_item(zot, ref)
+    if libraries is None:
+        client = client or ZoteroClient(zotero_cfg)
+        libraries = [Library("user" if zotero_cfg.library_type == "user" else f"group:{zotero_cfg.library_id}",
+                             client._zot)]
+    item, lib, duplicates = resolve_item(libraries, ref)
+    zot = lib.zot
     data = item["data"]
     record = record_from_item(item)
     citekey = canonical_citekey_str(record)
@@ -226,7 +353,8 @@ def add_from_zotero(
         citekey = own_key
     existing = None if own_key else _existing_key(cfg, citekey, record.doi)
     result = AddResult(citekey=existing or citekey, zotero_key=data["key"], title=data.get("title") or "",
-                       existing=existing is not None)
+                       existing=existing is not None, library=lib.label)
+    result.notes.extend(duplicates)
     own = item_citekey(data)
     if own and own != result.citekey:
         result.notes.append(f"Zotero calls it {own}; biblio uses {result.citekey}")
@@ -244,7 +372,8 @@ def add_from_zotero(
         result.action = "refreshed" if own_key else "added"
         result.bib_path = zotero_bib
         upsert_entry(result.bib_path, citekey, entry_for(item, citekey))
-    result.pdf_status = "present" if pdf_path.is_file() else fetch_pdf(zot, data["key"], pdf_path)
+    result.pdf_status = "present" if pdf_path.is_file() else fetch_pdf(zot, data["key"], pdf_path,
+                                                                       local=zotero_cfg.local)
     if result.pdf_status in ("none", "failed", "not-pdf"):
         result.notes.append({
             "none": "no PDF attached in Zotero",
@@ -258,6 +387,7 @@ def add_from_zotero(
         "stage": "zotero_add",
         "status": "success",
         "zotero_key": result.zotero_key,
+        "library": result.library,
         "citekey": result.citekey,
         "action": result.action,
         "pdf": result.pdf_status,

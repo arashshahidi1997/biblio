@@ -310,6 +310,17 @@ Requests from journal-club are tagged R01 to R06 below.
   and OpenAlex outputs resolved from the shared pool.
 - [ ] **I02 GROBID coverage.** Empty GROBID folders in pixecog (4 of 38 in the
   test corpus); rerun and record failures.
+- [x] **I07 A list from Zotero, groups included (R27).** `biblio add zotero
+  REF... | --from refs.txt [--library user|group:<id>|all]`: refs may also be
+  titles; with `--local` the user's library and every group library are
+  searched (`open_libraries`) and the matching library is shown; duplicates
+  of one paper (same DOI, else title) resolve to the copy with a stored PDF,
+  the others listed; a group PDF the API cannot serve is copied from
+  Zotero's `storage/` folder; a summary at the end (added, already present,
+  no PDF, not found, duplicates) and a `next:` line with `--keys` for
+  GROBID and the docling batch. Tested with a fake client only: the real
+  14-paper check (incl. Pfeiffer & Foster 2013 in SirotaLab) needs the
+  laptop.
 - [x] **I08 Extract named papers (R28).** `biblio docling batch --keys a,b |
   --from list.txt` converts exactly those papers (a batch in a shared copy no
   longer picks up another session's pending paper); `grobid run` takes the
