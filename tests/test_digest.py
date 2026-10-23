@@ -138,14 +138,20 @@ def test_talk_context_adds_rigor_and_figure_roles(cfg):
         "question": "q", "setup": [], "one_line": "x",
         "claims": [{"id": "C1", "claim": "c", "kind": "finding", "evidence": "e", "caveats": "",
                     "section": ids["Results"], "quote": "C3 ripples occurred within spindles"}],
-        "rigor_notes": ["C1: events as samples inflate the df"],
+        "rigor_notes": [{"note": "events as samples inflate the df", "claims": ["C1"], "section": ids["Results"],
+                         "quote": "C3 ripples occurred within spindles in both the hippocampus"},
+                        {"note": "only 3 vehicle rats but 8 animals in the Methods", "claims": ["C1"],
+                         "section": ids["Results"], "quote": "eight vehicle rats were recorded for the analysis"}],
         "figure_roles": [{"figure": "Figure 1", "role": "the three ripple types"}],
     })
     llm = _fake_llm([resp])
     d = dg.digest_claims(cfg, KEY, context="talk", llm=llm)
-    assert "rigor_notes" in llm.calls[0] and d["rigor_notes"] == ["C1: events as samples inflate the df"]
+    assert "rigor_notes" in llm.calls[0]
+    good, wrong = d["rigor_notes"]
+    assert good["quote_status"] == "exact" and wrong["quote_status"] != "exact"   # a misread note shows up
     md = dg.digest_paths(cfg, KEY, "claims", "talk")[1].read_text()
     assert "## Rigor notes for discussion" in md and "**Figure 1**: the three ripple types" in md
+    assert "rests on" in md and "quote MISSING" in md
 
 
 def test_llm_errors_and_bad_json(cfg):
@@ -171,3 +177,29 @@ def test_claude_cli_errors_on_stdout_are_reported(monkeypatch):
     out = llm._call_claude_cli(system="s", prompt="p", model="sonnet", max_tokens=10)
     assert "OAuth session expired" in out["error"] and "/login" in out["error"]
     assert seen["cwd"] and "biblio-llm-" in seen["cwd"]          # never the user's project
+
+
+def test_claims2_verifies_caveats_terms_and_inconsistencies(cfg):
+    ids = _secs(cfg)
+    resp = json.dumps({
+        "question": "q", "setup": [], "one_line": "x",
+        "claims": [{"id": "C1", "claim": "c", "kind": "finding", "evidence": "e", "section": ids["Results"],
+                    "quote": "C3 ripples occurred within spindles",
+                    "caveats": [{"by": "authors", "text": "speculative", "section": ids["Discussion"],
+                                 "quote": "Small ripples after deltas may reflect a cortical query"},
+                                {"by": "reader", "text": "3 animals"}]}],
+        "terms": [{"term": "C2 ripple", "layer": "derived", "definition": "less affected cluster", "differs": "",
+                   "section": ids["Results"], "quote": "C2 ripples were less affected by the cortical plasticity"}],
+        "inconsistencies": [{"what": "abstract vs results", "passages": [
+            {"section": ids["Abstract"], "quote": "Ripples come in three types."},
+            {"section": ids["Results"], "quote": "Ripples come in seven types everywhere."}]}],
+    })
+    d = dg.digest_claims(cfg, KEY, llm=_fake_llm([resp]))
+    cav = d["claims"][0]["caveats"]
+    assert cav[0]["quote_status"] == "exact" and "quote_status" not in cav[1]     # reader caveats: no quote
+    assert d["terms"][0]["quote_status"] == "exact"
+    assert [p["quote_status"] for p in d["inconsistencies"][0]["passages"]] == ["exact", "missing"]
+    assert d["meta"]["prompt_version"] == "claims-2"
+    md = dg.digest_paths(cfg, KEY, "claims", "wiki")[1].read_text()
+    assert "## Terms" in md and "**C2 ripple**" in md and "## Internal inconsistencies" in md
+    assert "authors: speculative (exact)" in md and "reader: 3 animals" in md

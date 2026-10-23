@@ -25,7 +25,7 @@ from .sections import Section, read_sections
 
 MODES = ("claims",)
 CONTEXTS = ("wiki", "talk")
-PROMPT_VERSION = "claims-1"
+PROMPT_VERSION = "claims-2"   # claims-2: quoted author caveats, terms, inconsistencies, quoted rigor notes
 
 SYSTEM = """You digest one scientific paper for a research group's knowledge base. You are careful and literal:
 you report what the paper claims and on what evidence, you never add facts or numbers that are not in the text,
@@ -43,19 +43,40 @@ Return JSON only (no prose, no code fence) with this shape:
       "claim": "one of the paper's own claims, in plain words, one sentence",
       "kind": "finding | method | interpretation",
       "evidence": "where and how it is shown: figure or table, test, statistic, n, exactly as reported",
-      "caveats": "limits stated by the authors (prefix 'authors:') and methodological limits a careful reader would raise (prefix 'reader:'); empty if none",
+      "caveats": [
+        {{"by": "authors", "text": "a limit the authors state", "section": "S20", "quote": "their words, 8-40 words"}},
+        {{"by": "reader", "text": "a methodological limit a careful reader would raise (no quote)"}}
+      ],
       "section": "S12",
       "quote": "8-40 words copied exactly from that section that state or show the claim"
     }}
+  ],
+  "terms": [
+    {{"term": "Ripple", "layer": "measured | derived | interpreted",
+      "definition": "how this paper operationally defines it (thresholds, bands, windows), as written",
+      "differs": "how it differs from the field's usual meaning, or empty",
+      "section": "S18", "quote": "the defining words, 8-40 words"}}
+  ],
+  "inconsistencies": [
+    {{"what": "two passages of the paper that disagree (e.g. abstract vs discussion), one sentence",
+      "passages": [{{"section": "S4", "quote": "..."}}, {{"section": "S38", "quote": "..."}}]}}
   ],
   "one_line": "the paper's story in one sentence"{talk_fields}
 }}
 
 Rules:
-- 6 to 15 claims, in the order of the Results, then the main interpretations from the Discussion (kind "interpretation").
+- 8 to 18 claims: every Results claim backed by a test statistic or a figure, in the order of the Results,
+  then the main interpretations from the Discussion (kind "interpretation").
 - Numbers, units and test statistics only as they appear in the text. Do not compute or round.
-- The quote must be a contiguous span of the named section, copied exactly, including odd spellings or spacing
-  produced by text extraction. Never paraphrase inside a quote, never join two sentences.
+- Every quote (claims, author caveats, terms, inconsistencies{talk_quote}) must be a contiguous span of the named
+  section, copied exactly, including odd spellings or spacing produced by text extraction. Never paraphrase inside
+  a quote, never join two sentences. A reader caveat has no quote: it is your own reasoning.
+- terms: the 6-12 terms a reader must pin down to follow the paper (places, signals, events, derived categories,
+  the authors' own constructs). layer: measured (detected or recorded), derived (built from measurements),
+  interpreted (the authors' reading).
+- inconsistencies: only real disagreements between two passages of this paper, each side quoted; an empty list
+  is a good answer. Check counts and group sizes against every place they are stated before calling them
+  inconsistent (e.g. "8 animals, 4 per group, one excluded" is consistent with "3 vehicle animals").
 - Prefer quotes from the Results over the Abstract.{talk_rules}
 
 Paper: {citekey}
@@ -64,12 +85,15 @@ Paper: {citekey}
 """
 
 TALK_FIELDS = """,
-  "rigor_notes": ["points a journal club should discuss: statistics (events vs animals as samples), sample sizes,
-                   single channels, thresholds set by eye, causal language, alternative explanations"],
-  "figure_roles": [{"figure": "Figure 1", "role": "what this figure would show in a talk, one line"}]"""
+  "rigor_notes": [{{"note": "a point a journal club should discuss: statistics (events vs animals as samples),
+                    sample sizes, single channels, thresholds set by eye, causal language, alternative
+                    explanations", "claims": ["C3"], "section": "S24", "quote": "the passage the note rests on"}}],
+  "figure_roles": [{{"figure": "Figure 1", "role": "what this figure would show in a talk, one line"}}]"""
 TALK_RULES = """
-- Rigor notes are your own critical reading; tie each to a claim id where it applies.
+- Rigor notes are your own critical reading, but each rests on a passage: quote it (the method, the statistic,
+  the wording) so the note can be checked; tie it to claim ids.
 - figure_roles: one entry per main figure listed below, in order."""
+TALK_QUOTE = ", rigor notes"
 
 REPAIR = """For each claim below, give a quote of 8-40 words copied exactly, as a contiguous span, from the section text
 shown under it, that states or shows the claim. Return JSON only: {{"quotes": {{"C1": "...", ...}}}}.
@@ -169,7 +193,8 @@ def digest_claims(
     talk = context == "talk"
     figures = _main_figures(cfg, key) if talk else []
     prompt = INSTRUCTIONS.format(
-        talk_fields=TALK_FIELDS if talk else "", talk_rules=TALK_RULES if talk else "", citekey=key,
+        talk_fields=TALK_FIELDS.replace("{{", "{").replace("}}", "}") if talk else "",
+        talk_rules=TALK_RULES if talk else "", talk_quote=TALK_QUOTE if talk else "", citekey=key,
         sections=_sections_block(sections) + (("\n\nMain figures:\n" + "\n".join(figures)) if figures else ""))
     result = llm(system=SYSTEM, prompt=prompt, model=model, max_tokens=8000)
     if result.get("error"):
@@ -177,6 +202,14 @@ def digest_claims(
     data = _parse_json(result.get("text"))
     claims = [c for c in data.get("claims") or [] if isinstance(c, dict) and c.get("claim")]
     _verify(cfg, key, source, claims)
+    for c in claims:                                     # author caveats carry their own quote
+        if isinstance(c.get("caveats"), list):
+            _verify(cfg, key, source, [x for x in c["caveats"] if isinstance(x, dict) and x.get("quote")])
+    terms = [t for t in data.get("terms") or [] if isinstance(t, dict) and t.get("term")]
+    _verify(cfg, key, source, terms)
+    inconsistencies = [x for x in data.get("inconsistencies") or [] if isinstance(x, dict) and x.get("what")]
+    for x in inconsistencies:
+        _verify(cfg, key, source, [q for q in x.get("passages") or [] if isinstance(q, dict)])
 
     # one repair pass: only the claim's own section, asked for an exact span
     bad = [c for c in claims if c["quote_status"] != "exact" and c.get("section") in by_id]
@@ -215,15 +248,25 @@ def digest_claims(
         "question": data.get("question", ""),
         "setup": data.get("setup") or [],
         "claims": claims,
+        "terms": terms,
+        "inconsistencies": inconsistencies,
         "one_line": data.get("one_line", ""),
     }
     if talk:
-        digest["rigor_notes"] = data.get("rigor_notes") or []
+        notes = [n if isinstance(n, dict) else {"note": str(n)} for n in data.get("rigor_notes") or []]
+        _verify(cfg, key, source, [n for n in notes if n.get("quote")])
+        digest["rigor_notes"] = notes
         digest["figure_roles"] = data.get("figure_roles") or []
     json_path.parent.mkdir(parents=True, exist_ok=True)
     json_path.write_text(json.dumps(digest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     md_path.write_text(to_markdown(digest), encoding="utf-8")
     return digest
+
+
+def _status(item: dict[str, Any]) -> str:
+    status = item.get("quote_status", "none")
+    return "exact" if status == "exact" else f"quote {status.upper()}" + (
+        f": {item['quote_diff']}" if item.get("quote_diff") else "")
 
 
 def to_markdown(digest: dict[str, Any]) -> str:
@@ -256,8 +299,19 @@ def to_markdown(digest: dict[str, Any]) -> str:
         lines.append("")
         lines.append(f"- **Kind:** {c.get('kind', '')}")
         lines.append(f"- **Evidence:** {c.get('evidence', '')}")
-        if c.get("caveats"):
-            lines.append(f"- **Caveats:** {c['caveats']}")
+        cav = c.get("caveats")
+        if isinstance(cav, str) and cav:                      # claims-1 digests
+            lines.append(f"- **Caveats:** {cav}")
+        elif isinstance(cav, list) and cav:
+            lines.append("- **Caveats:**")
+            for x in cav:
+                if not isinstance(x, dict):
+                    continue
+                if x.get("quote"):
+                    lines.append(f"  - {x.get('by', '')}: {x.get('text', '')} ({_status(x)}) "
+                                 f"\"{x['quote']}\"")
+                else:
+                    lines.append(f"  - {x.get('by', '')}: {x.get('text', '')}")
         where = f"{c.get('section_title', '')} ({c.get('section', '')})".strip()
         status = c.get("quote_status", "none")
         lines.append(f"- **Source:** {where}; quote {status}"
@@ -266,10 +320,40 @@ def to_markdown(digest: dict[str, Any]) -> str:
         if c.get("quote"):
             lines.append(f'> "{c["quote"]}" [@{key}]')
             lines.append("")
+    terms = digest.get("terms") or []
+    if terms:
+        lines += ["## Terms", "", "| Term | Layer | In this paper | Differs from the field | Source |",
+                  "|---|---|---|---|---|"]
+        for t in terms:
+            cell = lambda v: str(v or "").replace("|", "\\|")  # noqa: E731
+            lines.append(f"| **{cell(t.get('term'))}** | {cell(t.get('layer'))} | {cell(t.get('definition'))} | "
+                         f"{cell(t.get('differs'))} | {cell(t.get('section'))}, quote {_status(t)} |")
+        lines.append("")
+    inc = digest.get("inconsistencies")
+    if inc is not None:
+        lines += ["## Internal inconsistencies", ""]
+        for x in inc:
+            lines.append(f"- {x.get('what', '')}")
+            for q in x.get("passages") or []:
+                lines.append(f"  - {q.get('section', '')} ({_status(q)}): \"{q.get('quote', '')}\"")
+        if not inc:
+            lines.append("None found.")
+        lines.append("")
     lines += ["## In one line", "", digest.get("one_line", ""), ""]
     if "rigor_notes" in digest:
         lines += ["## Rigor notes for discussion", ""]
-        lines += [f"- {n}" for n in digest["rigor_notes"]] or ["-"]
+        for n in digest["rigor_notes"]:
+            if isinstance(n, str):                            # claims-1 digests
+                lines.append(f"- {n}")
+                continue
+            ids = f" ({', '.join(n.get('claims') or [])})" if n.get("claims") else ""
+            lines.append(f"- {n.get('note', '')}{ids}")
+            if n.get("quote"):
+                lines.append(f"  - rests on {n.get('section', '')} ({_status(n)}): \"{n['quote']}\"")
+            else:
+                lines.append("  - rests on: no passage given (unchecked)")
+        if not digest["rigor_notes"]:
+            lines.append("-")
         lines += ["", "## Figure roles", ""]
         lines += [f"- **{f.get('figure', '')}**: {f.get('role', '')}" for f in digest.get("figure_roles") or []] or ["-"]
         lines.append("")

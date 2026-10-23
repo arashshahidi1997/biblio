@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.3 (2026-10-23)
+
+### Changed
+- **Claims prompt `claims-2`** (journal-club R25): author caveats and rigor notes carry a quoted passage checked against the full text; a `terms` section (layer measured/derived/interpreted, operational definition, difference from the field's usage) and an `inconsistencies` section (two passages that disagree, both quoted); every Results claim with a test statistic is asked for. Digests made with `claims-1` still render; `--force` upgrades them.
+
 ## 0.3.2 (2026-10-23)
 
 From journal-club's 0.3.1 run (R17-R24).

@@ -228,10 +228,11 @@ Requests from journal-club are tagged R01 to R06 below.
   figures numbered and captioned, vector) and sebastian_2023 (Figs 1-7 and
   ED 1-10 from 24 pictures). Poppler only (no PyMuPDF, AGPL).
 
-- [ ] **D12 claims-2 prompt.** From the first synthesis run: give authors'
-  own caveats their own verified quote (a synthesis needs them most), and add
-  a `terms` section (the hand digest's measured / derived / interpreted
-  tables, R06). Bump `PROMPT_VERSION`.
+- [x] **D12 claims-2 prompt (R25).** Quoted author caveats and rigor notes,
+  `terms` (layer, operational definition, difference from the field),
+  `inconsistencies` (both passages quoted). On alemanzapata_2026: 18 claims
+  incl. the missed C5, all quotes exact, 10 terms, 2 real inconsistencies,
+  no false rigor note. 2026-10-23.
 - [ ] **D13 Cross-digest view.** `biblio digest claims-table KEY... [--grep]`:
   claims from several digests side by side, filtered by words, kind or
   section; the "map" step of `wiki-synthesize` read 7 digests (120 KB) by hand.
