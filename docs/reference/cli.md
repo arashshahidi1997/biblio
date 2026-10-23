@@ -98,6 +98,11 @@ biblio quotes check sources.md                  # every '- id, key, section, L<n
 biblio quotes check a.md b.md --json out.json   # results as JSON
 biblio quotes check sources.md --fix-lines      # rewrite wrong L<n> with the located line
 
+# where is each paper of a list? (project, pools, Zotero, or a doi.org link)
+biblio locate --from capture.txt                # DOIs or "Author Year Title", one per line; markdown table
+biblio locate --from capture.txt --openalex     # DOIs and titles from OpenAlex for lines without a DOI
+biblio locate --from capture.txt --zotero local # also the Zotero app's libraries (groups too); or a zotero.sqlite
+
 # graph expansion
 biblio graph expand                             # both directions (default)
 biblio graph expand --direction references      # papers your corpus cites

@@ -321,6 +321,15 @@ Requests from journal-club are tagged R01 to R06 below.
   GROBID and the docling batch. Tested with a fake client only: the real
   14-paper check (incl. Pfeiffer & Foster 2013 in SirotaLab) needs the
   laptop.
+- [x] **I09 Locate a list (R30).** `biblio locate ITEM... | --from list.txt
+  [--zotero zotero.sqlite|export.bib|local] [--openalex] [--json OUT]`: per
+  DOI or "Author Year Title" line, the best holding (project or pool full
+  text, PDF only, entry only; Zotero with library, item key, PDF or not, and
+  duplicate items) or "not held", with a doi.org link; OpenAlex fills DOIs
+  and catches papers held under another title. Matching: DOI, title with the
+  year within one, first author (accents folded) and year with all title
+  words. Markdown table plus counts. On journal-club: Navarro-Lobato 2023,
+  Dudek 2016 and Buzsáki 2015 (pixecog pool) found from author-year lines.
 - [x] **I08 Extract named papers (R28).** `biblio docling batch --keys a,b |
   --from list.txt` converts exactly those papers (a batch in a shared copy no
   longer picks up another session's pending paper); `grobid run` takes the

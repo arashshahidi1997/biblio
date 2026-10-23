@@ -334,6 +334,16 @@ def _build_parser() -> argparse.ArgumentParser:
                              help="Input JSONL (default: bib/derivatives/openalex/resolved.jsonl).")
     graph_local.add_argument("--fetch", action="store_true", help="Fetch seed works missing from the cache.")
 
+    p_loc = sub.add_parser("locate", help="Where is each paper of a list (DOIs or 'Author Year Title')?")
+    p_loc.add_argument("items", nargs="*", help="DOIs or 'Author Year Title' (quote each).")
+    p_loc.add_argument("--from", dest="items_from", type=Path, help="One item per line (# comments).")
+    p_loc.add_argument("--zotero", help="zotero.sqlite or a BibTeX export, or 'local' for the Zotero app's API.")
+    p_loc.add_argument("--library", default="all", help="With --zotero local: user, group:<id> or all (default).")
+    p_loc.add_argument("--openalex", action="store_true",
+                       help="Look up DOIs (doi.org links) and titles in OpenAlex for items without a DOI.")
+    p_loc.add_argument("--json", dest="json_out", type=Path, help="Also write the results as JSON.")
+    p_loc.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+
     p_refs = sub.add_parser("refs", help="A held paper's references: what can we read now?")
     refs_sub = p_refs.add_subparsers(dest="refs_cmd", required=True)
     refs_triage = refs_sub.add_parser(
@@ -2032,6 +2042,38 @@ def main(argv: Iterable[str] | None = None) -> None:
         else:
             for x in sections:
                 print(f"{x.id:5} line {x.line:<5} {x.words:5} words  {x.title}")
+        return
+
+    if args.command == "locate":
+        import json as _json
+        from .locate import as_json, locate, to_markdown
+        repo_root = (args.root.expanduser().resolve() if args.root else find_repo_root())
+        cfg = load_biblio_config(default_config_path(root=repo_root), root=repo_root)
+        items = list(args.items)
+        if args.items_from:
+            items += [ln.split("#", 1)[0].strip().lstrip("-* ").strip()
+                      for ln in args.items_from.read_text(encoding="utf-8").splitlines()]
+        items = [i for i in dict.fromkeys(items) if i]
+        if not items:
+            raise SystemExit("[ERROR] name items (DOIs or 'Author Year Title'), or --from list.txt")
+        zpath, libs = None, None
+        if args.zotero == "local":
+            from .zotero_add import local_config, open_libraries
+            try:
+                libs = open_libraries(local_config(None, repo_root), args.library)
+            except Exception as exc:  # noqa: BLE001
+                raise SystemExit(f"[ERROR] Zotero local API: {exc} (is Zotero running?)")
+        elif args.zotero:
+            zpath = Path(args.zotero).expanduser()
+            if not zpath.is_file():
+                raise SystemExit(f"[ERROR] no such file: {zpath}")
+        rows = locate(cfg, items, zotero=zpath, zotero_libraries=libs, openalex=bool(args.openalex))
+        print(to_markdown(rows), end="")
+        if not (args.zotero):
+            print("(Zotero not searched: pass --zotero local on the Zotero machine, or a zotero.sqlite)")
+        if args.json_out:
+            args.json_out.write_text(_json.dumps(as_json(rows), indent=1, ensure_ascii=False) + "\n",
+                                     encoding="utf-8")
         return
 
     if args.command == "quotes":

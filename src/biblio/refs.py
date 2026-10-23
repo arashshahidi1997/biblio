@@ -66,6 +66,8 @@ class Holding:
     year: int | None = None
     pdf: bool = False
     fulltext: bool = False
+    author: str = ""    # first author's family name, lower case
+    library: str = ""   # Zotero library name ("My Library", a group's name)
 
     @property
     def status(self) -> str:
@@ -143,8 +145,23 @@ def _bib_records(path: Path) -> Iterable[dict[str, Any]]:
             "title": str(f.get("title") or ""),
             "year": _year(f.get("year") or f.get("date")),
             "file": str(f.get("file") or ""),
+            "author": _first_family(entry),
         })
     return out
+
+
+def family_key(name: str) -> str:
+    """A family name for matching: lower case, no accents, spaces or hyphens ("Buzsáki" -> "buzsaki")."""
+    import unicodedata
+    folded = "".join(c for c in unicodedata.normalize("NFKD", name or "") if not unicodedata.combining(c))
+    return normalize_title(folded).replace(" ", "")
+
+
+def _first_family(entry: Any) -> str:
+    people = entry.persons.get("author") or entry.persons.get("editor") or []
+    if not people:
+        return ""
+    return family_key(" ".join(people[0].last_names) or " ".join(people[0].first_names))
 
 
 def pool_name(pool_root: Path) -> str:
@@ -177,7 +194,7 @@ def add_project(index: HoldingIndex, cfg: BiblioConfig) -> None:
             seen.add(r["key"])
             pdf = (cfg.pdf_root / cfg.pdf_pattern.format(citekey=r["key"])).is_file()
             index.add(Holding("project", r["key"], r["doi"], r["title"], r["year"],
-                              pdf=pdf, fulltext=_docling_done(cfg.out_root, r["key"])))
+                              pdf=pdf, fulltext=_docling_done(cfg.out_root, r["key"]), author=r["author"]))
 
 
 def _pool_derivatives(pool_root: Path) -> Path | None:
@@ -198,7 +215,8 @@ def add_pool(index: HoldingIndex, pool_root: Path) -> None:
         key = r["key"]
         pdf = (pool_root / key / f"{key}.pdf").is_file() or (pool_root / f"{key}.pdf").is_file()
         fulltext = deriv is not None and _docling_done(deriv / "docling", key)
-        index.add(Holding(name, key, r["doi"], r["title"], r["year"], pdf=pdf, fulltext=fulltext))
+        index.add(Holding(name, key, r["doi"], r["title"], r["year"], pdf=pdf, fulltext=fulltext,
+                          author=r["author"]))
 
 
 def add_zotero(index: HoldingIndex, path: Path) -> int:
@@ -208,7 +226,7 @@ def add_zotero(index: HoldingIndex, path: Path) -> int:
     n = 0
     for r in _bib_records(path):
         index.add(Holding("zotero", r["key"], r["doi"], r["title"], r["year"],
-                          pdf=".pdf" in r["file"].lower()))
+                          pdf=".pdf" in r["file"].lower(), author=r["author"]))
         n += 1
     return n
 
@@ -221,6 +239,10 @@ JOIN fields f ON f.fieldID = d.fieldID
 JOIN itemDataValues v ON v.valueID = d.valueID
 WHERE f.fieldName IN ('title', 'DOI', 'date', 'extra')
   AND i.itemID NOT IN (SELECT itemID FROM deletedItems)
+"""
+_ZOTERO_FIRST_SQL = """
+SELECT ic.itemID, c.lastName FROM itemCreators ic JOIN creators c ON c.creatorID = ic.creatorID
+WHERE ic.orderIndex = 0
 """
 _ZOTERO_PDF_SQL = """
 SELECT DISTINCT parentItemID FROM itemAttachments
@@ -238,6 +260,14 @@ def _add_zotero_sqlite(index: HoldingIndex, path: Path) -> int:
             it = items.setdefault(item_id, {"key": f"{lib}:{key}"})
             it[fname] = value
         with_pdf = {row[0] for row in con.execute(_ZOTERO_PDF_SQL)}
+        first: dict[int, str] = {}
+        libraries: dict[int, str] = {1: "My Library"}
+        try:
+            for item_id, last in con.execute(_ZOTERO_FIRST_SQL):
+                first[item_id] = family_key(last or "")
+            libraries.update({lib: name for lib, name in con.execute("SELECT libraryID, name FROM groups")})
+        except sqlite3.Error:
+            pass
     finally:
         con.close()
     for item_id, it in items.items():
@@ -245,8 +275,10 @@ def _add_zotero_sqlite(index: HoldingIndex, path: Path) -> int:
         if not doi:  # Zotero keeps DOIs of some item types in Extra
             m = re.search(r"^DOI:\s*(\S+)", it.get("extra") or "", re.M | re.I)
             doi = m.group(1) if m else ""
+        lib_id = int(it["key"].split(":", 1)[0])
         index.add(Holding("zotero", it["key"], normalize_doi(doi), it.get("title") or "",
-                          _year(it.get("date")), pdf=item_id in with_pdf))
+                          _year(it.get("date")), pdf=item_id in with_pdf, author=first.get(item_id, ""),
+                          library=libraries.get(lib_id, f"library {lib_id}")))
     return len(items)
 
 
