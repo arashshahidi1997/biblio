@@ -183,6 +183,15 @@ Requests from journal-club are tagged R01 to R06 below.
   and skill `wiki-review` (agent pre-checks and proposes flags, the person
   decides). Open: `wiki-query` (answers from the wiki, then full text by
   citekey and section). (B4, P11)
+- [x] **W24 Skills audit (2026-10-24).** Test `tests/test_skills_commands.py`:
+  every `biblio ...` command a bundled skill names exists in the CLI, and
+  each description says when to use it. New skill `literature-sourcing`
+  (question -> held papers -> exact quotes by line -> source file -> `quotes
+  check`, journal-club's T47 loop). `biblio-batch-curate` moved here from
+  projio (it is biblio's pipeline). `zotero-add` covers lists and group
+  libraries. Open: delivery to Claude Code with real descriptions (projio
+  sync wrote command files whose description was a comment, so agents never
+  picked a skill from the task); evals beyond the one `wiki-ingest` run.
 - [ ] **W12 promote.** Gate check and plan for the lab hub. (SPEC §9)
 - [ ] **W13 Spec home.** Move the wiki SPEC from pixecog into biblio's docs
   after its first review, so method and tools version together.

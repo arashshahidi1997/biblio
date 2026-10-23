@@ -69,17 +69,20 @@ blocks (`> **Contested.** ...`) and Obsidian callouts are not treated as quotes.
 
 Shipped with biblio (`src/biblio/skills/`). In a projio project they need no
 install: projio discovers them through biblio's `projio.skills` entry point,
-`skill_read` returns them, and `projio sync` writes a `.claude/commands/`
-wrapper per skill. Elsewhere, `biblio skills install` copies them into
-`.claude/skills/`.
+`skill_read` returns them, and `projio sync` makes each available to Claude
+Code with its name and description. Elsewhere, `biblio skills install` copies them into
+`.claude/skills/`. A test checks that every `biblio` command a skill names
+exists, and that each description says when to use the skill.
 
 | Skill | Purpose | Uses | Shipped |
 |-------|---------|------|---------|
 | `wiki-ingest` | a source (paper, note, code) into the pages it touches; with a person present, plan first when more than 3 pages change | `stub`, `lint`, `hubs`, `figure` | yes |
 | `wiki-maintain` | lint, read findings, propose and apply refactors with dry runs, re-lint | `lint`, `hubs`, `relink`, `merge`, `extract` | yes |
 | `wiki-review` | help a person review: packets with claims beside quotes, unbacked citations and numbers; record their decision | `review packet\|accept\|flag\|reopen` | yes |
-| `zotero-add` | one paper from Zotero into the project (laptop to server) | `biblio add zotero` | yes |
-| `wiki-synthesize` | pages that combine sources: concept or theory pages with evidence for and against, method comparisons, open questions; every statement from a paper carries a checked quote, own reasoning marked **Synthesis:** | `digest claims`, `stub`, `lint`, `review packet` | yes (draft) |
+| `zotero-add` | papers from Zotero (personal and group libraries) into the project, laptop to server | `add zotero`, `locate`, `docling batch --keys` | yes |
+| `literature-sourcing` | answer a question or back a slide's claims with verbatim quotes: held papers first, a capture list for the rest, a source file, `quotes check` | `digest claims-table`, `fulltext`, `locate`, `quotes check` | yes |
+| `biblio-batch-curate` | a batch of papers from references to extracted, compiled, indexed (moved from projio) | `paper_lookup`, `biblio_job`, `add zotero`, `bibtex merge` | yes |
+| `wiki-synthesize` | pages that combine sources: concept or theory pages with evidence for and against, method comparisons, open questions; every statement from a paper carries a checked quote, own reasoning marked **Synthesis:** with `Rests on:` | `digest claims`, `claims-table`, `stub`, `lint`, `review packet` | yes |
 | `wiki-query` | answer from the wiki, then from source full text by citekey and section; offer to file the answer | `rag` is not used | no (W11) |
 
 ## Working in the editors

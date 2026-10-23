@@ -1,25 +1,27 @@
 ---
 name: zotero-add
 description: >
-  Bring one paper from the user's Zotero library into a project: bibliography
-  entry under biblio's citekey, PDF copied, then GROBID and docling on the
-  server. Covers the usual two-machine setup (Zotero on a laptop, extraction on
-  a server) and the web-API route. Use when asked to "add this paper from
-  Zotero", "pull <citekey> into the project" or to ingest the references a
-  `biblio refs triage` lists as PDF-in-Zotero.
+  Bring papers from the user's Zotero libraries (personal and group) into a
+  project: bibliography entries under biblio's citekeys, PDFs copied,
+  duplicates resolved to the copy with a PDF, then GROBID and docling for
+  exactly those papers on the server. Covers the two-machine setup (Zotero on
+  a laptop, extraction on a server) and the web-API route. Use when asked to
+  "add these papers from Zotero", "pull <citekey> into the project", or to
+  ingest the references `biblio refs triage` or `biblio locate` list as held
+  in Zotero.
 metadata:
-  short-description: One Zotero item -> srcbib entry + PDF -> sync -> GROBID + docling
+  short-description: Zotero items -> srcbib entries + PDFs -> sync -> GROBID + docling (named keys)
   tags: [zotero, ingest, literature]
   tooling:
-    cli: [biblio add zotero, biblio refs triage, biblio grobid run, biblio docling run]
+    cli: [biblio add zotero, biblio locate, biblio refs triage, biblio grobid run, biblio docling batch]
 ---
 
-# Add a paper from Zotero
+# Add papers from Zotero
 
 ## When to use
 
-- One paper (or a short list, one at a time) is in the user's Zotero and
-  should be read in this project.
+- Papers (one, or a list) are in the user's Zotero, personal or group
+  library, and should be read in this project.
 - Not for syncing a whole library or collection: that is `biblio zotero pull`.
 
 ## Where each step runs
@@ -65,8 +67,11 @@ PDFs stored in Zotero's cloud storage; linked files are never reachable.
 5. **For a talk's background**: `biblio refs triage <target> --zotero
    <path to zotero.sqlite>` (usually `~/Zotero/zotero.sqlite`; a snap install
    keeps it in `~/snap/zotero-snap/common/Zotero/`) lists the references held in Zotero with a PDF;
-   add them one by one with steps 1 to 4, rerun the triage, and report what
-   is still absent.
+   put their DOIs in a file and add them in one call (`biblio add zotero
+   --from refs.txt --local`, steps 1 to 4), rerun the triage, and report what
+   is still absent. For a list that is not one paper's references (a room's
+   questions, a reading list), `biblio locate --from list.txt --zotero local`
+   says per paper whether it is in the project, a pool or Zotero.
 6. **A PDF the API cannot serve** (`pdf: failed` for a group item): with
    `--local` biblio also copies it from Zotero's own `storage/<attachment
    key>/` folder (`~/Zotero`, a snap install's `~/snap/zotero-snap/common/Zotero`,

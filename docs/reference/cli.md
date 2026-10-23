@@ -78,7 +78,7 @@ biblio add doi 10.xxxx/example
 biblio add openalex W1234567890
 biblio add orcid 0000-0001-2345-6789
 
-# one paper from Zotero (entry under biblio's citekey + PDF); see the zotero-add skill
+# papers from Zotero (entries under biblio's citekeys + PDFs); see the zotero-add skill
 biblio add zotero ABCD1234 --local              # item key, DOI or citekey; local API on the Zotero machine
 biblio add zotero 10.1093/sleep/zsag001         # web API (zotero.library_id + BIBLIO_ZOTERO_API_KEY)
 biblio add zotero KEY --local --dry-run         # show the item and biblio's key, write nothing
