@@ -86,6 +86,9 @@ biblio add zotero KEY --local --dry-run         # show the item and biblio's key
 # full text, digests and quotes
 biblio fulltext KEY                             # sections with line numbers (project or pool)
 biblio fulltext KEY --grep "spindle"            # lines as grep -n counts them in <key>.md
+biblio fulltext KEY --lines 288-292             # those lines, cleaned (fi, ~5 ms, Buzsáki, spacing)
+biblio fulltext KEY --lines 290 --raw           # docling's text as written
+biblio fulltext KEY --changes                   # every cleaning substitution, by line
 biblio digest claims KEY [--context talk]       # claims with checked quotes
 biblio digest claims --from keys.txt --screen   # a list in the background; existing digests skipped
 biblio digest claims --from keys.txt --stale    # also redo digests made with an older prompt

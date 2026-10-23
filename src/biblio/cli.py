@@ -676,6 +676,11 @@ def _build_parser() -> argparse.ArgumentParser:
     p_ft.add_argument("citekey")
     p_ft.add_argument("--grep", help="Find exact wording (case-insensitive regex); prints section and line per hit.")
     p_ft.add_argument("--section", help="Print one section by id (S12) or title.")
+    p_ft.add_argument("--lines", help="Print lines A-B (or one line A) of <key>.md, numbered as grep -n.")
+    p_ft.add_argument("--raw", action="store_true",
+                      help="Docling's text as written; default is the cleaned text (same lines).")
+    p_ft.add_argument("--changes", action="store_true",
+                      help="List the cleaning substitutions: line, kind, before -> after.")
     p_ft.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
 
     p_quotes = sub.add_parser("quotes", help="Quotes in any markdown file, checked against the cited papers.")
@@ -1940,10 +1945,28 @@ def main(argv: Iterable[str] | None = None) -> None:
             if sec is None:
                 raise SystemExit(f"[ERROR] no section {args.section!r}; see `biblio fulltext {args.citekey}`")
             print(f"## [{sec.id}] {sec.title} (line {sec.line})\n\n{sec.text}")
+        elif args.changes:
+            from .sections import read_fulltext
+            from .textclean import clean_text, describe
+            _, subs = clean_text(read_fulltext(source))
+            for sub in subs:
+                print(f"{sub.line}: {sub.rule:13} {describe(sub)}")
+            counts: dict[str, int] = {}
+            for sub in subs:
+                counts[sub.rule] = counts.get(sub.rule, 0) + 1
+            print(f"{len(subs)} substitution(s)" + (": " + ", ".join(f"{n} {k}" for k, n in sorted(counts.items()))
+                                                    if counts else ""))
+        elif args.lines:
+            from .sections import read_fulltext, text_lines
+            lines = text_lines(read_fulltext(source, clean=not args.raw))
+            a, _, b = args.lines.partition("-")
+            lo, hi = int(a), int(b or a)
+            for no in range(max(1, lo), min(len(lines), hi) + 1):
+                print(f"{no}: {lines[no - 1]}")
         elif args.grep:
             rx = _re.compile(args.grep, _re.I)
             from .sections import read_fulltext, text_lines
-            lines = text_lines(read_fulltext(source))
+            lines = text_lines(read_fulltext(source, clean=not args.raw))
             starts = sorted((x.line, x) for x in sections if x.line)
             hits = 0
             for no, line in enumerate(lines, 1):

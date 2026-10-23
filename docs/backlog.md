@@ -253,6 +253,20 @@ Requests from journal-club are tagged R01 to R06 below.
   checked) also stored in `bib/derivatives/digest/_runs/claims-<ctx>-<ts>.{json,md}`;
   `--screen` runs it detached with a log beside the summary. Exit 1 if any
   paper failed.
+- [x] **D16 Clean docling text (R32).** `biblio.textclean`, applied when a
+  full text is read (sections, digests, `fulltext`, the quote checker), line
+  for line so line numbers stay those of `<key>.md`: ligature glyph names
+  rejoined with a shipped word list (`signi /uniFB01 cant`, `the /uniFB01
+  rst`), symbol-font codes mapped where ~820 papers agree (`/C24` ~, `/C0` −,
+  `/C14` °, `/C6` ±, `/C2` ×, `/C20`/`/C21` ≤ ≥) and others reported, accents
+  before their letter (`Buzs /C19 aki`), HTML entities, and words run
+  together split only where the paper writes the same word pairs apart
+  (conservative: long glued runs with two rare words stay). The checker
+  accepts a quote matching the clean or the raw text, so old quotes with
+  artefacts still verify. `biblio fulltext KEY --changes` lists the
+  substitutions; `--lines A-B`, `--raw`. Nothing is written into pools.
+  On journal-club's Oliva 2016: `(~5 ms)`, `Sharp-wave ripples (SPW-Rs) in
+  the hippocampus are`; its two source files still check 278/278 and 86/86.
 - [ ] **D13 Cross-digest view.** `biblio digest claims-table KEY... [--grep]`:
   claims from several digests side by side, filtered by words, kind or
   section; the "map" step of `wiki-synthesize` read 7 digests (120 KB) by hand.

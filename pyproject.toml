@@ -62,7 +62,7 @@ where = ["src"]
 include = ["biblio", "biblio.*"]
 
 [tool.setuptools.package-data]
-biblio = ["templates/**/*.tmpl", "static/**", "profiles/*.yml", "skills/*/SKILL.md"]
+biblio = ["templates/**/*.tmpl", "static/**", "profiles/*.yml", "skills/*/SKILL.md", "data/*.txt"]
 
 [tool.setuptools.dynamic]
 version = {attr = "biblio.__version__"}

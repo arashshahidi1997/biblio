@@ -43,9 +43,17 @@ class Section:
     words: int
 
 
-def read_fulltext(path: Path) -> str:
-    """A full text as stored: newlines untranslated, so a stray carriage return is no line break."""
-    return path.read_bytes().decode("utf-8", errors="replace")
+def read_fulltext(path: Path, *, clean: bool = False) -> str:
+    """A full text as stored: newlines untranslated, so a stray carriage return is no line break.
+
+    ``clean`` repairs docling's artefacts line for line (:mod:`biblio.textclean`):
+    the same lines, readable glyphs and spacing.
+    """
+    raw = path.read_bytes().decode("utf-8", errors="replace")
+    if not clean:
+        return raw
+    from .textclean import clean_text_cached
+    return clean_text_cached(str(path), raw)
 
 
 def text_lines(text: str) -> list[str]:
@@ -130,7 +138,7 @@ def read_sections(cfg: BiblioConfig, citekey: str) -> tuple[list[Section], Path,
     key = citekey.lstrip("@")
     md = fulltext_path(cfg, key)
     if md is not None:
-        return split_markdown(read_fulltext(md)), md, "docling"
+        return split_markdown(read_fulltext(md, clean=True)), md, "docling"
     from .grobid import grobid_out_root
     from .pool import resolve_pool_derivative
     for d in (grobid_out_root(cfg) / key, resolve_pool_derivative(cfg, key, "grobid")):

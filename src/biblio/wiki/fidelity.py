@@ -112,37 +112,55 @@ def align(quote_words: list[str], text: _Text) -> Match:
 
 
 class QuoteChecker:
-    """Caches normalized full texts; ``path_for`` maps a citekey to its markdown file."""
+    """Caches normalized full texts; ``path_for`` maps a citekey to its markdown file.
+
+    Each paper is checked against its cleaned text (:mod:`biblio.textclean`:
+    "fibers", "~5 ms", "Buzsáki") and, where that differs, docling's raw text,
+    so a quote copied from either verifies. Both have the same lines.
+    """
+
+    _RANK = {"exact": 0, "approximate": 1, "changed": 2, "missing": 3}
 
     def __init__(self, path_for: Callable[[str], Path]):
         self.path_for = path_for
-        self._texts: dict[str, _Text | None] = {}
+        self._texts: dict[str, list[_Text] | None] = {}
 
-    def _text(self, citekey: str) -> _Text | None:
+    def _variants(self, citekey: str) -> list[_Text] | None:
         if citekey not in self._texts:
             path = self.path_for(citekey)
-            self._texts[citekey] = _Text(read_fulltext(path)) if path.is_file() else None
+            if not path.is_file():
+                self._texts[citekey] = None
+            else:
+                raw = read_fulltext(path)
+                clean = read_fulltext(path, clean=True)
+                self._texts[citekey] = [_Text(clean)] + ([_Text(raw)] if clean != raw else [])
         return self._texts[citekey]
 
+    def _text(self, citekey: str) -> _Text | None:
+        variants = self._variants(citekey)
+        return variants[0] if variants else None
+
     def has_text(self, citekey: str) -> bool:
-        return self._text(citekey) is not None
+        return self._variants(citekey) is not None
 
     def match(self, citekey: str, quote: str) -> Match:
-        text = self._text(citekey)
-        if text is None:
+        variants = self._variants(citekey)
+        if variants is None:
             return Match("no-text")
         q = normalize(quote)
         if not q:
             return Match("missing")
-        if q in text.norm:
+        if any(q in t.norm for t in variants):
             return Match("exact")
-        return align(q.split(), text)
+        best = None
+        for t in variants:
+            m = align(q.split(), t)
+            if best is None or self._RANK[m.status] < self._RANK[best.status]:
+                best = m
+        return best
 
-    def locate(self, citekey: str, quote: str) -> tuple[int, str] | None:
-        """(1-based line in the full text, nearest heading above it) for a quote, or None."""
-        text = self._text(citekey)
-        if text is None:
-            return None
+    @staticmethod
+    def _joined(text: _Text) -> tuple[str, list[int]]:
         if not hasattr(text, "_lines_joined"):
             norms = [normalize(line) for line in text.raw_lines]
             starts, pos = [], 0
@@ -150,28 +168,36 @@ class QuoteChecker:
                 starts.append(pos)
                 pos += len(n) + 1
             text._lines_joined, text._line_starts = " ".join(norms), starts
+        return text._lines_joined, text._line_starts
+
+    def locate(self, citekey: str, quote: str) -> tuple[int, str] | None:
+        """(1-based line in the full text, nearest heading above it) for a quote, or None."""
+        import bisect
+        variants = self._variants(citekey)
+        if variants is None:
+            return None
         m = self.match(citekey, quote)
         words = (m.passage or normalize(quote)).split()
         if not words:
             return None
-        import bisect
-        for i in range(0, max(1, len(words) - 4), 2):     # try anchors along the quote (line breaks split words)
-            hit = (" " + text._lines_joined + " ").find(" " + " ".join(words[i:i + 5]) + " ")
-            if hit >= 0:
-                idx = bisect.bisect_right(text._line_starts, hit) - 1
-                heading = next((ln.lstrip("#").strip() for ln in reversed(text.raw_lines[:idx + 1])
-                                if re.match(r"^#{1,6}\s", ln)), "")
-                return idx + 1, heading
+        for text in variants:
+            joined, starts = self._joined(text)
+            for i in range(0, max(1, len(words) - 4), 2):     # anchors along the quote (line breaks split words)
+                hit = (" " + joined + " ").find(" " + " ".join(words[i:i + 5]) + " ")
+                if hit >= 0:
+                    idx = bisect.bisect_right(starts, hit) - 1
+                    return idx + 1, self.heading_at(citekey, idx + 1)
         return None
 
     def occurs_at(self, citekey: str, quote: str, line: int) -> bool:
         """Whether the quote starts on ``line`` (1-based; it may run on to the next lines)."""
-        text = self._text(citekey)
         words = normalize(quote).split()
-        if text is None or not words or not 1 <= line <= len(text.raw_lines):
-            return False
-        here = normalize("\n".join(text.raw_lines[line - 1:line + 3]))
-        return f" {' '.join(words[:5])} " in f" {here} "
+        for text in self._variants(citekey) or []:
+            if words and 1 <= line <= len(text.raw_lines):
+                here = normalize("\n".join(text.raw_lines[line - 1:line + 3]))
+                if f" {' '.join(words[:5])} " in f" {here} ":
+                    return True
+        return False
 
     def heading_at(self, citekey: str, line: int) -> str:
         text = self._text(citekey)
@@ -182,10 +208,10 @@ class QuoteChecker:
 
     def number_in(self, citekey: str, number: str) -> bool | None:
         """Whether a number (as written on the page) occurs in the full text; None without a text."""
-        text = self._text(citekey)
-        if text is None:
+        variants = self._variants(citekey)
+        if variants is None:
             return None
-        return f" {normalize(number)} " in f" {text.norm} "
+        return any(f" {normalize(number)} " in f" {t.norm} " for t in variants)
 
     def check(self, citekey: str, quote: str) -> str:
         """The status alone: 'exact', 'approximate', 'changed', 'missing' or 'no-text'."""
