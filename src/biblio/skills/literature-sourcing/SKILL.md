@@ -44,6 +44,9 @@ known paper (`zotero-add`).
 2. **Search what is held first.**
    - Claims already digested: `biblio digest claims-table --grep "<words>"`
      (all digests) gives claim, section, line and whether its quote is exact.
+     A digest quote marked exact carries its line, the exact characters of
+     `<key>.md` when they differ (`quote_raw`, findable with `grep -F`), and
+     the whole sentence when the quote is part of one (`quote_sentence`).
    - Exact wording in a paper: `biblio fulltext <key> --grep "<regex>"`; for
      a whole section, `--section <id or title>`; for context around a line,
      `--lines A-B`. The text is docling's, cleaned on the same lines.

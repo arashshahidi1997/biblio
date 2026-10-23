@@ -288,6 +288,15 @@ Requests from journal-club are tagged R01 to R06 below.
   substitutions; `--lines A-B`, `--raw`. Nothing is written into pools.
   On journal-club's Oliva 2016: `(~5 ms)`, `Sharp-wave ripples (SPW-Rs) in
   the hippocampus are`; its two source files still check 278/278 and 86/86.
+- [x] **D17 Quote spans (R39).** Every quote a digest checks stores
+  `quote_line`, `quote_raw` (a plain substring of `<key>.md`, cut out by
+  aligning letters and digits so glued words, entities, `/C24` and ligature
+  glyphs line up) and `quote_sentence` (the cleaned sentence, when the quote
+  is 3+ words shorter); `biblio digest recheck` fills them for stored digests
+  without an LLM; prompt claims-3 asks for whole sentences. On a copy of
+  journal-club's 81 digests: 2277 of 2277 exact quotes give a plain
+  substring (196 needed the raw span); 1109 of 1274 claim quotes were
+  fragments of a longer sentence (claims-2's 8-40 word rule).
 - [x] **D13 Cross-digest view.** `biblio digest claims-table [KEY...|--keys|--from]
   [--grep RX] [--kind finding,...] [--section S] [--context] [--quotes]
   [--exact-only] [--json]`: claims of several digests (default all) in one

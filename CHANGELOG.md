@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Added
+- Digest quotes carry where they are (journal-club R39): `quote_line`, `quote_raw` (the exact characters of `<key>.md`, so `grep -F` finds them; set when they differ from the clean quote) and `quote_sentence` (the whole sentence when the quote is a fragment of it). `biblio quotes check --json` reports `raw` and `sentence` too.
+- `biblio digest recheck [KEY...]`: re-checks stored digests' quotes against today's full text and fills those fields, without an LLM.
+- Prompt `claims-3`: quote the whole sentence when it states the claim.
+
+### Fixed
+- The quote checker locates a quote by the whole quote first, so a quote whose first words also occur earlier gets its own line.
+
 ### Changed
 - Development tasks are pixi tasks (`pixi task list`): `test`, `build`, `check`, `ui-serve`, `clean` in `dev`; `docs`, `docs-serve` in `docs`; `build-frontend` in `frontend`. The Makefile (with its conda env paths) and `.projio/projio.mk` are gone; save and push are `datalad save` / `datalad push`.
 

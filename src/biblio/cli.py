@@ -739,6 +739,10 @@ def _build_parser() -> argparse.ArgumentParser:
     dig_table.add_argument("--exact-only", action="store_true", help="Only claims whose quote checked exact.")
     dig_table.add_argument("--json", dest="json_out", type=Path, help="Also write the rows as JSON.")
     dig_table.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    dig_re = dig_sub.add_parser("recheck", help="Re-check stored digests' quotes (status, line, raw span, sentence); no LLM.")
+    dig_re.add_argument("citekey", nargs="*", help="Papers (default: every claims digest).")
+    dig_re.add_argument("--context", choices=["wiki", "talk"], help="Only digests of this context.")
+    dig_re.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
     dig_list = dig_sub.add_parser("list", help="Stored digests with their mode, context, model and quote checks.")
     dig_list.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
 
@@ -2131,6 +2135,19 @@ def main(argv: Iterable[str] | None = None) -> None:
         from .digest import digest_claims, digest_paths, list_digests
         repo_root = (args.root.expanduser().resolve() if args.root else find_repo_root())
         cfg = load_biblio_config(default_config_path(root=repo_root), root=repo_root)
+        if args.digest_cmd == "recheck":
+            from .digest import recheck_digests
+            rows = recheck_digests(cfg, [k.lstrip("@") for k in args.citekey] or None, context=args.context)
+            for r in rows:
+                if r["status"] != "rechecked":
+                    print(f"[SKIP] {r['citekey']} ({r['context']}): {r['status']}")
+                    continue
+                b, a = r["before"], r["after"]
+                change = "" if b == a else f" (was exact {b.get('exact', 0)})"
+                print(f"[OK] {r['citekey']} ({r['context']}): claims exact {a['exact']}/{sum(a.values())}{change}; "
+                      f"{r['raw_spans']} raw spans, {r['sentences']} sentences")
+            print(f"{sum(r['status'] == 'rechecked' for r in rows)} digest(s) rechecked")
+            return
         if args.digest_cmd == "claims-table":
             from .citekeys import read_key_list
             from .digest import claims_table, claims_table_markdown

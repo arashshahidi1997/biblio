@@ -25,7 +25,7 @@ from .sections import Section, read_sections
 
 MODES = ("claims",)
 CONTEXTS = ("wiki", "talk")
-PROMPT_VERSION = "claims-2"   # claims-2: quoted author caveats, terms, inconsistencies, quoted rigor notes
+PROMPT_VERSION = "claims-3"   # claims-3: whole sentences when the sentence is the claim (R39); claims-2: caveats, terms, inconsistencies
 
 SYSTEM = """You digest one scientific paper for a research group's knowledge base. You are careful and literal:
 you report what the paper claims and on what evidence, you never add facts or numbers that are not in the text,
@@ -48,7 +48,7 @@ Return JSON only (no prose, no code fence) with this shape:
         {{"by": "reader", "text": "a methodological limit a careful reader would raise (no quote)"}}
       ],
       "section": "S12",
-      "quote": "8-40 words copied exactly from that section that state or show the claim"
+      "quote": "the sentence (or a self-contained part of it) copied exactly from that section that states or shows the claim"
     }}
   ],
   "terms": [
@@ -71,6 +71,9 @@ Rules:
 - Every quote (claims, author caveats, terms, inconsistencies{talk_quote}) must be a contiguous span of the named
   section, copied exactly, including odd spellings or spacing produced by text extraction. Never paraphrase inside
   a quote, never join two sentences. A reader caveat has no quote: it is your own reasoning.
+- When one sentence states the claim, quote that whole sentence, from its first word to its full stop; cut only a
+  sentence longer than about 60 words, and then keep a part that reads as a statement on its own (subject and
+  verb), never a fragment that starts or ends mid-clause.
 - terms: the 6-12 terms a reader must pin down to follow the paper (places, signals, events, derived categories,
   the authors' own constructs). layer: measured (detected or recorded), derived (built from measurements),
   interpreted (the authors' reading).
@@ -159,6 +162,14 @@ def _main_figures(cfg: BiblioConfig, citekey: str) -> list[str]:
 
 
 def _verify(cfg: BiblioConfig, citekey: str, source: Path, claims: list[dict[str, Any]]) -> None:
+    """Check each item's quote; for a match, store where it is (R39).
+
+    ``quote_line`` is the line in ``<key>.md``; ``quote_raw`` the exact
+    characters of that file the quote matches (a plain substring, for
+    ``grep -F``), set when they differ from the quote; ``quote_sentence`` the
+    whole sentence around it in the cleaned text, set when the quote is only
+    part of it.
+    """
     from .wiki.fidelity import QuoteChecker
     checker = QuoteChecker(lambda key: source)
     for c in claims:
@@ -166,6 +177,16 @@ def _verify(cfg: BiblioConfig, citekey: str, source: Path, claims: list[dict[str
         m = checker.match(citekey, quote) if quote else None
         c["quote_status"] = m.status if m else "none"
         c["quote_diff"] = m.diff if m and m.diff else ""
+        for k in ("quote_line", "quote_raw", "quote_sentence"):
+            c.pop(k, None)
+        if m and m.status in ("exact", "approximate", "changed"):
+            sp = checker.spans(citekey, quote)
+            if sp:
+                c["quote_line"] = sp["line"]
+                if sp["raw"] and sp["raw"] != quote:
+                    c["quote_raw"] = sp["raw"]
+                if sp["sentence"] and len(sp["sentence"].split()) >= len(quote.split()) + 3:
+                    c["quote_sentence"] = sp["sentence"]          # the quote is a fragment of it
 
 
 def digest_claims(
@@ -315,11 +336,18 @@ def to_markdown(digest: dict[str, Any]) -> str:
         where = f"{c.get('section_title', '')} ({c.get('section', '')})".strip()
         status = c.get("quote_status", "none")
         lines.append(f"- **Source:** {where}; quote {status}"
+                     + (f", line {c['quote_line']}" if c.get("quote_line") else "")
                      + (f" ({c['quote_diff']})" if c.get("quote_diff") else ""))
         lines.append("")
         if c.get("quote"):
             lines.append(f'> "{c["quote"]}" [@{key}]')
             lines.append("")
+            if c.get("quote_raw"):
+                lines.append(f"As in `{key}.md`, line {c.get('quote_line')}: `{c['quote_raw']}`")
+                lines.append("")
+            if c.get("quote_sentence"):
+                lines.append(f"Whole sentence: {c['quote_sentence']}")
+                lines.append("")
     terms = digest.get("terms") or []
     if terms:
         lines += ["## Terms", "", "| Term | Layer | In this paper | Differs from the field | Source |",
@@ -554,3 +582,52 @@ def claims_table_markdown(rows: list[dict[str, Any]], *, quotes: bool = False) -
     if missing:
         out += f" No claims digest: {', '.join(missing)}."
     return out + "\n"
+
+
+def _quoted_items(digest: dict[str, Any]) -> list[dict[str, Any]]:
+    items: list[dict[str, Any]] = list(digest.get("claims") or [])
+    for c in digest.get("claims") or []:
+        items += [x for x in c.get("caveats") or [] if isinstance(x, dict) and x.get("quote")]
+    items += list(digest.get("terms") or [])
+    for x in digest.get("inconsistencies") or []:
+        items += [q for q in x.get("passages") or [] if isinstance(q, dict)]
+    items += [n for n in digest.get("rigor_notes") or [] if isinstance(n, dict) and n.get("quote")]
+    return items
+
+
+def recheck_digests(cfg: BiblioConfig, keys: list[str] | None = None, *, context: str | None = None) -> list[dict[str, Any]]:
+    """Re-check the quotes of stored claims digests against today's full text, without an LLM.
+
+    Recomputes each quote's status, line, raw span and sentence (R39) and the
+    counts, and rewrites the digest's JSON and markdown; the claims and the
+    prompt version stay as they were. Returns one row per digest.
+    """
+    from .sections import fulltext_path
+    rows = []
+    contexts = [context] if context else list(CONTEXTS)
+    for ctx in contexts:
+        d = digest_dir(cfg, "claims", ctx)
+        for json_path in sorted(d.glob("*.json")) if d.is_dir() else []:
+            key = json_path.stem
+            if keys and key not in keys:
+                continue
+            digest = json.loads(json_path.read_text(encoding="utf-8"))
+            source = fulltext_path(cfg, key)
+            if source is None:
+                rows.append({"citekey": key, "context": ctx, "status": "no full text"})
+                continue
+            before = dict((digest.get("meta") or {}).get("quotes") or {})
+            items = _quoted_items(digest)
+            _verify(cfg, key, source, items)
+            claims = digest.get("claims") or []
+            counts = {s: sum(1 for c in claims if c.get("quote_status") == s)
+                      for s in ("exact", "approximate", "changed", "missing", "none")}
+            meta = digest.setdefault("meta", {})
+            meta["quotes"] = counts
+            meta["rechecked"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+            json_path.write_text(json.dumps(digest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            json_path.with_suffix(".md").write_text(to_markdown(digest), encoding="utf-8")
+            rows.append({"citekey": key, "context": ctx, "status": "rechecked", "before": before, "after": counts,
+                         "raw_spans": sum(1 for it in items if it.get("quote_raw")),
+                         "sentences": sum(1 for it in items if it.get("quote_sentence"))})
+    return rows

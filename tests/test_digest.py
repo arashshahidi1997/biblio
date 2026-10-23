@@ -199,7 +199,7 @@ def test_claims2_verifies_caveats_terms_and_inconsistencies(cfg):
     assert cav[0]["quote_status"] == "exact" and "quote_status" not in cav[1]     # reader caveats: no quote
     assert d["terms"][0]["quote_status"] == "exact"
     assert [p["quote_status"] for p in d["inconsistencies"][0]["passages"]] == ["exact", "missing"]
-    assert d["meta"]["prompt_version"] == "claims-2"
+    assert d["meta"]["prompt_version"] == dg.PROMPT_VERSION
     md = dg.digest_paths(cfg, KEY, "claims", "wiki")[1].read_text()
     assert "## Terms" in md and "**C2 ripple**" in md and "## Internal inconsistencies" in md
     assert "authors: speculative (exact)" in md and "reader: 3 animals" in md
@@ -248,3 +248,35 @@ def test_claims_table_filters_across_digests(cfg):
     md = dg.claims_table_markdown(dg.claims_table(cfg, ["b_2021_Y", "nobody_2000_Z"]), quotes=True)
     assert "| b_2021_Y | C1 | finding | Ripples / spindles couple. | Results (L40) | \"q3\" (exact) |" in md
     assert "1 claims from 1 papers. No claims digest: nobody_2000_Z." in md
+
+
+def test_quotes_carry_their_raw_span_line_and_sentence(tmp_path):
+    """R39: an exact quote also stores the characters of <key>.md it matches, and its whole sentence."""
+    key = "raw_2020_Spans"
+    raw = ("# Spans\n\n## Results\n\n"
+           "The hippocampal /uniFB01 bers fire at a short latency ( /C24 5 ms) after the  cue. Next sentence here.\n")
+    d = tmp_path / "bib" / "derivatives" / "docling" / key
+    d.mkdir(parents=True)
+    (d / f"{key}.md").write_text(raw)
+    cfg = load_biblio_config(default_config_path(root=tmp_path), root=tmp_path)
+    sec = read_sections(cfg, key)[0][0].id
+    reply = json.dumps({"claims": [{"id": "C1", "claim": "Fibers fire fast.", "kind": "finding", "section": sec,
+                                    "quote": "hippocampal fibers fire at a short latency (~5 ms)"}]})
+    dig = dg.digest_claims(cfg, key, llm=_fake_llm([reply]), model="m")
+    c = dig["claims"][0]
+    assert c["quote_status"] == "exact" and c["quote_line"] == 5
+    assert c["quote_raw"] == "hippocampal /uniFB01 bers fire at a short latency ( /C24 5 ms)"
+    assert c["quote_raw"] in raw                                       # grep -F finds it
+    assert c["quote_sentence"].startswith("The hippocampal fibers fire") and c["quote_sentence"].endswith("cue.")
+    md = dg.digest_paths(cfg, key, "claims", "wiki")[1].read_text()
+    assert f"As in `{key}.md`, line 5: `hippocampal /uniFB01 bers" in md and "Whole sentence: The hippocampal" in md
+
+    json_path = dg.digest_paths(cfg, key, "claims", "wiki")[0]
+    stored = json.loads(json_path.read_text())
+    for k in ("quote_raw", "quote_line", "quote_sentence"):
+        stored["claims"][0].pop(k)
+    json_path.write_text(json.dumps(stored))
+    rows = dg.recheck_digests(cfg)
+    assert rows[0]["status"] == "rechecked" and rows[0]["raw_spans"] == 1
+    again = json.loads(json_path.read_text())
+    assert again["claims"][0]["quote_raw"] == c["quote_raw"] and "rechecked" in again["meta"]

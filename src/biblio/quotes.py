@@ -57,6 +57,8 @@ class QuoteResult:
     text: str             # the full text checked against
     file_line: int
     claimed: str
+    raw: str = ""          # the exact characters of <key>.md the quote matches (grep -F finds them)
+    sentence: str = ""     # the whole sentence around the quote, in the cleaned text
 
     @property
     def line_ok(self) -> bool:
@@ -138,11 +140,13 @@ def check_quotes(cfg: BiblioConfig, items: list[QuoteItem]) -> list[QuoteResult]
         if loc and loc[0] != it.line and qc.occurs_at(it.citekey, it.quote, it.line):
             loc = (it.line, qc.heading_at(it.citekey, it.line))   # the passage occurs twice; the written one stands
         p = paths.get(it.citekey)
+        sp = qc.spans(it.citekey, it.quote) if loc else None
         out.append(QuoteResult(
             id=it.id, citekey=it.citekey, section=it.section, status=m.status, diff=m.diff,
             line=loc[0] if loc else None, written_line=it.line, heading=loc[1] if loc else "",
             where=_where(cfg, p) if p else "", text=str(p) if p else "",
-            file_line=it.file_line, claimed=it.claimed))
+            file_line=it.file_line, claimed=it.claimed,
+            raw=(sp or {}).get("raw") or "", sentence=(sp or {}).get("sentence") or ""))
     return out
 
 

@@ -111,6 +111,90 @@ def align(quote_words: list[str], text: _Text) -> Match:
     return Match("changed" if meaningful else "approximate", "; ".join(changes), " ".join(span))
 
 
+_ABBREV = frozenset("al fig figs eq eqs ref refs e.g i.e vs approx ca cf resp".split())
+
+
+_PIECE = re.compile(r"&(?:[a-zA-Z]+|#\d+|#x[0-9a-fA-F]+);|.", re.S)
+
+
+def _alnum(text: str) -> tuple[str, list[tuple[int, int]]]:
+    """The letters and digits of ``text`` (entities decoded, NFKC, lower case), each with its raw span.
+
+    Spaces, punctuation and line breaks drop out, so words docling ran
+    together or split still line up with the quote.
+    """
+    chars: list[str] = []
+    spans: list[tuple[int, int]] = []
+    for m in _PIECE.finditer(text):
+        piece = unicodedata.normalize("NFKC", html.unescape(m.group(0))).lower()
+        for ch in piece:
+            if ch.isalnum():
+                chars.append(ch)
+                spans.append((m.start(), m.end()))
+    return "".join(chars), spans
+
+
+def _span_in(window: str, quote: str) -> tuple[int, int] | None:
+    """(start, end) of the passage of ``window`` the quote aligns with, in ``window``'s own characters."""
+    q, _ = _alnum(quote)
+    r, spans = _alnum(window)
+    if len(q) < 8 or not r:
+        return None
+    sm = difflib.SequenceMatcher(None, q, r, autojunk=False)
+    anchor = sm.find_longest_match(0, len(q), 0, len(r))
+    if anchor.size < min(12, len(q)):
+        return None
+    lo = max(0, anchor.b - anchor.a - 24)
+    hi = min(len(r), anchor.b + (len(q) - anchor.a) + 24)
+    sub = difflib.SequenceMatcher(None, q, r[lo:hi], autojunk=False)
+    if sum(b.size for b in sub.get_matching_blocks()) < 0.75 * len(q):
+        return None
+    ops = [op for op in sub.get_opcodes() if not (op[0] == "insert" and op[1] in (0, len(q)))]
+    js = next(j1 for tag, i1, i2, j1, j2 in ops if i2 > 0)
+    je = next(j2 for tag, i1, i2, j1, j2 in reversed(ops) if i1 < len(q))
+    if je <= js:
+        return None
+    start, end = spans[lo + js][0], spans[lo + je - 1][1]
+    qs = quote.strip()
+    lead = re.match(r"^[^\w]*", qs).group(0)
+    trail = re.search(r"[^\w]*$", qs).group(0)
+    if lead and window[max(0, start - len(lead)):start].strip() == lead.strip():
+        start -= len(lead)                                          # an opening "(" the quote has too
+    if trail and window[end:end + len(trail)].strip() == trail.strip():
+        end += len(trail)
+    return start, end
+
+
+def _sentence_around(window: str, start: int, end: int, max_words: int = 120) -> str | None:
+    """The sentence (or sentences) of ``window`` that contain [start, end)."""
+    def boundary(i: int) -> bool:                                   # window[i] ends a sentence
+        if window[i] not in ".!?":
+            return False
+        nxt = window[i + 1:i + 3]
+        if nxt and not (nxt[0].isspace() or nxt[0] in "\"')]"):
+            return False
+        after = window[i + 1:].lstrip(" \"')]")
+        if after and not (after[0] == "\n" or after[0].isupper() or after[0] in "([\"'"):
+            return False                                            # "str. oriens", "et al. found"
+        word = re.search(r"([\w.]+)$", window[:i])
+        w = word.group(1).lower().rstrip(".") if word else ""
+        return not (w in _ABBREV or (len(w) == 1 and w.isalpha()))
+    line_start = window.rfind("\n", 0, start) + 1
+    s = start
+    while s > line_start and not boundary(s - 1):
+        s -= 1
+    while s < start and window[s].isspace():
+        s += 1
+    line_end = window.find("\n", end)
+    line_end = len(window) if line_end == -1 else line_end
+    e = end
+    while e < line_end and not boundary(e):
+        e += 1
+    e = min(line_end, e + 1)
+    sentence = window[s:e].strip()
+    return sentence if sentence and len(sentence.split()) <= max_words else None
+
+
 class QuoteChecker:
     """Caches normalized full texts; ``path_for`` maps a citekey to its markdown file.
 
@@ -180,6 +264,13 @@ class QuoteChecker:
         words = (m.passage or normalize(quote)).split()
         if not words:
             return None
+        whole = " " + " ".join(words) + " "
+        for text in variants:                                 # where the whole quote is, if it is there
+            joined, starts = self._joined(text)
+            hit = (" " + joined + " ").find(whole)
+            if hit >= 0:
+                idx = bisect.bisect_right(starts, hit) - 1
+                return idx + 1, self.heading_at(citekey, idx + 1)
         for text in variants:
             joined, starts = self._joined(text)
             for i in range(0, max(1, len(words) - 4), 2):     # anchors along the quote (line breaks split words)
@@ -188,6 +279,37 @@ class QuoteChecker:
                     idx = bisect.bisect_right(starts, hit) - 1
                     return idx + 1, self.heading_at(citekey, idx + 1)
         return None
+
+    def spans(self, citekey: str, quote: str) -> dict | None:
+        """Where a quote is: its line, the exact characters of ``<key>.md`` it matches, and its sentence.
+
+        ``raw`` is a plain substring of the docling file (double spaces, ``&lt;``,
+        ``/C24`` and all), so it can be found with ``grep -F``; ``sentence`` is
+        the whole sentence around the quote in the cleaned text (None when it
+        is very long). Journal-club R39.
+        """
+        variants = self._variants(citekey)
+        loc = self.locate(citekey, quote) if variants else None
+        if not loc:
+            return None
+        line = loc[0]
+
+        def window(text: _Text) -> tuple[str, int]:
+            lo = max(0, line - 2)
+            return "\n".join(text.raw_lines[lo:line + 4]), lo
+
+        raw_text, clean_text = variants[-1], variants[0]
+        out: dict = {"line": line, "raw": None, "sentence": None}
+        win, lo = window(raw_text)
+        sp = _span_in(win, quote)
+        if sp:
+            out["raw"] = win[sp[0]:sp[1]]
+            out["line"] = lo + 1 + win.count("\n", 0, sp[0])
+        cwin, _ = window(clean_text)
+        csp = _span_in(cwin, quote)
+        if csp:
+            out["sentence"] = _sentence_around(cwin, *csp)
+        return out
 
     def occurs_at(self, citekey: str, quote: str, line: int) -> bool:
         """Whether the quote starts on ``line`` (1-based; it may run on to the next lines)."""
