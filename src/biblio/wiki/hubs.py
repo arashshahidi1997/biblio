@@ -40,13 +40,24 @@ def _replace_region(text: str, start: str, end: str, content: str, heading: str)
     return text.rstrip("\n") + f"\n\n{heading}\n\n{block}\n"
 
 
+def hub_covers(hub: Page, page: Page) -> bool:
+    """Whether a hub lists a page: it carries one of the hub's tags (``match: any``, default) or all of
+    them (``match: all``), and none of its ``exclude_tags``."""
+    tags, ptags = set(hub.list_field("tags")), set(page.list_field("tags"))
+    if not tags or set(hub.list_field("exclude_tags")) & ptags:
+        return False
+    if str(hub.frontmatter.get("match") or "any").lower() == "all":
+        return tags <= ptags
+    return bool(tags & ptags)
+
+
 def hub_listing(cfg: WikiConfig, hub: Page, pages: list[Page]) -> str:
     tags = set(hub.list_field("tags"))
     groups: dict[str, list[Page]] = defaultdict(list)
     for page in pages:
         if page is hub or page.type == "hub":
             continue
-        if tags & set(page.list_field("tags")):
+        if hub_covers(hub, page):
             groups[page.type or "untyped"].append(page)
     if not groups:
         return "_No pages carry this hub's tags yet._\n"

@@ -1948,6 +1948,14 @@ def main(argv: Iterable[str] | None = None) -> None:
                 print(f"[OK] {key}: {res['figures']} figures ({res['embedded']} embedded, "
                       f"{res['figures'] - res['embedded']} rendered, {res['vector_pdfs']} vector PDFs, "
                       f"{res['skipped_small']} small skipped) -> {res['manifest']}")
+                ch = res.get("changes") or {}
+                if any(ch.values()):
+                    for label in ("added", "removed", "changed"):
+                        if ch.get(label):
+                            print(f"  {label}: {', '.join(ch[label])}")
+                    print(f"  (in a DataLad dataset: `datalad save {res['manifest'].parent}` annexes the new files)")
+                for w in res.get("warnings") or []:
+                    print(f"  warning: {w}")
         raise SystemExit(1 if failed else 0)
 
     if args.command in ("wiki", "skills"):

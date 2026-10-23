@@ -45,6 +45,7 @@ RELATION_KEYS = (
 KNOWN_KEYS = (
     "title", "type", "scope", "status", "reviewed", "author", "updated", "aliases",
     "tags", "sources", "evidence", "code", "review_flags", "promoted_to",
+    "match", "exclude_tags",       # hubs: which pages they list (match: any | all)
 )
 
 REQUIRED_KEYS = ("title", "type", "status", "scope")

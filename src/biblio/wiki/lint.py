@@ -170,7 +170,9 @@ def lint(cfg: WikiConfig, paths: list[Path] | None = None) -> list[Finding]:
                     inbound[target] += 1
                     linked_from[target].add(page.rel)
     hub_tag_set = {t for p in all_pages if p.type == "hub" for t in p.list_field("tags")}
-    in_a_hub = {p.rel for p in all_pages if p.type == "hub" or hub_tag_set & set(p.list_field("tags"))}
+    from .hubs import hub_covers
+    hub_pages = [p for p in all_pages if p.type == "hub"]
+    in_a_hub = {p.rel for p in all_pages if p.type == "hub" or any(hub_covers(h, p) for h in hub_pages)}
 
     for page in pages:
         _check_page(cfg, page, add, sources, vocab, resolver, checker, project_res)
@@ -199,7 +201,7 @@ def lint(cfg: WikiConfig, paths: list[Path] | None = None) -> list[Finding]:
                             "P6", "stub"))
         hub_tags = {t for p in all_pages if p.type == "hub" for t in p.list_field("tags")}
         # pages already listed by some hub do not need another one for a narrower tag
-        uncovered = [p for p in all_pages if p.type != "hub" and not hub_tags & set(p.list_field("tags"))]
+        uncovered = [p for p in all_pages if p.type != "hub" and p.rel not in in_a_hub]
         tag_counts = Counter(t for p in uncovered for t in set(p.list_field("tags")))
         for tag, count in sorted(tag_counts.items()):
             if count >= 5 and tag not in hub_tags:

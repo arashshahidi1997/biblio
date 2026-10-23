@@ -818,3 +818,75 @@ def test_fulltext_command(repo, capsys):
     assert "Ripple probability increased" in out and "1 line(s)" in out and "Results" in out
     main(["fulltext", "sirota_2003_CommunicationNeocortex", "--root", str(repo)])
     assert "Results" in capsys.readouterr().out
+
+
+# --- journal-club 0.3.1 run: R18 ---------------------------------------------------
+
+def test_quote_with_inner_quotes_is_checked_whole(tmp_path):
+    from biblio.wiki.pages import parse_page
+    wiki = tmp_path / "w"
+    page = wiki / "concepts" / "q.md"
+    page.parent.mkdir(parents=True)
+    page.write_text('---\ntitle: Q\n---\n\n# Q\n\nLede.\n\n'
+                    '> "SPW bursts are not induced but "released" in the absence of suppression mechanisms" '
+                    '[@buzsaki_2015_HippocampalSharp]\n\n'
+                    'Inline: "the network "remembers" the order of events in sleep" [@buzsaki_2015_HippocampalSharp].\n')
+    quotes = parse_page(page, wiki).quotes
+    assert [q.text for q in quotes] == [
+        'SPW bursts are not induced but "released" in the absence of suppression mechanisms',
+        'the network "remembers" the order of events in sleep']
+    src = tmp_path / "p.md"
+    src.write_text('SPW bursts are not induced but "released" in the absence of suppression mechanisms.')
+    checker = QuoteChecker(lambda key: src)
+    assert checker.check("k", quotes[0].text) == "exact"
+    assert checker.check("k", quotes[0].text.replace("released", "triggered")) != "exact"
+
+
+def test_quoted_citations_pairing():
+    from biblio.wiki.pages import quoted_citations
+    two = '> "First quote that is long enough here" [@a_2020_X] and "second quote, also long enough" [@b_2021_Y]'
+    assert [(q, c) for q, c in quoted_citations(two)] == [
+        ("First quote that is long enough here", "[@a_2020_X]"),
+        ("second quote, also long enough", "[@b_2021_Y]")]
+    scare = '"delta" names. In that school, "delta is a rhythm distinct from the slow oscillation" [@s_1993_N]'
+    assert quoted_citations(scare)[0][0] == "delta is a rhythm distinct from the slow oscillation"
+    inner = '"bursts are not induced but "released" in the absence of suppression" [@b_2015_H]'
+    assert quoted_citations(inner)[0][0] == 'bursts are not induced but "released" in the absence of suppression'
+    assert quoted_citations('no quote here [@a_2020_X]') == []
+
+
+def test_r19_r20_r21(repo, capsys, tmp_path):
+    cfg = load_wiki_config(repo)
+    # R21: init --title --author
+    fresh = load_wiki_config(tmp_path / "fresh")
+    hub = [p for p in init(fresh, subject="swr-fundamentals", tags=["event/ripple"], title="SWR fundamentals",
+                           author="llm") if p.parent.name == "hubs"][0]
+    text = hub.read_text()
+    assert "title: SWR fundamentals" in text and "author: llm" in text
+    # R20: bibliographic numbers in a Citation section are not checked
+    src = write(cfg.wiki_root / "sources" / "s.md", type="source", sources="'@sirota_2003_CommunicationNeocortex'",
+                body="\n# S\n\nLede.\n\n## Citation\n\nSirota et al. 2003. *PNAS* 100(4): 2065-2069 "
+                     "[@sirota_2003_CommunicationNeocortex].\n")
+    assert "2065" not in rv.packet(cfg, src).split("### Numbers")[1].split("###")[0]
+    # R19: --save writes under .review and lint ignores it
+    main(["wiki", "review", "packet", "--save", "--root", str(repo)])
+    saved = list((cfg.wiki_root / ".review").glob("review-*.md"))
+    assert saved and "packet(s) ->" in capsys.readouterr().out
+    (cfg.wiki_root / "review-2026-10-23.md").write_text("# packets\n")
+    assert not [f for f in lint(cfg) if "review-" in f.page]
+
+
+def test_hub_match_all_and_exclude_tags(repo):
+    """R24: a broad tag made a hub list 35 of 41 pages."""
+    cfg = load_wiki_config(repo)
+    hub = stub(cfg, "coupling", "hub", tags=["event/ripple", "event/up-state"])
+    stub(cfg, "both", "concept", tags=["event/ripple", "event/up-state"])
+    stub(cfg, "ripple-only", "concept", tags=["event/ripple"])
+    regenerate(cfg)
+    assert "ripple-only" in hub.read_text()                                  # default: any tag
+    hub.write_text(hub.read_text().replace("tags: [event/ripple, event/up-state]",
+                                           "tags: [event/ripple, event/up-state]\nmatch: all"))
+    regenerate(cfg)
+    text = hub.read_text()
+    assert "both" in text and "ripple-only" not in text
+    assert not [f for f in lint(cfg) if f.code.startswith("FM") and f.page == "hubs/hub-coupling.md"]

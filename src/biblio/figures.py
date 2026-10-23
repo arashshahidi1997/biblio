@@ -140,9 +140,23 @@ def _png_size(path: Path) -> tuple[int, int]:
     return (0, 0)
 
 
+_LABEL_ONLY = re.compile(r"^\s*(?:(?:Extended\s+Data|Supplementary)\s+)?Fig(?:ure)?\.?\s*S?\d+\s*[.:|]?\s*$", re.I)
+
+
+def _text_with_body(texts: list[dict[str, Any]], idx: int) -> str:
+    """A caption text; when docling split off the label ("Figure 1."), the next text item is its body."""
+    text = (texts[idx].get("text") or "").strip()
+    if _LABEL_ONLY.match(text) and idx + 1 < len(texts):
+        return f"{text} {(texts[idx + 1].get('text') or '').strip()}".strip()
+    return text
+
+
 def _captions(doc: dict[str, Any], picture: dict[str, Any]) -> str:
-    texts = {t.get("self_ref"): t for t in doc.get("texts", [])}
-    return " ".join(texts.get(c.get("$ref"), {}).get("text", "") for c in picture.get("captions") or []).strip()
+    texts = doc.get("texts", [])
+    index = {t.get("self_ref"): i for i, t in enumerate(texts)}
+    parts = [_text_with_body(texts, index[c.get("$ref")]) for c in picture.get("captions") or []
+             if c.get("$ref") in index]
+    return " ".join(p for p in parts if p).strip()
 
 
 def _pool_pdf(cfg: BiblioConfig, citekey: str) -> Path | None:
@@ -281,12 +295,13 @@ def pdftocairo_crop_args(pdf: Path, page: int, bbox: dict[str, float], out: Path
 def _caption_texts(doc: dict[str, Any], page_heights: dict[int, float]) -> dict[int, list[tuple[float, str]]]:
     """Every "Figure N" text per page with its vertical centre (top-left), linked to a picture or not."""
     out: dict[int, list[tuple[float, str]]] = {}
-    for t in doc.get("texts", []):
+    texts = doc.get("texts", [])
+    for i, t in enumerate(texts):
         prov = (t.get("prov") or [None])[0]
-        if prov and CAPTION_RE.match(t.get("text", "")):
+        if prov and CAPTION_RE.match(t.get("text", "")):     # caption items and "Figure N." headings alike
             page = int(prov["page_no"])
             b = bbox_top_left(prov["bbox"], page_heights.get(page, 0.0))
-            out.setdefault(page, []).append((b["y"] + b["h"] / 2, t["text"].strip()))
+            out.setdefault(page, []).append((b["y"] + b["h"] / 2, _text_with_body(texts, i)))
     return out
 
 
@@ -386,6 +401,18 @@ def extract_figures(
     heights = {int(k): float((v.get("size") or {}).get("height", 0.0)) for k, v in (doc.get("pages") or {}).items()}
     widths = {int(k): float((v.get("size") or {}).get("width", 0.0)) for k, v in (doc.get("pages") or {}).items()}
     captions_by_page = _caption_texts(doc, heights)
+    pdf_pages = None
+    if shutil.which("pdfinfo"):
+        info = subprocess.run(["pdfinfo", str(pdf)], capture_output=True, text=True).stdout
+        mp = re.search(r"^Pages:\s+(\d+)", info, re.M)
+        pdf_pages = int(mp.group(1)) if mp else None
+    outside = [int((p.get("prov") or [{}])[0].get("page_no", 0)) for p in doc.get("pictures", [])
+               if pdf_pages and int((p.get("prov") or [{}])[0].get("page_no", 0)) > pdf_pages]
+    doc_pages = len(doc.get("pages") or {})
+    if pdf_pages and doc_pages and doc_pages != pdf_pages:
+        raise RuntimeError(f"docling read a {doc_pages}-page PDF but {pdf} has {pdf_pages} pages: the full text "
+                           f"comes from another version of the paper, so figures would get wrong pages and "
+                           f"captions. Re-run docling on this PDF (`biblio docling run --key {key} --force`).")
     ga_pages = _graphical_abstract_pages(doc)
 
     # pass 1: name each picture; skip margin marks, logos and cover sheets
@@ -395,6 +422,9 @@ def extract_figures(
         if not prov:
             continue
         page = int(prov["page_no"])
+        if pdf_pages and page > pdf_pages:
+            skipped += 1        # docling saw a page this PDF does not have (counted in the warning below)
+            continue
         bbox = bbox_top_left(prov["bbox"], heights.get(page, 0.0))
         frac = _area(bbox) / ((heights.get(page) or 1.0) * (widths.get(page) or 1.0))
         if (bbox["w"] < min_pt and bbox["h"] < min_pt) or frac < 0.01:
@@ -408,6 +438,12 @@ def extract_figures(
             if free:
                 caption = min(free, key=lambda yt: abs(yt[0] - centre))[1]
                 m = CAPTION_RE.match(caption)
+            elif frac >= min_frac:   # some layouts set the caption on the facing page: next, then previous
+                for other in (page + 1, page - 1):
+                    near = [t for _, t in captions_by_page.get(other, []) if t not in used_caps]
+                    if near:
+                        caption, m = near[0], CAPTION_RE.match(near[0])
+                        break
         if m:
             stem, number, kind = figure_name(m)
             used_caps.add(caption)
@@ -454,9 +490,22 @@ def extract_figures(
             c["stem"] = f"{c['stem']}-p{c['page']}"
         seen.add(c["stem"])
 
-    if outdir.exists() and force:
+    final_dir = outdir
+    outdir = final_dir.parent / f".{key}.staging"     # built here, swapped in only when complete
+    if outdir.exists():
         shutil.rmtree(outdir)
-    outdir.mkdir(parents=True, exist_ok=True)
+    outdir.mkdir(parents=True)
+    try:
+        return _extract_into(cfg, key, pdf, doc, outputs, merged, by_page, outdir, final_dir, dpi, tolerance,
+                             skipped, pdf_pages, outside, pdf_version, licence)
+    except BaseException:
+        shutil.rmtree(outdir, ignore_errors=True)
+        raise
+
+
+def _extract_into(cfg, key, pdf, doc, outputs, merged, by_page, outdir, final_dir, dpi, tolerance, skipped,
+                  pdf_pages, outside, pdf_version, licence) -> dict[str, Any]:
+    from .wiki.embeds import clean_caption
 
     # pass 3: extract
     figures: list[dict[str, Any]] = []
@@ -518,11 +567,7 @@ def extract_figures(
             figures.append(entry)
 
     bib = _bib_entry(cfg, key)
-    pages = None
-    if shutil.which("pdfinfo"):
-        info = subprocess.run(["pdfinfo", str(pdf)], capture_output=True, text=True).stdout
-        m = re.search(r"^Pages:\s+(\d+)", info, re.M)
-        pages = int(m.group(1)) if m else None
+    pages = pdf_pages
     manifest = {
         "version": MANIFEST_VERSION,
         "citekey": key,
@@ -538,7 +583,35 @@ def extract_figures(
         "figures": figures,
         "skipped_small": skipped,
     }
-    manifest_path.write_text(yaml.safe_dump(manifest, sort_keys=False, allow_unicode=True), encoding="utf-8")
-    return {"citekey": key, "status": "written", "manifest": manifest_path, "figures": len(figures),
+    if outside:
+        manifest["warnings"] = [f"{len(outside)} docling pictures are on pages beyond the PDF's {pdf_pages} "
+                                "(docling may have read another version of the paper); skipped"]
+    (outdir / "manifest.yml").write_text(yaml.safe_dump(manifest, sort_keys=False, allow_unicode=True),
+                                         encoding="utf-8")
+    changes = _swap_in(outdir, final_dir)
+    return {"citekey": key, "status": "written", "manifest": final_dir / "manifest.yml", "figures": len(figures),
             "embedded": sum(f["source"] == "embedded" for f in figures), "skipped_small": skipped,
-            "vector_pdfs": sum("pdf_file" in f for f in figures)}
+            "vector_pdfs": sum("pdf_file" in f for f in figures), "changes": changes,
+            "warnings": manifest.get("warnings", [])}
+
+
+def _swap_in(staging: Path, final_dir: Path) -> dict[str, list[str]]:
+    """Replace the figure folder with the staged one; report files added, removed and changed.
+
+    In a DataLad dataset the old files may be annex symlinks: the new files are regular files
+    until `datalad save`, which annexes them again.
+    """
+    def digest(path: Path) -> str | None:
+        try:
+            return _sha256(path)
+        except OSError:          # an annexed file without content
+            return None
+    old = {p.name: p for p in final_dir.iterdir() if p.is_file() or p.is_symlink()} if final_dir.is_dir() else {}
+    new = {p.name: p for p in staging.iterdir() if p.is_file()}
+    changes = {"added": sorted(set(new) - set(old)), "removed": sorted(set(old) - set(new)),
+               "changed": sorted(n for n in set(new) & set(old) if n != "manifest.yml"
+                                 and digest(new[n]) != digest(old[n]))}
+    if final_dir.exists() or final_dir.is_symlink():
+        shutil.rmtree(final_dir)
+    staging.rename(final_dir)
+    return changes

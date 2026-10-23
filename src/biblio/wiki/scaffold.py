@@ -197,7 +197,8 @@ def stub(cfg: WikiConfig, name: str, ptype: str, *, title: str | None = None, ta
     return path
 
 
-def init(cfg: WikiConfig, subject: str | None = None, tags: list[str] | None = None) -> list[Path]:
+def init(cfg: WikiConfig, subject: str | None = None, tags: list[str] | None = None, *,
+         title: str | None = None, author: str = "human") -> list[Path]:
     """Create the skeleton (idempotent: existing files are kept) and an optional first hub."""
     root = cfg.wiki_root
     root.mkdir(parents=True, exist_ok=True)
@@ -224,5 +225,6 @@ def init(cfg: WikiConfig, subject: str | None = None, tags: list[str] | None = N
     if not cfg.vocab_explicit:  # the config was loaded before this skeleton's vocab.yml existed
         cfg.vocab = root / "vocab.yml"
     if subject:
-        created.append(stub(cfg, subject, "hub", title=subject.replace("-", " ").capitalize(), tags=tags or []))
+        created.append(stub(cfg, subject, "hub", title=title or subject.replace("-", " ").capitalize(),
+                            tags=tags or [], author=author))
     return created

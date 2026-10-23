@@ -22,6 +22,9 @@ def add_parsers(sub) -> None:
     _common(p)
     p.add_argument("--subject", help="Create a hub for this subject, e.g. layer-identification.")
     p.add_argument("--tag", action="append", default=[], help="Hub tag (facet/value); repeatable.")
+    p.add_argument("--title", help="Hub title (default: from the subject, e.g. 'Layer identification').")
+    p.add_argument("--author", default="human", choices=["human", "llm", "mixed"],
+                   help="Who writes the hub (an agent marks its own: llm).")
 
     p = wsub.add_parser("stub", help="Create a page from its type's template.")
     _common(p)
@@ -70,6 +73,8 @@ def add_parsers(sub) -> None:
     _common(r)
     r.add_argument("pages", nargs="*", help="Pages (path or basename); default: every draft written by an agent.")
     r.add_argument("--out", type=Path, help="Write the packets to this markdown file.")
+    r.add_argument("--save", action="store_true",
+                   help="Write to <wiki>/.review/review-<date>.md (outside lint and the editors' page set).")
     r = rsub.add_parser("accept", help="Record a person's acceptance: status reviewed and reviewed: {by, date}.")
     _common(r)
     r.add_argument("page")
@@ -122,7 +127,7 @@ def run(args) -> None:
     if args.wiki_cmd == "init":
         from .scaffold import init
         try:
-            created = init(cfg, subject=args.subject, tags=args.tag)
+            created = init(cfg, subject=args.subject, tags=args.tag, title=args.title, author=args.author)
         except (ValueError, FileExistsError) as exc:
             print(f"error: {exc}", file=sys.stderr)
             raise SystemExit(1)
@@ -183,9 +188,14 @@ def run(args) -> None:
             if args.review_cmd == "packet":
                 paths = [rv.resolve_page(cfg, n) for n in args.pages] or rv.queue(cfg)
                 text = "\n".join(rv.packet(cfg, p) for p in paths) or "review queue is empty\n"
-                if args.out:
-                    args.out.write_text(f"# Review packets ({len(paths)} pages)\n\n" + text, encoding="utf-8")
-                    print(f"{len(paths)} packet(s) -> {args.out}")
+                out = args.out
+                if args.save and not out:
+                    from datetime import date as _date
+                    out = cfg.wiki_root / ".review" / f"review-{_date.today().isoformat()}.md"
+                if out:
+                    out.parent.mkdir(parents=True, exist_ok=True)
+                    out.write_text(f"# Review packets ({len(paths)} pages)\n\n" + text, encoding="utf-8")
+                    print(f"{len(paths)} packet(s) -> {out}")
                 else:
                     print(text)
                 return

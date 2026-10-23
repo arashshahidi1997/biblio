@@ -223,3 +223,36 @@ def test_image_with_vector_overlay_is_rendered_whole(tmp_path, monkeypatch):
     assert fig["art"] == "mixed" and fig["source"] == "rendered" and fig["file"] == "fig-1.png"
     if shutil.which("pdftocairo"):
         assert fig["pdf_file"] == "fig-1.pdf"
+
+
+@pytest.mark.skipif(not (shutil.which("pdfimages") and shutil.which("pdfinfo")), reason="poppler not installed")
+def test_page_mismatch_refused_and_no_partial_files(tmp_path, monkeypatch):
+    """R22: docling from another version of the paper (11 pages) against an 8-page PDF."""
+    Image = pytest.importorskip("PIL.Image")
+    monkeypatch.setattr("biblio.profile.load_user_config", lambda: {})
+    from biblio.config import load_biblio_config
+    from biblio.figures import extract_figures
+    buf = io.BytesIO()
+    Image.new("RGB", (40, 20), (1, 2, 3)).save(buf, format="JPEG")
+    key = "test_2016_Mismatch"
+    (tmp_path / "bib" / "articles" / key).mkdir(parents=True)
+    (tmp_path / "bib" / "articles" / key / f"{key}.pdf").write_bytes(_pdf_with_jpeg(buf.getvalue(), (40, 20)))
+    d = tmp_path / "bib" / "derivatives" / "docling" / key
+    d.mkdir(parents=True)
+    (d / f"{key}.md").write_text("# T\n")
+    (d / f"{key}.json").write_text(json.dumps({"texts": [], "pictures": [],
+                                               "pages": {str(i): {"size": {"width": 200.0, "height": 200.0}}
+                                                         for i in range(1, 4)}}))
+    cfg = load_biblio_config(tmp_path / ".projio" / "biblio" / "biblio.yml", root=tmp_path)
+    with pytest.raises(RuntimeError, match="docling read a 3-page PDF"):
+        extract_figures(cfg, key)
+    figs = tmp_path / "bib" / "derivatives" / "figures"
+    assert not any(figs.rglob("*")) if figs.exists() else True          # nothing half-written
+
+
+def test_label_only_caption_joins_next_text():
+    """R22: docling split 'Figure 1.' from its body (Diba 2007, Staresina 2015)."""
+    from biblio.figures import _captions
+    doc = {"texts": [{"self_ref": "#/texts/0", "text": "Figure 1."},
+                     {"self_ref": "#/texts/1", "text": "Forward and reverse replay."}]}
+    assert _captions(doc, {"captions": [{"$ref": "#/texts/0"}]}) == "Figure 1. Forward and reverse replay."

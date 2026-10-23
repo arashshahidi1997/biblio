@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.2 (2026-10-23)
+
+From journal-club's 0.3.1 run (R17-R24).
+
+### Added
+- `wiki review packet --save` (to `<wiki>/.review/`); `wiki init --title --author`; hub frontmatter `match: all` and `exclude_tags`.
+- `BIBLIO_CLAUDE_CLI`, and a lookup of the usual claude CLI install places (nvm, `~/.local/bin`).
+
+### Fixed
+- Quotes that contain quoted words are checked whole; two quotes in one blockquote keep their own citations.
+- `figures run`: captions on the facing page and captions split from their label; a docling/PDF page-count mismatch stops the run instead of mislabeling figures; output is staged and swapped in; added/removed/changed files are reported.
+- Review packet: no number checks in Citation sections; lint skips `review-*.md` at the wiki root.
+
 ## 0.3.1 (2026-10-23)
 
 From the first synthesis run (journal-club T14, "ripple heterogeneity", 7 claims digests).

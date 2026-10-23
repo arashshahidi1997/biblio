@@ -221,6 +221,8 @@ def packet(cfg: WikiConfig, path: Path) -> str:
         if not nums:
             continue
         section = (page.section_of(line_no) or "").lower()
+        if section in _REFERENCE_SECTIONS:      # volume, issue, pages and years are bibliographic
+            continue
         if section.startswith(_PROJECT_SECTIONS):
             project_rows.append(f"- line {line_no}: {', '.join(nums)} (project result: check the evidence IDs)")
             continue
@@ -268,7 +270,8 @@ def packet(cfg: WikiConfig, path: Path) -> str:
     # 7: placement: links out and the hubs that list the page
     targets = sorted({ln.target for ln in page.links if not ln.embed})
     tags = set(page.list_field("tags"))
-    hubs = [p.rel for p in load_pages(cfg.wiki_root) if p.type == "hub" and tags & set(p.list_field("tags"))]
+    from .hubs import hub_covers
+    hubs = [p.rel for p in load_pages(cfg.wiki_root) if p.type == "hub" and hub_covers(p, page)]
     out += ["", "### Placement", "",
             f"- hubs: {', '.join(hubs) if hubs else 'none (no hub shares a tag with this page)'}",
             f"- links out ({len(targets)}): {', '.join(targets) if targets else 'none'}"]

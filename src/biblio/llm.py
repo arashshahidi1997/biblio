@@ -28,8 +28,23 @@ def _backend() -> str:
     return os.environ.get("BIBLIO_LLM_BACKEND", DEFAULT_BACKEND).lower()
 
 
+def _claude_candidates() -> list[Path]:
+    """Usual install places of the claude CLI that a non-interactive shell may not have on PATH."""
+    home = Path.home()
+    found = sorted((home / ".nvm" / "versions" / "node").glob("*/bin/claude"), reverse=True)
+    return found + [home / ".local" / "bin" / "claude", home / ".claude" / "local" / "claude",
+                    Path("/usr/local/bin/claude"), Path("/opt/homebrew/bin/claude")]
+
+
 def _find_claude_cli() -> str | None:
-    return shutil.which("claude")
+    """$BIBLIO_CLAUDE_CLI, else PATH, else the usual install places (nvm, ~/.local/bin, ~/.claude/local)."""
+    explicit = os.environ.get("BIBLIO_CLAUDE_CLI")
+    if explicit:
+        return explicit if Path(explicit).is_file() else None
+    on_path = shutil.which("claude")
+    if on_path:
+        return on_path
+    return next((str(p) for p in _claude_candidates() if p.is_file() and os.access(p, os.X_OK)), None)
 
 
 def call_llm(
@@ -61,7 +76,10 @@ def _call_claude_cli(
 ) -> dict[str, str | None]:
     claude_bin = _find_claude_cli()
     if not claude_bin:
-        return {"text": None, "error": "claude CLI not found on PATH"}
+        where = os.environ.get("BIBLIO_CLAUDE_CLI") or "PATH and " + ", ".join(
+            str(p) for p in _claude_candidates()[-4:])
+        return {"text": None, "error": f"claude CLI not found (looked in {where}); "
+                                       "set BIBLIO_CLAUDE_CLI to its path"}
 
     full_prompt = f"{system}\n\n---\n\n{prompt}"
 
