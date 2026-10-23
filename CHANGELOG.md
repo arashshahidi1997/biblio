@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- Development tasks are pixi tasks (`pixi task list`): `test`, `build`, `check`, `ui-serve`, `clean` in `dev`; `docs`, `docs-serve` in `docs`; `build-frontend` in `frontend`. The Makefile (with its conda env paths) and `.projio/projio.mk` are gone; save and push are `datalad save` / `datalad push`.
+
 ## 0.3.4 (2026-10-24)
 
 From journal-club's requests after the 2026-10-23 talk (R27-R32), the default

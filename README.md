@@ -57,7 +57,7 @@ biblio ingest pdfs ~/Downloads/papers/
 Example local demo flow from this repo:
 
 ```bash
-make ui-serve
+pixi run -e dev ui-serve
 biblio citekeys status
 biblio bibtex merge
 biblio docling run --all

@@ -197,7 +197,7 @@ Starts a FastAPI + React app at `http://127.0.0.1:8010` (or next free port).
 The UI frontend is a Vite + React app built to `src/biblio/static/`. To rebuild:
 
 ```bash
-make build-frontend
+pixi run -e frontend build-frontend
 ```
 
 For development with hot-module reload:

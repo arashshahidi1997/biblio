@@ -64,7 +64,8 @@ and `runtime_conventions()` to see available Makefile targets.
 ## Development
 
 ```bash
-make         # see available targets
-make save    # datalad save
-make push    # datalad push
+pixi task list                  # test, build, check, ui-serve (dev); docs, docs-serve (docs); build-frontend (frontend)
+pixi run -e dev test            # the test suite
+datalad save -m "..."           # record changes
+datalad push --to github
 ```
