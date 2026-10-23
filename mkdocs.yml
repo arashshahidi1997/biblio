@@ -4,6 +4,9 @@ site_url: https://arashshahidi1997.github.io/biblio/
 repo_url: https://github.com/arashshahidi1997/biblio
 repo_name: arashshahidi1997/biblio
 
+exclude_docs: |
+  archive/
+
 theme:
   name: material
   features:
