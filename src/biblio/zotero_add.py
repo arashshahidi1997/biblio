@@ -335,6 +335,7 @@ def add_from_zotero(
     dry_run: bool = False,
     client: ZoteroClient | None = None,
     libraries: list[Library] | None = None,
+    version: str | None = None,
 ) -> AddResult:
     if libraries is None:
         client = client or ZoteroClient(zotero_cfg)
@@ -359,6 +360,12 @@ def add_from_zotero(
     if own and own != result.citekey:
         result.notes.append(f"Zotero calls it {own}; biblio uses {result.citekey}")
 
+    if version:
+        # a second text of a paper already held (R38): its PDF under <key>@<version>, the entry untouched
+        if not result.existing and not own_key:
+            raise ZoteroLookupError(f"{ref!r} is not in the project yet; add it first, then its other version")
+        version = re.sub(r"[^\w.-]+", "-", version.strip()).strip("-") or "v2"
+        result.citekey = f"{result.citekey}@{version}"
     pdf_path = cfg.pdf_root / cfg.pdf_pattern.format(citekey=result.citekey)
     result.pdf_path = pdf_path
     if dry_run:
@@ -366,7 +373,9 @@ def add_from_zotero(
         result.pdf_status = "present" if pdf_path.is_file() else "dry-run"
         return result
 
-    if result.existing:
+    if version:
+        result.action = "version"
+    elif result.existing:
         result.action = "found"
     else:
         result.action = "refreshed" if own_key else "added"

@@ -288,6 +288,16 @@ Requests from journal-club are tagged R01 to R06 below.
   substitutions; `--lines A-B`, `--raw`. Nothing is written into pools.
   On journal-club's Oliva 2016: `(~5 ms)`, `Sharp-wave ripples (SPW-Rs) in
   the hippocampus are`; its two source files still check 278/278 and 86/86.
+- [x] **I10 Versions of one paper (R38).** `<key>@<version>` (e.g. a
+  manuscript held as `<key>`, the published article as `<key>@published`):
+  separate `bib/articles/` and docling folders so a rerun on one never
+  touches the other, no second bibliography entry. `add zotero --version`,
+  `docling batch --keys <key>@v`, `fulltext <key>@v`, digests by that key;
+  the checker treats each version as more texts of the paper (`Match.version`,
+  `spans()["version"]`, `quotes check` prints `L<n> @published`). On a copy
+  of journal-club's wiki with the eLife text as `@published`: the 4 FID001
+  errors on the simple/complex-learning question page clear, 111 pages
+  0 errors. Not done: pinning a version per page (`fulltext_version:`).
 - [x] **D17 Quote spans (R39).** Every quote a digest checks stores
   `quote_line`, `quote_raw` (a plain substring of `<key>.md`, cut out by
   aligning letters and digits so glued words, entities, `/C24` and ligature

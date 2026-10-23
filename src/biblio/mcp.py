@@ -1610,9 +1610,11 @@ def _holdings_of(cfg, key: str, doi: str | None) -> dict[str, Any]:
                 meta = {}
             digests.append({"mode": mode_dir.parent.name, "context": mode_dir.name,
                             "prompt_version": meta.get("prompt_version"), "quotes": meta.get("quotes")})
+    from .wiki.fidelity import text_versions
     return {
         "fulltext": where,
         "fulltext_path": str(md) if md else None,
+        "versions": [v for v, _ in text_versions(md)][1:] if md else [],
         "pdf": pdf_path_for_key(cfg, key).is_file(),
         "grobid": None if grobid_source == "missing" else grobid_source,
         "figures": (cfg.repo_root / "bib" / "derivatives" / "figures" / key / "manifest.yml").is_file(),

@@ -72,7 +72,13 @@ PDFs stored in Zotero's cloud storage; linked files are never reachable.
    is still absent. For a list that is not one paper's references (a room's
    questions, a reading list), `biblio locate --from list.txt --zotero local`
    says per paper whether it is in the project, a pool or Zotero.
-6. **A PDF the API cannot serve** (`pdf: failed` for a group item): with
+6. **Two versions of one paper** (a manuscript held, the published article
+   in Zotero, or the reverse): `biblio add zotero <item> --local --version
+   published` keeps the second PDF as `<key>@published` under the same
+   citekey, then `biblio docling batch --keys <key>@published`. The quote
+   checker, `biblio fulltext <key>@published` and digests see it; a quote
+   found in either version passes, and `biblio quotes check` says which.
+7. **A PDF the API cannot serve** (`pdf: failed` for a group item): with
    `--local` biblio also copies it from Zotero's own `storage/<attachment
    key>/` folder (`~/Zotero`, a snap install's `~/snap/zotero-snap/common/Zotero`,
    or `ZOTERO_DATA_DIR`).

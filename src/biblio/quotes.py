@@ -59,6 +59,7 @@ class QuoteResult:
     claimed: str
     raw: str = ""          # the exact characters of <key>.md the quote matches (grep -F finds them)
     sentence: str = ""     # the whole sentence around the quote, in the cleaned text
+    version: str = ""      # the held version it matched, e.g. "published" (<key>@published); "" = default
 
     @property
     def line_ok(self) -> bool:
@@ -146,7 +147,8 @@ def check_quotes(cfg: BiblioConfig, items: list[QuoteItem]) -> list[QuoteResult]
             line=loc[0] if loc else None, written_line=it.line, heading=loc[1] if loc else "",
             where=_where(cfg, p) if p else "", text=str(p) if p else "",
             file_line=it.file_line, claimed=it.claimed,
-            raw=(sp or {}).get("raw") or "", sentence=(sp or {}).get("sentence") or ""))
+            raw=(sp or {}).get("raw") or "", sentence=(sp or {}).get("sentence") or "",
+            version=(sp or {}).get("version") or m.version or ""))
     return out
 
 

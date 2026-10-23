@@ -333,3 +333,16 @@ def test_pdf_from_local_storage_when_the_api_cannot_serve_it(cfg, monkeypatch, t
     zot = GroupZot(items=(GROUP_PAPER,), files={})
     res = add_from_zotero(cfg, ZCFG, "7AP9TICH", libraries=[zotero_add.Library("group:4242", zot)])
     assert res.pdf_status == "copied" and res.pdf_path.read_bytes() == PDF
+
+
+def test_add_a_second_version_of_a_held_paper(cfg):
+    """R38: --version keeps the item's PDF as <key>@<version>; the entry is not touched."""
+    add_from_zotero(cfg, ZCFG, "ABCD1234", client=_client(FakeZot()))
+    zbib = (cfg.repo_root / "bib" / "srcbib" / "zotero.bib").read_text()
+    res = add_from_zotero(cfg, ZCFG, "ABCD1234", client=_client(FakeZot()), version="published")
+    assert res.citekey == f"{KEY}@published" and res.action == "version"
+    assert res.pdf_path == cfg.repo_root / "bib" / "articles" / f"{KEY}@published" / f"{KEY}@published.pdf"
+    assert res.pdf_path.read_bytes() == PDF
+    assert (cfg.repo_root / "bib" / "srcbib" / "zotero.bib").read_text() == zbib
+    with pytest.raises(ZoteroLookupError, match="not in the project yet"):
+        add_from_zotero(cfg, ZCFG, "ZZZZ9999", client=_client(FakeZot()), version="published")

@@ -78,3 +78,23 @@ def test_check_file_and_fix_lines(cfg, tmp_path, capsys):
     assert json.loads(out.read_text())[str(src)][2]["status"] == "changed"
     assert 'R3, same, "Results, again", L7:' in src.read_text()  # L3 rewritten to the located line
     assert "not checked (no L<n>)" in capsys.readouterr().out
+
+
+def test_a_second_version_of_a_paper_is_checked_too(cfg, tmp_path):
+    """R38: <key>@published beside <key>; a quote found in either passes, and says where."""
+    pub = cfg.out_root / f"{A}@published"
+    pub.mkdir()
+    (pub / f"{A}@published.md").write_text("# Ripples (published)\n\n## Conditions\n\n"
+                                            "Under the new conditions ripples doubled in every rat.\n")
+    src = tmp_path / "v.md"
+    src.write_text(f'- V1, {A}, L7: "Ripples were less frequent after the lesion" — exact\n'
+                   f'- V2, same, L5: "Under the new conditions ripples doubled in every rat." — exact\n')
+    results, _ = check_file(cfg, src)
+    by = {r.id: r for r in results}
+    assert by["V1"].status == "exact" and by["V1"].version == "" and by["V1"].line == 7
+    assert by["V2"].status == "exact" and by["V2"].version == "published" and by["V2"].line == 5
+    from biblio.wiki.fidelity import QuoteChecker
+    qc = QuoteChecker(lambda k: cfg.out_root / k / f"{k}.md")
+    assert qc.versions(A) == ["", "published"]
+    from biblio.sections import read_sections
+    assert [s.title for s in read_sections(cfg, f"{A}@published")[0]] == ["Conditions"]

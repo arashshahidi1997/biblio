@@ -84,6 +84,7 @@ biblio add zotero 10.1093/sleep/zsag001         # web API (zotero.library_id + B
 biblio add zotero KEY --local --dry-run         # show the item and biblio's key, write nothing
 biblio add zotero --from refs.txt --local       # a list (keys, DOIs, citekeys, titles); groups searched too
 biblio add zotero DOI --local --library group:4242   # one group library only
+biblio add zotero ITEMKEY --local --version published   # a second text of a held paper: <key>@published
 
 # full text, digests and quotes
 biblio fulltext KEY                             # sections with line numbers (project or pool)
@@ -91,6 +92,7 @@ biblio fulltext KEY --grep "spindle"            # lines as grep -n counts them i
 biblio fulltext KEY --lines 288-292             # those lines, cleaned (fi, ~5 ms, Buzsáki, spacing)
 biblio fulltext KEY --lines 290 --raw           # docling's text as written
 biblio fulltext KEY --changes                   # every cleaning substitution, by line
+biblio fulltext KEY@published                   # another held version of the paper (own line numbers)
 biblio digest claims KEY [--context talk]       # claims with checked quotes
 biblio digest claims --from keys.txt --screen   # a list in the background; existing digests skipped
 biblio digest claims --from keys.txt --stale    # also redo digests made with an older prompt

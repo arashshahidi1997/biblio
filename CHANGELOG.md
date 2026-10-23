@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- Two versions of one paper under one citekey (journal-club R38): `<key>@<version>` beside `<key>` (own article and docling folders, own line numbers). `biblio add zotero REF --version published`, `biblio docling batch --keys <key>@published`, `biblio fulltext <key>@published`; the quote checker and wiki lint accept a quote found in any held version and report which; `paper_lookup` lists the versions.
 - Digest quotes carry where they are (journal-club R39): `quote_line`, `quote_raw` (the exact characters of `<key>.md`, so `grep -F` finds them; set when they differ from the clean quote) and `quote_sentence` (the whole sentence when the quote is a fragment of it). `biblio quotes check --json` reports `raw` and `sentence` too.
 - `biblio digest recheck [KEY...]`: re-checks stored digests' quotes against today's full text and fills those fields, without an LLM.
 - Prompt `claims-3`: quote the whole sentence when it states the claim.

@@ -58,6 +58,26 @@ class Match:
     status: str                 # exact | approximate | changed | missing | no-text
     diff: str = ""              # "paper words -> quote words; ..." for approximate and changed
     passage: str = ""           # the aligned passage of the paper (normalized)
+    version: str = ""           # which held version of the paper matched ("" = the default text)
+
+
+def text_versions(path: Path) -> list[tuple[str, Path]]:
+    """A paper's full texts: ``("", <key>/<key>.md)`` then each ``<key>@<version>/<key>@<version>.md``.
+
+    A second version of one paper (manuscript and published, journal-club
+    R38) lives beside the default under the same citekey with ``@<version>``;
+    each has its own folder so rerunning docling on one never touches the
+    other, and its own line numbers.
+    """
+    out = [("", path)]
+    key = path.stem
+    base = path.parent.parent
+    if base.is_dir():
+        for d in sorted(base.glob(f"{key}@*")):
+            md = d / f"{d.name}.md"
+            if md.is_file():
+                out.append((d.name.split("@", 1)[1], md))
+    return out
 
 
 class _Text:
@@ -210,15 +230,27 @@ class QuoteChecker:
         self._texts: dict[str, list[_Text] | None] = {}
 
     def _variants(self, citekey: str) -> list[_Text] | None:
+        """Texts to check against: per held version (default first), its cleaned and its raw text."""
         if citekey not in self._texts:
             path = self.path_for(citekey)
             if not path.is_file():
                 self._texts[citekey] = None
             else:
-                raw = read_fulltext(path)
-                clean = read_fulltext(path, clean=True)
-                self._texts[citekey] = [_Text(clean)] + ([_Text(raw)] if clean != raw else [])
+                texts: list[_Text] = []
+                for version, vpath in text_versions(path):
+                    raw = read_fulltext(vpath)
+                    clean = read_fulltext(vpath, clean=True)
+                    pair = [_Text(clean)] + ([_Text(raw)] if clean != raw else [])
+                    for t, kind in zip(pair, ("clean", "raw")):
+                        t.version, t.kind = version, kind
+                    if len(pair) == 1:
+                        pair[0].kind = "both"
+                    texts += pair
+                self._texts[citekey] = texts
         return self._texts[citekey]
+
+    def versions(self, citekey: str) -> list[str]:
+        return list(dict.fromkeys(t.version for t in self._variants(citekey) or []))
 
     def _text(self, citekey: str) -> _Text | None:
         variants = self._variants(citekey)
@@ -234,11 +266,13 @@ class QuoteChecker:
         q = normalize(quote)
         if not q:
             return Match("missing")
-        if any(q in t.norm for t in variants):
-            return Match("exact")
+        hit = next((t for t in variants if q in t.norm), None)
+        if hit is not None:
+            return Match("exact", version=hit.version)
         best = None
         for t in variants:
             m = align(q.split(), t)
+            m.version = t.version
             if best is None or self._RANK[m.status] < self._RANK[best.status]:
                 best = m
         return best
@@ -254,8 +288,8 @@ class QuoteChecker:
             text._lines_joined, text._line_starts = " ".join(norms), starts
         return text._lines_joined, text._line_starts
 
-    def locate(self, citekey: str, quote: str) -> tuple[int, str] | None:
-        """(1-based line in the full text, nearest heading above it) for a quote, or None."""
+    def _find(self, citekey: str, quote: str) -> tuple[int, "_Text"] | None:
+        """(1-based line, the text it is in) for a quote: the whole quote first, then anchors along it."""
         import bisect
         variants = self._variants(citekey)
         if variants is None:
@@ -264,21 +298,37 @@ class QuoteChecker:
         words = (m.passage or normalize(quote)).split()
         if not words:
             return None
+        ordered = sorted(variants, key=lambda t: t.version != m.version)   # the matching version first
         whole = " " + " ".join(words) + " "
-        for text in variants:                                 # where the whole quote is, if it is there
+        for text in ordered:
             joined, starts = self._joined(text)
             hit = (" " + joined + " ").find(whole)
             if hit >= 0:
-                idx = bisect.bisect_right(starts, hit) - 1
-                return idx + 1, self.heading_at(citekey, idx + 1)
-        for text in variants:
+                return bisect.bisect_right(starts, hit), text
+        for text in ordered:
             joined, starts = self._joined(text)
             for i in range(0, max(1, len(words) - 4), 2):     # anchors along the quote (line breaks split words)
                 hit = (" " + joined + " ").find(" " + " ".join(words[i:i + 5]) + " ")
                 if hit >= 0:
-                    idx = bisect.bisect_right(starts, hit) - 1
-                    return idx + 1, self.heading_at(citekey, idx + 1)
+                    return bisect.bisect_right(starts, hit), text
         return None
+
+    def locate(self, citekey: str, quote: str) -> tuple[int, str] | None:
+        """(1-based line in the full text, nearest heading above it) for a quote, or None.
+
+        For a quote found only in another version (``<key>@published``), the
+        line is that version's; :meth:`spans` says which version.
+        """
+        found = self._find(citekey, quote)
+        if not found:
+            return None
+        line, text = found
+        return line, self._heading(text, line)
+
+    @staticmethod
+    def _heading(text: "_Text", line: int) -> str:
+        return next((ln.lstrip("#").strip() for ln in reversed(text.raw_lines[:line])
+                     if re.match(r"^#{1,6}\s", ln)), "")
 
     def spans(self, citekey: str, quote: str) -> dict | None:
         """Where a quote is: its line, the exact characters of ``<key>.md`` it matches, and its sentence.
@@ -289,17 +339,18 @@ class QuoteChecker:
         is very long). Journal-club R39.
         """
         variants = self._variants(citekey)
-        loc = self.locate(citekey, quote) if variants else None
-        if not loc:
+        found = self._find(citekey, quote) if variants else None
+        if not found:
             return None
-        line = loc[0]
+        line, text = found
+        same = [t for t in variants if t.version == text.version]
 
-        def window(text: _Text) -> tuple[str, int]:
+        def window(t: _Text) -> tuple[str, int]:
             lo = max(0, line - 2)
-            return "\n".join(text.raw_lines[lo:line + 4]), lo
+            return "\n".join(t.raw_lines[lo:line + 4]), lo
 
-        raw_text, clean_text = variants[-1], variants[0]
-        out: dict = {"line": line, "raw": None, "sentence": None}
+        raw_text, clean_text = same[-1], same[0]
+        out: dict = {"line": line, "raw": None, "sentence": None, "version": text.version}
         win, lo = window(raw_text)
         sp = _span_in(win, quote)
         if sp:

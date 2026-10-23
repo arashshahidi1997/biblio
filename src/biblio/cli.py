@@ -283,6 +283,9 @@ def _build_parser() -> argparse.ArgumentParser:
                          help="Zotero item key (ABCD1234), citekey (Better BibTeX or biblio's), DOI or title.")
     add_zot.add_argument("--from", dest="refs_from", type=Path,
                          help="Refs in a file, one per line (# comments).")
+    add_zot.add_argument("--version", dest="text_version", default=None,
+                         help="Keep this item's PDF as a second version of a paper already held, e.g. 'published' "
+                              "(stored as <key>@published; the bibliography entry is unchanged).")
     add_zot.add_argument("--library", default=None,
                          help="user, group:<id>, or all (default with --local: all, the user's library first).")
     add_zot.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
@@ -956,7 +959,8 @@ def _add_zotero(args: argparse.Namespace, cfg: Any, cfg_path: Path, repo_root: P
     keys: list[str] = []
     for ref in refs:
         try:
-            res = add_from_zotero(cfg, zcfg, ref, dry_run=bool(args.dry_run), libraries=libs)
+            res = add_from_zotero(cfg, zcfg, ref, dry_run=bool(args.dry_run), libraries=libs,
+                                  version=args.text_version)
         except ZoteroLookupError as exc:
             if len(refs) == 1:
                 raise SystemExit(f"[ERROR] {exc}")
@@ -969,7 +973,8 @@ def _add_zotero(args: argparse.Namespace, cfg: Any, cfg_path: Path, repo_root: P
             print(f"[FAIL] {ref}: {exc}")
             tally["failed"].append(ref)
             continue
-        verb = {"dry-run": "found", "found": "already in project", "refreshed": "entry refreshed"}.get(
+        verb = {"dry-run": "found", "found": "already in project", "refreshed": "entry refreshed",
+                "version": "second version of a held paper"}.get(
             res.action, res.action)
         lib = "" if res.library == "user" else f" [{res.library}]"
         print(f"[OK] {res.citekey} ({verb}) <- Zotero {res.zotero_key}{lib}: {res.title[:70]}")
@@ -978,7 +983,7 @@ def _add_zotero(args: argparse.Namespace, cfg: Any, cfg_path: Path, repo_root: P
         for note in res.notes:
             print(f"  note: {note}")
         keys.append(res.citekey)
-        tally["added" if res.action in ("added", "dry-run") else "already present"].append(res.citekey)
+        tally["added" if res.action in ("added", "dry-run", "version") else "already present"].append(res.citekey)
         if not has_pdf and not args.dry_run:
             tally["no PDF"].append(res.citekey)
         if any(n.startswith("duplicate") for n in res.notes):
@@ -2018,6 +2023,11 @@ def main(argv: Iterable[str] | None = None) -> None:
         except FileNotFoundError as exc:
             raise SystemExit(f"[ERROR] {exc}")
         print(f"# {args.citekey}: {source} ({kind})")
+        if kind == "docling" and "@" not in args.citekey:
+            from .wiki.fidelity import text_versions
+            others = [v for v, _ in text_versions(source) if v]
+            if others:
+                print("# other versions: " + ", ".join(f"{v} (`biblio fulltext {args.citekey}@{v}`)" for v in others))
         if args.section:
             want = args.section.strip().lower()
             sec = next((x for x in sections if x.id.lower() == want or x.title.lower() == want), None) or next(
@@ -2110,7 +2120,7 @@ def main(argv: Iterable[str] | None = None) -> None:
                 counts[r.status] = counts.get(r.status, 0) + 1
                 problem = r.status != "exact" or not r.line_ok
                 if problem or args.show_all:
-                    line = f"L{r.line}" if r.line is not None else "L-"
+                    line = (f"L{r.line}" if r.line is not None else "L-") + (f" @{r.version}" if r.version else "")
                     moved = "" if r.line_ok else f" (written L{r.written_line})"
                     print(f"{path.name}:{r.file_line}: {r.id:6} {r.status:11} {line}{moved} {r.citekey} "
                           f"[{r.heading}] {r.where}" + (f"\n    {r.diff}" if r.diff else ""))
