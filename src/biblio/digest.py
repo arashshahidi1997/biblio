@@ -358,3 +358,118 @@ def to_markdown(digest: dict[str, Any]) -> str:
         lines += [f"- **{f.get('figure', '')}**: {f.get('role', '')}" for f in digest.get("figure_roles") or []] or ["-"]
         lines.append("")
     return "\n".join(lines)
+
+
+def _quote_totals(digest: dict[str, Any]) -> dict[str, int]:
+    """Quote checks over everything in a digest that carries a quote (claims, caveats, terms, ...)."""
+    items: list[dict[str, Any]] = list(digest.get("claims") or [])
+    for c in digest.get("claims") or []:
+        items += [x for x in c.get("caveats") or [] if isinstance(x, dict) and x.get("quote")]
+    items += list(digest.get("terms") or [])
+    for x in digest.get("inconsistencies") or []:
+        items += [q for q in x.get("passages") or [] if isinstance(q, dict)]
+    items += [n for n in digest.get("rigor_notes") or [] if isinstance(n, dict) and n.get("quote")]
+    out: dict[str, int] = {}
+    for it in items:
+        s = it.get("quote_status") or "none"
+        out[s] = out.get(s, 0) + 1
+    return out
+
+
+def digest_claims_batch(
+    cfg: BiblioConfig,
+    keys: list[str],
+    *,
+    context: str = "wiki",
+    model: str | None = None,
+    force: bool = False,
+    stale: bool = False,
+    concurrency: int = 1,
+    progress=None,
+    llm=None,
+) -> dict[str, Any]:
+    """Claims digests for a list of papers (journal-club R31), with a summary stored beside them.
+
+    A paper with a digest is skipped unless ``force``, or ``stale`` and its
+    digest was made with an older prompt. ``progress(row)`` is called after
+    each paper. The summary goes to ``bib/derivatives/digest/_runs/``.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    started = datetime.now(timezone.utc)
+
+    def one(key: str) -> dict[str, Any]:
+        key = key.lstrip("@")
+        json_path, md_path = digest_paths(cfg, key, "claims", context)
+        redo = force
+        if json_path.exists() and not force and stale:
+            try:
+                old = json.loads(json_path.read_text(encoding="utf-8")).get("meta", {})
+            except (OSError, json.JSONDecodeError):
+                old = {}
+            redo = old.get("prompt_version") != PROMPT_VERSION
+        if json_path.exists() and not redo:
+            d = json.loads(json_path.read_text(encoding="utf-8"))
+            status = "skipped (exists)"
+        else:
+            try:
+                d = digest_claims(cfg, key, context=context, model=model, force=True, llm=llm)
+            except (FileNotFoundError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
+                return {"citekey": key, "status": "failed", "error": str(exc)}
+            status = "done"
+        q = _quote_totals(d)
+        return {"citekey": key, "status": status, "claims": len(d.get("claims") or []),
+                "prompt_version": d.get("meta", {}).get("prompt_version"),
+                "claim_quotes": d.get("meta", {}).get("quotes") or {}, "all_quotes": q,
+                "md": str(md_path)}
+
+    rows: list[dict[str, Any]] = []
+    if concurrency <= 1:
+        for k in keys:
+            rows.append(one(k))
+            if progress:
+                progress(rows[-1])
+    else:
+        with ThreadPoolExecutor(max_workers=concurrency) as ex:
+            for row in ex.map(one, keys):
+                rows.append(row)
+                if progress:
+                    progress(row)
+
+    def total(field: str, status: str | None = None) -> int:
+        return sum((r.get(field) or {}).get(status, 0) if status else sum((r.get(field) or {}).values())
+                   for r in rows)
+
+    summary = {
+        "context": context, "model": model, "prompt_version": PROMPT_VERSION,
+        "started": started.isoformat(timespec="seconds"),
+        "finished": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "papers": len(rows),
+        "done": sum(r["status"] == "done" for r in rows),
+        "skipped": sum(r["status"].startswith("skipped") for r in rows),
+        "failed": sum(r["status"] == "failed" for r in rows),
+        "claims": sum(r.get("claims", 0) for r in rows),
+        "quotes": total("all_quotes"), "quotes_exact": total("all_quotes", "exact"),
+        "rows": rows,
+    }
+    run_dir = cfg.repo_root / "bib" / "derivatives" / "digest" / "_runs"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    stem = f"claims-{context}-{started.strftime('%Y%m%dT%H%M%SZ')}"
+    (run_dir / f"{stem}.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    (run_dir / f"{stem}.md").write_text(batch_summary_markdown(summary), encoding="utf-8")
+    summary["path"] = str(run_dir / f"{stem}.md")
+    return summary
+
+
+def batch_summary_markdown(summary: dict[str, Any]) -> str:
+    lines = [f"# Claims digests ({summary['context']}), {summary['started']}", "",
+             f"{summary['papers']} papers: {summary['done']} digested, {summary['skipped']} skipped, "
+             f"{summary['failed']} failed; {summary['claims']} claims; quotes exact "
+             f"{summary['quotes_exact']}/{summary['quotes']}.", "",
+             "| citekey | status | claims | quotes exact | not exact |", "|---|---|---|---|---|"]
+    for r in summary["rows"]:
+        q = r.get("all_quotes") or {}
+        other = ", ".join(f"{n} {s}" for s, n in sorted(q.items()) if s != "exact")
+        lines.append(f"| {r['citekey']} | {r['status']}{(': ' + r['error']) if r.get('error') else ''} | "
+                     f"{r.get('claims', '')} | {q.get('exact', '')}{'/' + str(sum(q.values())) if q else ''} | {other} |")
+    return "\n".join(lines) + "\n"

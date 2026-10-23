@@ -203,3 +203,25 @@ def test_claims2_verifies_caveats_terms_and_inconsistencies(cfg):
     md = dg.digest_paths(cfg, KEY, "claims", "wiki")[1].read_text()
     assert "## Terms" in md and "**C2 ripple**" in md and "## Internal inconsistencies" in md
     assert "authors: speculative (exact)" in md and "reader: 3 animals" in md
+
+
+def test_claims_batch_skips_redoes_stale_and_reports(cfg):
+    ids = _secs(cfg)
+    reply = json.dumps({"claims": [{"id": "C1", "claim": "C3 in spindles.", "kind": "finding", "section": ids["Results"],
+                                    "quote": "C3 ripples occurred within spindles in both the hippocampus"}],
+                        "terms": [{"term": "C3", "quote": "C3 ripples occurred within spindles"}]})
+    llm = _fake_llm([reply] * 4)
+    s = dg.digest_claims_batch(cfg, [KEY, "nobody_2000_Nothing"], llm=llm, model="m")
+    assert [r["status"] for r in s["rows"]] == ["done", "failed"] and s["failed"] == 1
+    assert s["claims"] == 1 and s["quotes"] == 2 and s["quotes_exact"] == 2
+    assert Path(s["path"]).is_file() and "| aleman_2026_Deltas | done |" in Path(s["path"]).read_text()
+    assert len(dg.list_digests(cfg)) == 1                 # the run summary is not listed as a digest
+
+    s = dg.digest_claims_batch(cfg, [KEY], llm=llm, model="m")
+    assert s["rows"][0]["status"] == "skipped (exists)" and len(llm.calls) == 1
+    json_path, _ = dg.digest_paths(cfg, KEY, "claims", "wiki")
+    d = json.loads(json_path.read_text())
+    d["meta"]["prompt_version"] = "claims-1"
+    json_path.write_text(json.dumps(d))
+    s = dg.digest_claims_batch(cfg, [KEY], llm=llm, model="m", stale=True)
+    assert s["rows"][0]["status"] == "done" and len(llm.calls) == 2

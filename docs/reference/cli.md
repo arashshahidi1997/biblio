@@ -87,6 +87,8 @@ biblio add zotero KEY --local --dry-run         # show the item and biblio's key
 biblio fulltext KEY                             # sections with line numbers (project or pool)
 biblio fulltext KEY --grep "spindle"            # lines as grep -n counts them in <key>.md
 biblio digest claims KEY [--context talk]       # claims with checked quotes
+biblio digest claims --from keys.txt --screen   # a list in the background; existing digests skipped
+biblio digest claims --from keys.txt --stale    # also redo digests made with an older prompt
 biblio quotes check sources.md                  # every '- id, key, section, L<n>: "quote"' item; exit 1 unless all exact
 biblio quotes check a.md b.md --json out.json   # results as JSON
 biblio quotes check sources.md --fix-lines      # rewrite wrong L<n> with the located line

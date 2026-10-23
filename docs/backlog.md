@@ -245,6 +245,14 @@ Requests from journal-club are tagged R01 to R06 below.
   off); `fulltext --grep`, sections, the checker and the review packet now
   agree with `grep -n`. A quote that occurs twice keeps the written line.
   On journal-club's two source files: 119/119 and 86/86 exact, no line off.
+- [x] **D15 Claims digests for a list (R31).** `biblio digest claims KEY... |
+  --keys | --from list.txt [--concurrency N] [--screen] [--stale]`: papers
+  with a digest are skipped unless `--force` (`--stale` redoes those made
+  with an older prompt, e.g. claims-1 to claims-2); a line per paper and a
+  summary (papers, digested, skipped, failed, claims, all quotes exact of
+  checked) also stored in `bib/derivatives/digest/_runs/claims-<ctx>-<ts>.{json,md}`;
+  `--screen` runs it detached with a log beside the summary. Exit 1 if any
+  paper failed.
 - [ ] **D13 Cross-digest view.** `biblio digest claims-table KEY... [--grep]`:
   claims from several digests side by side, filtered by words, kind or
   section; the "map" step of `wiki-synthesize` read 7 digests (120 KB) by hand.

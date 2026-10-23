@@ -691,7 +691,16 @@ def _build_parser() -> argparse.ArgumentParser:
     p_dig = sub.add_parser("digest", help="Digests of one paper by mode and context (claims with verified quotes).")
     dig_sub = p_dig.add_subparsers(dest="digest_cmd", required=True)
     dig_claims = dig_sub.add_parser("claims", help="The paper's claims with evidence, caveats and a verbatim quote each.")
-    dig_claims.add_argument("citekey")
+    dig_claims.add_argument("citekey", nargs="*", help="One or more citekeys (or use --keys / --from).")
+    dig_claims.add_argument("--keys", help="Citekeys, comma-separated.")
+    dig_claims.add_argument("--from", dest="keys_from", type=Path, help="Citekeys in a file, one per line.")
+    dig_claims.add_argument("--stale", action="store_true",
+                            help="Also redo digests made with an older prompt version.")
+    dig_claims.add_argument("--concurrency", type=int, default=1, help="Papers digested in parallel (default 1).")
+    dig_claims.add_argument("--screen", action="store_true",
+                            help="Run in a detached GNU screen session; the summary is also written to "
+                                 "bib/derivatives/digest/_runs/.")
+    dig_claims.add_argument("--screen-name", default="digest-claims", help="Screen session name.")
     dig_claims.add_argument("--context", default="wiki", choices=["wiki", "talk"],
                             help="wiki (default) or talk (adds rigor notes and figure roles).")
     dig_claims.add_argument("--model", help="LLM model (default: BIBLIO_LLM_MODEL or sonnet).")
@@ -2000,8 +2009,42 @@ def main(argv: Iterable[str] | None = None) -> None:
             if not rows:
                 print("no digests")
             return
+        from .citekeys import read_key_list
+        keys = read_key_list(",".join(args.citekey) or None, None)
+        keys += [k for k in read_key_list(args.keys, args.keys_from) if k not in keys]
+        if not keys:
+            raise SystemExit("[ERROR] name a citekey, or --keys / --from")
+        if args.screen:
+            argv = [sys.executable, "-m", "biblio.cli", "digest", "claims", "--root", str(repo_root),
+                    "--keys", ",".join(keys), "--context", args.context,
+                    "--concurrency", str(args.concurrency)]
+            argv += (["--model", args.model] if args.model else []) + (["--force"] if args.force else [])
+            argv += ["--stale"] if args.stale else []
+            log = repo_root / "bib" / "derivatives" / "digest" / "_runs" / f"{args.screen_name}.log"
+            log.parent.mkdir(parents=True, exist_ok=True)
+            bash_cmd = (f"cd {shlex.quote(str(repo_root))} && " + " ".join(shlex.quote(a) for a in argv)
+                        + f" 2>&1 | tee {shlex.quote(str(log))}")
+            _launch_screen_session(name=str(args.screen_name), bash_cmd=bash_cmd)
+            print(f"[OK] {len(keys)} papers in screen session {args.screen_name}; log {log}")
+            print(f"Attach:  screen -r {args.screen_name}")
+            return
+        if len(keys) > 1 or args.keys or args.keys_from or args.stale:
+            from .digest import digest_claims_batch
+
+            def _row(r: dict) -> None:
+                q = r.get("all_quotes") or {}
+                extra = r.get("error") or f"{r.get('claims', 0)} claims, quotes exact {q.get('exact', 0)}/{sum(q.values())}"
+                print(f"[{r['status']}] {r['citekey']}: {extra}", flush=True)
+
+            summary = digest_claims_batch(cfg, keys, context=args.context, model=args.model,
+                                          force=bool(args.force), stale=bool(args.stale),
+                                          concurrency=max(1, args.concurrency), progress=_row)
+            print(f"[DONE] {summary['papers']} papers: {summary['done']} digested, {summary['skipped']} skipped, "
+                  f"{summary['failed']} failed; {summary['claims']} claims; quotes exact "
+                  f"{summary['quotes_exact']}/{summary['quotes']} -> {summary['path']}")
+            raise SystemExit(1 if summary["failed"] else 0)
         try:
-            d = digest_claims(cfg, args.citekey, context=args.context, model=args.model, force=bool(args.force))
+            d = digest_claims(cfg, keys[0], context=args.context, model=args.model, force=bool(args.force))
         except (FileNotFoundError, RuntimeError, ValueError) as exc:
             raise SystemExit(f"[ERROR] {exc}")
         q = d["meta"]["quotes"]
