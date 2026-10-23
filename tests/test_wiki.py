@@ -921,3 +921,80 @@ Rests on: sirota_2003_CommunicationNeocortex:C1, sirota_2003_CommunicationNeocor
     assert codes_.count("SYN002") == 1 and "C9" in msgs["SYN002"]      # C1 exists, C9 does not
     assert codes_.count("SYN001") == 1                                 # the second paragraph
     assert "SYN003" in codes_ and "SYN004" in codes_                   # other_2020_Paper: no digest, not a source
+
+
+# --- W05-W07: relink, merge, extract ---
+
+def _refactor_wiki(repo):
+    cfg = load_wiki_config(repo)
+    body_a = ("\n# Ripple coupling\n\nLede about coupling.\n\n## Why it matters\n\nSee [[ripple-detection]] and "
+              "[Detection](../methods/ripple-detection.md#goal).\n\n## Key facts\n\nFirst fact paragraph.\n\n"
+              "> \"Neocortical up-states precede hippocampal sharp-wave ripples by about 50 ms\" "
+              "[@sirota_2003_CommunicationNeocortex]\n\n### Detail\n\nMore.\n\n## Related\n\n- [[ripple-detection]]\n")
+    a = write(cfg.wiki_root / "concepts" / "ripple-coupling.md", title="Ripple coupling",
+              sources="sirota_2003_CommunicationNeocortex",
+              extra="related: [ripple-detection]\n", body=body_a)
+    stub(cfg, "ripple-detection", "method", tags=["event/ripple"])
+    b = write(cfg.wiki_root / "concepts" / "up-state.md", title="Up-state", tags="event/up-state",
+              extra="related: [ripple-coupling]\n",
+              body="\n# Up-state\n\nLede.\n\n## Why it matters\n\nLinks to [[ripple-coupling#Key facts|coupling]].\n\n"
+                   "## Key facts\n\n## Related\n\n- [Coupling](ripple-coupling.md)\n\n```\n[[ripple-coupling]]\n```\n")
+    return cfg, a, b
+
+
+def test_relink_moves_and_rewrites_every_link(repo):
+    from biblio.wiki import refactor as rf
+    cfg, a, b = _refactor_wiki(repo)
+    (repo / "mkdocs.yml").write_text("nav:\n  - wiki/concepts/ripple-coupling.md\n")
+    plan = rf.plan_relink(cfg, "ripple-coupling", "methods/")
+    assert not (cfg.wiki_root / "methods" / "ripple-coupling.md").exists()          # dry run writes nothing
+    assert any(f.name == "mkdocs.yml" for f, _, _ in plan.outside)
+    rf.apply(cfg, plan)
+    new = cfg.wiki_root / "methods" / "ripple-coupling.md"
+    assert new.is_file() and not a.exists()
+    text_b = b.read_text()
+    assert "[[ripple-coupling#Key facts|coupling]]" in text_b                         # by name: unchanged target
+    assert "[Coupling](../methods/ripple-coupling.md)" in text_b
+    assert "```\n[[ripple-coupling]]\n```" in text_b                                 # code left alone
+    assert "[Detection](ripple-detection.md#goal)" in new.read_text()                # own links re-based
+    plan = rf.plan_relink(cfg, "methods/ripple-coupling.md", "ripple-ups")
+    rf.apply(cfg, plan)
+    text_b = b.read_text()
+    assert "[[ripple-ups#Key facts|coupling]]" in text_b and "related: [ripple-ups]" in text_b
+    assert "relink" in (cfg.wiki_root / "log.md").read_text()
+    with pytest.raises(rf.RefactorError, match="exists"):
+        rf.plan_relink(cfg, "ripple-ups", "ripple-detection")
+
+
+def test_merge_keeps_a_redirect_and_unions_frontmatter(repo):
+    from biblio.wiki import refactor as rf
+    cfg, a, b = _refactor_wiki(repo)
+    rf.apply(cfg, rf.plan_merge(cfg, "ripple-coupling", "up-state"))
+    stub_text = a.read_text()
+    assert "redirect: concepts/up-state.md" in stub_text and "Merged into [Up-state](up-state.md)" in stub_text
+    page = parse_page(b, cfg.wiki_root)
+    assert page.list_field("tags") == ["event/up-state", "event/ripple"]
+    assert page.list_field("sources") == ["sirota_2003_CommunicationNeocortex"]
+    assert "Ripple coupling" in page.list_field("aliases") and page.list_field("related") == ["ripple-detection"]
+    assert "## Merged from Ripple coupling" in page.text and "### Key facts" in page.text
+    assert "[Detection](../methods/ripple-detection.md#goal)" in page.text
+    found = codes(lint(cfg, [a, b]))
+    assert "RED001" not in found and "STR002" not in codes(lint(cfg, [a]))          # a redirect is not a page
+    with pytest.raises(rf.RefactorError, match="already a redirect"):
+        rf.plan_merge(cfg, "ripple-coupling", "up-state")
+
+
+def test_extract_moves_a_section_and_leaves_its_lede(repo):
+    from biblio.wiki import refactor as rf
+    cfg, a, _ = _refactor_wiki(repo)
+    rf.apply(cfg, rf.plan_extract(cfg, "ripple-coupling", "Key facts", "coupling facts"))
+    new = cfg.wiki_root / "concepts" / "coupling-facts.md"
+    page = parse_page(new, cfg.wiki_root)
+    assert page.list_field("sources") == ["sirota_2003_CommunicationNeocortex"]
+    assert page.list_field("related") == ["ripple-coupling"]
+    key_facts = page.text.split("## Key facts", 1)[1]
+    assert "First fact paragraph." in key_facts and "### Detail" in key_facts
+    old = a.read_text()
+    assert "## Key facts\n\nFirst fact paragraph.\n\nSee [Coupling facts](coupling-facts.md).\n\n## Related" in old
+    assert "Neocortical up-states" not in old
+    assert [f for f in lint(cfg, [new]) if f.severity == "error"] == []

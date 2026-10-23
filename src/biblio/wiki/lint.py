@@ -336,6 +336,13 @@ def _check_page(cfg, page: Page, add, sources: SourceIndex, vocab, resolver: _Re
             add(Finding("warning", "FM008", page.rel, 1,
                         f"type '{ptype}' pages belong in '{folder}/'", "P5", "relink"))
 
+    redirect = fm.get("redirect")
+    if redirect:
+        target = (cfg.wiki_root / str(redirect)).resolve()
+        if not target.is_file() and not resolver.wiki(_strip_link(str(redirect))):
+            add(Finding("error", "RED001", page.rel, 1, f"redirect: '{redirect}' does not exist", "P2"))
+        return                                   # a merged page: nothing else to check
+
     # tags
     if vocab is not None:
         for tag in page.list_field("tags"):

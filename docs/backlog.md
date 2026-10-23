@@ -145,12 +145,24 @@ Requests from journal-club are tagged R01 to R06 below.
   figures. VS Code section untested. Also fixed from the same test:
   `wiki init --tag` and `stub --tag` add the tag to `vocab.yml` (unknown
   facets refused), so a new wiki passes lint at once.
-- [ ] **W05 relink (M3).** Rename or move a page and rewrite inbound links;
-  dry run, log. (P5)
-- [ ] **W06 merge (M3).** Frontmatter union, aliases, redirect stub, never
-  delete; dry run, log. (P2)
-- [ ] **W07 extract (M3).** Section to a new page, leaving the lede and a
-  link; dry run, log. (P1)
+- [x] **W05 relink (M3).** `biblio wiki relink OLD NEW [--apply]`: rename
+  (same folder), `folder/name` or `folder/`; wikilinks by name or path,
+  markdown links by resolved path, `related:`-type frontmatter values; the
+  moved page's own links re-based; code fences untouched; files outside the
+  wiki that mention the old path listed. Dry run by default; logged. (P5)
+- [x] **W06 merge (M3).** `biblio wiki merge A B [--apply]`: B gets the union
+  of list keys (tags, sources, aliases incl. A's title and name, relations,
+  minus itself), A's body under `## Merged from ...` with its links re-based,
+  status back to draft if it was reviewed; A becomes a stub with
+  `redirect: <B>` (lint checks only the target, RED001); links to A point at
+  B. Never deletes. (P2)
+- [x] **W07 extract (M3).** `biblio wiki extract PAGE --section H --name N
+  [--type T] [--apply]`: the section to a new draft page from its type's
+  template (under the section of the same name when the type has one), with
+  the tags, the citekeys cited in the section as `sources:` and `related:`
+  back; the first paragraph and a link stay. Tried on a copy of
+  journal-club's wiki (relink, a move across folders, merge, extract): no new
+  lint findings except FM008 for the deliberate cross-folder move. (P1)
 - [ ] **W08 suggest (M3).** Lint findings as machine-readable refactor
   suggestions (signal, principle, op). *Depends* W05 to W07.
 - [ ] **W09 views (M3).** Generate Obsidian Bases tables (review queue,

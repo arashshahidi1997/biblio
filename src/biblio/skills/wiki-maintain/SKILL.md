@@ -11,7 +11,7 @@ metadata:
   short-description: Lint the wiki, fix what is mechanical, propose the rest
   tags: [wiki, lint, refactor, knowledge-base]
   tooling:
-    cli: [biblio wiki lint, biblio wiki hubs, biblio wiki status, biblio wiki stub]
+    cli: [biblio wiki lint, biblio wiki hubs, biblio wiki status, biblio wiki stub, biblio wiki relink, biblio wiki merge, biblio wiki extract]
 ---
 
 # Wiki maintain
@@ -49,10 +49,21 @@ frontmatter, lifecycle) and the project's binding (`SCHEMA.md`, `wiki.yml`).
    - contradictions with newer sources: add a `> **Contested.**` block with both
      citations and a `contradicts:` link; never overwrite (P9).
 4. **Restructure** only from suggestions (SUG001 extract, SUG002 stub, SUG003
-   hub), one refactor at a time: show the plan (pages before and after, the
-   principle), wait for the go-ahead, apply, run `biblio wiki lint` again,
-   append a line to `log.md`. Use `biblio wiki stub NAME --type TYPE` for new
-   pages so they get the required sections.
+   hub) and FM008/LNK findings marked `-> relink`, one refactor at a time,
+   with the refactor commands (they print the plan as a dry run; nothing is
+   written without `--apply`):
+   - `biblio wiki relink OLD NEW` (rename, or `folder/` to move): every
+     wikilink, markdown link and `related:` value is rewritten; files outside
+     the wiki that mention the old path (mkdocs nav) are listed to fix by hand;
+   - `biblio wiki merge A B`: B gets the frontmatter union and A's text under
+     `## Merged from ...` for you to fold in; A stays as a redirect stub;
+   - `biblio wiki extract PAGE --section H --name N [--type T]`: the section
+     moves to a new draft page (under the section of the same name if the
+     type has one), its first paragraph and a link stay behind.
+   Show the dry run with the principle, wait for the go-ahead, run it with
+   `--apply` (it appends to `log.md`), then `biblio wiki lint` and
+   `biblio wiki hubs`. Use `biblio wiki stub NAME --type TYPE` for new pages
+   so they get the required sections.
 5. **Semantic pass** (pages changed since the last lint and their neighbours):
    look for the same idea explained on two pages (P2, propose merge), pages
    mixing Diataxis modes (P4, propose extract), and claims newer sources

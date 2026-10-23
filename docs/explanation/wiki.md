@@ -38,9 +38,9 @@ binding (bibliography, vocabulary, extra relation keys, project tokens).
 | `embeds [--get] [--unlock]`, `figure KEY N` | embedded files by annex state; a paper's figure as embed + caption + citation | P8 | 1 |
 | `review packet [PAGES] [--out F]` | per page: lede, open flags, lint, quotes verified or not, citations, evidence, contested blocks | P11 | 1 |
 | `review accept PAGE --by NAME [--stable] [--resolve-flags]`, `review flag PAGE TEXT`, `review reopen PAGE` | record a person's decision; accept refuses lint errors and open flags | P11 | 1 |
-| `relink OLD NEW` | rename or move a page and rewrite every inbound link; dry run first; logged | P5 | 2 |
-| `merge A B` | frontmatter union, aliases, redirect stub, never delete; logged | P2 | 2 |
-| `extract PAGE --section H` | section to a new page, leave lede and link; logged | P1 | 2 |
+| `relink OLD NEW [--apply]` | rename or move a page and rewrite every inbound link and `related:` value; dry run first; logged | P5 | 2 (done) |
+| `merge A B [--apply]` | frontmatter union, aliases, A's text appended to B to fold in, redirect stub (`redirect:`), never delete; logged | P2 | 2 (done) |
+| `extract PAGE --section H --name N [--apply]` | section to a new page, leave lede and link; logged | P1 | 2 (done) |
 | `suggest` | lint findings as refactor suggestions (signal, principle, op) | | 2 |
 | `views` | Obsidian Bases tables (review queue, contested, stubs) and static HTML (people, typed graph) | P12 | 2 |
 | `promote --tag T` | gate check and plan for the lab hub; copies only after approval | | 3 |
@@ -76,7 +76,7 @@ wrapper per skill. Elsewhere, `biblio skills install` copies them into
 | Skill | Purpose | Uses | Shipped |
 |-------|---------|------|---------|
 | `wiki-ingest` | a source (paper, note, code) into the pages it touches; with a person present, plan first when more than 3 pages change | `stub`, `lint`, `hubs`, `figure` | yes |
-| `wiki-maintain` | lint, read findings, propose and apply refactors with dry runs, re-lint | `lint`, `hubs`, refactor commands | yes (refactor commands are phase 2) |
+| `wiki-maintain` | lint, read findings, propose and apply refactors with dry runs, re-lint | `lint`, `hubs`, `relink`, `merge`, `extract` | yes |
 | `wiki-review` | help a person review: packets with claims beside quotes, unbacked citations and numbers; record their decision | `review packet\|accept\|flag\|reopen` | yes |
 | `zotero-add` | one paper from Zotero into the project (laptop to server) | `biblio add zotero` | yes |
 | `wiki-synthesize` | pages that combine sources: concept or theory pages with evidence for and against, method comparisons, open questions; every statement from a paper carries a checked quote, own reasoning marked **Synthesis:** | `digest claims`, `stub`, `lint`, `review packet` | yes (draft) |

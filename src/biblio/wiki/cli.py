@@ -91,6 +91,27 @@ def add_parsers(sub) -> None:
     r.add_argument("page")
     r.add_argument("--reason", default="")
 
+    p = wsub.add_parser("relink", help="Rename or move a page and rewrite every link to it (dry run unless --apply).")
+    p.add_argument("old", help="The page: path from the wiki root, or its name.")
+    p.add_argument("new", help="New name (same folder), folder/name, or folder/ to move it.")
+    p.add_argument("--apply", action="store_true", help="Carry out the plan (default: show it).")
+    p.add_argument("--wiki", type=Path, help="Wiki root (default: <repo>/docs/wiki).")
+    p.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    p = wsub.add_parser("merge", help="Merge page A into B; A becomes a redirect stub (dry run unless --apply).")
+    p.add_argument("a", help="The page merged away (kept as a redirect stub).")
+    p.add_argument("b", help="The page that stays.")
+    p.add_argument("--apply", action="store_true", help="Carry out the plan (default: show it).")
+    p.add_argument("--wiki", type=Path, help="Wiki root (default: <repo>/docs/wiki).")
+    p.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    p = wsub.add_parser("extract", help="Move one section to a new page, leaving its first paragraph and a link.")
+    p.add_argument("page")
+    p.add_argument("--section", required=True, help="The H2 heading to extract.")
+    p.add_argument("--name", required=True, help="Name of the new page.")
+    p.add_argument("--type", dest="ptype", help="Type of the new page (default: the source page's type).")
+    p.add_argument("--apply", action="store_true", help="Carry out the plan (default: show it).")
+    p.add_argument("--wiki", type=Path, help="Wiki root (default: <repo>/docs/wiki).")
+    p.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+
     p_sk = sub.add_parser("skills", help="Agent skills shipped with biblio.")
     sksub = p_sk.add_subparsers(dest="skills_cmd", required=True)
     sksub.add_parser("list", help="List bundled skills.")
@@ -210,6 +231,27 @@ def run(args) -> None:
         except rv.ReviewError as exc:
             print(f"error: {exc}", file=sys.stderr)
             raise SystemExit(1)
+        return
+
+    if args.wiki_cmd in ("relink", "merge", "extract"):
+        from . import refactor as rf
+        from .review import ReviewError
+        try:
+            if args.wiki_cmd == "relink":
+                plan = rf.plan_relink(cfg, args.old, args.new)
+            elif args.wiki_cmd == "merge":
+                plan = rf.plan_merge(cfg, args.a, args.b)
+            else:
+                plan = rf.plan_extract(cfg, args.page, args.section, args.name, args.ptype)
+        except (rf.RefactorError, ReviewError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            raise SystemExit(1)
+        print(rf.describe(cfg, plan))
+        if args.apply:
+            rf.apply(cfg, plan)
+            print(f"applied; logged in {rel(cfg.wiki_root / 'log.md')}. Next: `biblio wiki lint` and `biblio wiki hubs`.")
+        else:
+            print("dry run: nothing written; add --apply to carry it out.")
         return
 
     if args.wiki_cmd == "lint":
