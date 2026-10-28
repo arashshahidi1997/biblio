@@ -46,11 +46,30 @@ nodejs = ">=20"
 [feature.frontend.tasks]
 build-frontend = { cmd = "npm ci && npx vite build", cwd = "frontend" }
 
+# Docling feature: the PDF converter biblio runs (`docling.cmd`), pinned so every project and
+# pool converts with the same version (R48). 2.64.1 is what the shared pools were made with
+# (conda env `rag`). CPU torch: gamma2 has no GPU. Lean env, without biblio itself. From any
+# project: docling.cmd: ["pixi", "run", "--manifest-path", "<biblio>/pixi.toml", "-e", "docling", "docling"]
+[feature.docling]
+platforms = ["linux-64", "osx-arm64"]
+
+[feature.docling.dependencies]
+python = "3.11.*"
+
+[feature.docling.pypi-dependencies]
+docling = "==2.64.1"
+docling-core = "==2.55.0"         # the companions too: they set layout and text
+docling-ibm-models = "==3.10.3"
+docling-parse = "==4.7.2"
+torch = { version = "*", index = "https://download.pytorch.org/whl/cpu" }
+torchvision = { version = "*", index = "https://download.pytorch.org/whl/cpu" }
+
 [environments]
 default  = { features = [] }
 dev      = { features = ["dev"] }
 docs     = { features = ["docs"] }
 frontend = { features = ["frontend"] }
+docling  = { features = ["docling"], no-default-feature = true }
 
 [tasks]
 # Tasks live in the features above: `pixi task list`. Saving and pushing are

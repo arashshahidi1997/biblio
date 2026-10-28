@@ -26,9 +26,10 @@ hash, docling command, docling version, whether page images were kept).
 
 ## The pinned docling environment
 
-biblio's `pixi.toml` has a `docling` environment with docling **2.64.1** and
-CPU torch, for linux-64 and osx-arm64. Every project on a host can use the
-same one, so pools and new conversions come from one version. Install it once
+biblio's `pixi.toml` has a `docling` environment with docling **2.64.1**
+(docling-core 2.55.0, docling-ibm-models 3.10.3, docling-parse 4.7.2) and CPU
+torch, for linux-64 and osx-arm64. Every project on a host can use the same
+one, so pools and new conversions come from one version. Install it once
 in the biblio checkout:
 
 ```bash
@@ -48,11 +49,14 @@ paper's output folder, so the manifest path has to be absolute.
 
 **Pools.** The shared pools (sirocampus, pixecog) were converted with the conda
 env `rag`, which has had docling 2.64.1 since 2025-12-12 (all pool outputs are
-newer; DoclingDocument schema 1.8.0). The pinned version is the same, so a
-re-run with the pixi env should give the same text; the PyTorch build differs
-(CPU instead of CUDA 12.8, which gamma2 cannot use anyway). Folders converted
-from now on record the version in `_biblio.json` (`docling.version`); older
-folders have no version field.
+newer; DoclingDocument schema 1.8.0). The pinned versions are the same, down
+to the companion packages; only the PyTorch build differs (CPU instead of
+CUDA 12.8, which gamma2 cannot use anyway). Checked on 2026-10-28 with a
+sirocampus paper (`davis_2011_DeltaWave`): the new `.md` is byte-identical to
+the pool's, the JSON has the same texts and page sizes. The first call takes
+about a minute while pixi and docling start; a 3-page paper converts in 40 s.
+Folders converted from now on record the version in `_biblio.json`
+(`docling.version`); older folders have no version field.
 
 ## Page images
 
