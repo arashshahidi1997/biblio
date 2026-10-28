@@ -7,6 +7,8 @@ dist/
 build/
 site/
 /bib/
+# biblio's own working bibliography config (moved from bib/config by projio), local like /bib/
+/.projio/biblio/
 *.egg-info/
 .venv/
 env/
