@@ -65,6 +65,7 @@ class BiblioConfig:
     docling_cmd: Sequence[str]
     docling_to: tuple[str, ...]
     docling_image_export_mode: str
+    docling_page_images: bool
     bibtex_merge: BibtexMergeConfig
     pdf_fetch: PdfFetchConfig
     openalex: OpenAlexConfig
@@ -132,6 +133,18 @@ def load_biblio_config(path: str | Path, *, root: str | Path | None = None) -> B
     else:
         raise TypeError("docling.to must be a string or list[str]")
     image_export_mode = str(_get(payload, "docling", "image_export_mode", default="referenced"))
+    # page renderings in <key>.json (base64, ~1 MB a page); nothing in biblio reads them (R47)
+    page_images_raw = _get(payload, "docling", "page_images", default=None)
+    if page_images_raw is None:
+        page_images = image_export_mode == "embedded"
+    elif isinstance(page_images_raw, bool):
+        page_images = page_images_raw
+    elif str(page_images_raw).lower() in {"embedded", "keep", "true", "yes"}:
+        page_images = True
+    elif str(page_images_raw).lower() in {"false", "drop", "no", "none"}:
+        page_images = False
+    else:
+        raise ValueError("docling.page_images must be true or false")
 
     def _abs(p: Path) -> Path:
         return (repo_root / p).resolve() if not p.is_absolute() else p
@@ -208,6 +221,7 @@ def load_biblio_config(path: str | Path, *, root: str | Path | None = None) -> B
         docling_cmd=tuple(docling_cmd),
         docling_to=tuple(docling_to),
         docling_image_export_mode=image_export_mode,
+        docling_page_images=page_images,
         bibtex_merge=bibtex_merge,
         pdf_fetch=pdf_fetch,
         openalex=openalex,

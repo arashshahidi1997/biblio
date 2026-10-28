@@ -46,6 +46,14 @@ except Exception:  # pragma: no cover
     argcomplete = None
 
 
+def _fmt_bytes(n: float) -> str:
+    for unit in ("B", "KB", "MB"):
+        if abs(n) < 1024:
+            return f"{n:.0f} {unit}" if unit == "B" else f"{n:.1f} {unit}"
+        n /= 1024
+    return f"{n:.2f} GB"
+
+
 def _fmt_duration(seconds: float | None) -> str:
     """Format seconds as e.g. '1h23m' or '4m12s'."""
     if seconds is None or seconds < 0:
@@ -191,6 +199,21 @@ def _build_parser() -> argparse.ArgumentParser:
         default="docling-batch",
         help="Screen session name when using --screen (default: docling-batch).",
     )
+
+    p_slim = doc_sub.add_parser(
+        "slim",
+        help="Drop the page images from docling JSON already converted, in place (R47).",
+        description="Remove pages[*].image (a base64 rendering of every page, unread by biblio) from "
+                    "<key>.json without re-running docling. Locked annex files are replaced by regular "
+                    "files; `datalad save` annexes them again.",
+    )
+    p_slim.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    p_slim.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")
+    slim_group = p_slim.add_mutually_exclusive_group(required=True)
+    slim_group.add_argument("--key", action="append", help="Citekey (repeatable).")
+    slim_group.add_argument("--all", action="store_true", help="Every folder under the project's docling out_root.")
+    slim_group.add_argument("--dir", type=Path, help="Every folder under this docling root (e.g. a pool's derivatives/docling).")
+    p_slim.add_argument("--dry-run", action="store_true", help="Report the bytes that would be saved; write nothing.")
 
     p_bt = sub.add_parser("bibtex", help="Work with BibTeX sources (srcbib merge).")
     bt_sub = p_bt.add_subparsers(dest="bibtex_cmd", required=True)
@@ -1253,6 +1276,51 @@ def main(argv: Iterable[str] | None = None) -> None:
                 for f in result.failures:
                     print(f"  [FAIL] {f['citekey']}: {f['error']}", file=sys.stderr)
             raise SystemExit(0 if result.failed == 0 and not named_missing else 1)
+
+        if args.doc_cmd == "slim":
+            from .docling import docling_json_in, outputs_for_key, slim_docling_json
+            if args.dir:
+                root_dir = args.dir.expanduser().resolve()
+                if not root_dir.is_dir():
+                    raise SystemExit(f"[ERROR] not a directory: {root_dir}")
+                folders = sorted(p for p in root_dir.iterdir() if p.is_dir())
+            else:
+                repo_root = (args.root.expanduser().resolve() if args.root else find_repo_root())
+                cfg_path = (repo_root / args.config).resolve() if args.config else default_config_path(root=repo_root)
+                cfg = load_biblio_config(cfg_path, root=repo_root)
+                if args.all:
+                    folders = sorted(p for p in cfg.out_root.iterdir() if p.is_dir()) if cfg.out_root.is_dir() else []
+                else:
+                    folders = [outputs_for_key(cfg, k).outdir for k in args.key]
+            total = {"files": 0, "slimmed": 0, "before": 0, "after": 0}
+            problems = 0
+            for folder in folders:
+                path = docling_json_in(folder) if folder.is_dir() else None
+                if path is None:
+                    if args.key:
+                        print(f"  [MISS] {folder.name}: no docling JSON", file=sys.stderr)
+                        problems += 1
+                    continue
+                r = slim_docling_json(path, dry_run=args.dry_run)
+                total["files"] += 1
+                total["before"] += r.bytes_before
+                total["after"] += r.bytes_after
+                if r.status in ("slimmed", "would slim"):
+                    total["slimmed"] += 1
+                    print(f"  [{'DRY' if args.dry_run else 'OK'}] {folder.name}: {_fmt_bytes(r.bytes_before)} -> "
+                          f"{_fmt_bytes(r.bytes_after)} ({r.pages} page images)")
+                elif r.status in ("no content", "unreadable"):
+                    problems += 1
+                    hint = " (annexed without content: `datalad get` it first)" if r.status == "no content" else ""
+                    print(f"  [SKIP] {folder.name}: {r.status}{hint}", file=sys.stderr)
+            verb = "would save" if args.dry_run else "saved"
+            print(f"[DONE] {total['slimmed']} of {total['files']} JSON files {'to slim' if args.dry_run else 'slimmed'}; "
+                  f"{verb} {_fmt_bytes(total['before'] - total['after'])} "
+                  f"({_fmt_bytes(total['before'])} -> {_fmt_bytes(total['after'])})"
+                  + (f"; {problems} skipped" if problems else ""))
+            if total["slimmed"] and not args.dry_run:
+                print("  in a DataLad dataset: `datalad save` to annex the new files")
+            raise SystemExit(1 if problems else 0)
 
         if args.doc_cmd != "run":
             raise SystemExit(2)

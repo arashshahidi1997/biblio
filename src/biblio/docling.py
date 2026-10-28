@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import os
 import re
 import shutil
 import subprocess
@@ -84,6 +86,92 @@ def _require_nonempty(path: Path, label: str) -> None:
         raise ValueError(f"Empty {label}: {path}")
 
 
+# What biblio reads from <key>.json (docs/how-to/docling.md): ``pages`` (keys and ``size``),
+# ``texts`` (``text``, ``prov``, ``self_ref``), ``pictures`` (``prov``, ``captions``,
+# ``image.uri``). ``pages[*].image`` is a base64 rendering of each page, ~1 MB a page, unread.
+
+
+@dataclass(frozen=True)
+class SlimResult:
+    path: Path
+    status: str            # "slimmed", "would slim", "already slim", "no content", "unreadable"
+    bytes_before: int = 0
+    bytes_after: int = 0
+    pages: int = 0         # page images dropped
+
+    @property
+    def saved(self) -> int:
+        return self.bytes_before - self.bytes_after
+
+
+def strip_page_images(doc: dict[str, Any]) -> int:
+    """Drop ``pages[*].image`` from a DoclingDocument dict in place; return how many were dropped."""
+    pages = doc.get("pages")
+    items = pages.values() if isinstance(pages, dict) else pages if isinstance(pages, list) else []
+    dropped = 0
+    for page in items:
+        if isinstance(page, dict) and page.pop("image", None) is not None:
+            dropped += 1
+    return dropped
+
+
+def slim_docling_json(path: Path, *, dry_run: bool = False) -> SlimResult:
+    """Remove the page images from one docling JSON, in place.
+
+    The new file is written next to the old one and renamed over it, so a locked annex
+    symlink is replaced by a regular file (annexed again by ``datalad save``), as
+    ``figures run --force`` does with its staged folder.
+    """
+    if path.is_symlink() and not path.exists():
+        return SlimResult(path, "no content")       # annexed file without content: `datalad get` first
+    try:
+        before = path.stat().st_size
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return SlimResult(path, "unreadable")
+    dropped = strip_page_images(doc)
+    if not dropped:
+        return SlimResult(path, "already slim", before, before)
+    data = json.dumps(doc, indent=2, ensure_ascii=False).encode("utf-8")
+    if dry_run:
+        return SlimResult(path, "would slim", before, len(data), dropped)
+    fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    try:
+        with os.fdopen(fd, "wb") as fh:
+            fh.write(data)
+        os.chmod(tmp, 0o644)
+        os.replace(tmp, path)
+    except BaseException:
+        Path(tmp).unlink(missing_ok=True)
+        raise
+    return SlimResult(path, "slimmed", before, len(data), dropped)
+
+
+def docling_json_in(folder: Path) -> Path | None:
+    """The docling JSON of one output folder (``<name>/<name>.json``, else the one other .json)."""
+    own = folder / f"{folder.name}.json"
+    if own.exists() or own.is_symlink():
+        return own
+    others = [p for p in sorted(folder.glob("*.json")) if p.name != "_biblio.json"]
+    return others[0] if len(others) == 1 else None
+
+
+_VERSIONS: dict[tuple[str, ...], str | None] = {}
+
+
+def docling_version(cmd: tuple[str, ...] | list[str]) -> str | None:
+    """``docling --version`` through the configured command (cached per command); None if it fails."""
+    key = tuple(cmd)
+    if key not in _VERSIONS:
+        try:
+            res = subprocess.run([*key, "--version"], capture_output=True, text=True, timeout=300)
+            m = re.search(r"Docling version:\s*(\S+)", res.stdout + res.stderr)
+            _VERSIONS[key] = m.group(1) if m else None
+        except (OSError, subprocess.SubprocessError):
+            _VERSIONS[key] = None
+    return _VERSIONS[key]
+
+
 def _parse_docling_progress(line: str) -> dict[str, Any] | None:
     """Parse a docling stderr/stdout line for page-level progress."""
     # Docling typically logs lines like "Processing page 3/12" or percentage patterns
@@ -152,8 +240,9 @@ def run_docling_for_key(
         if resolved is None:
             raise FileNotFoundError(
                 f"Docling command not found on PATH: {exe!r}. "
-                "Install Docling or set `docling.cmd` in bib/config/biblio.yml "
-                '(e.g. "docling", ["pixi","run","-e","docling","docling"] or ["uvx","docling"]).'
+                "Install Docling or set `docling.cmd` in .projio/biblio/biblio.yml, e.g. biblio's "
+                'pinned env: ["pixi","run","--manifest-path","<biblio>/pixi.toml","-e","docling","docling"] '
+                "(docs/how-to/docling.md)."
             )
 
     # Work inside OUTDIR so Docling doesn't mirror paths under it.
@@ -221,6 +310,8 @@ def run_docling_for_key(
 
     _require_nonempty(out.md_path, "Docling Markdown output")
     _require_nonempty(out.json_path, "Docling JSON output")
+    if not cfg.docling_page_images:
+        slim_docling_json(out.json_path)
     _write_docling_meta(
         cfg,
         out,
@@ -230,6 +321,7 @@ def run_docling_for_key(
         source_hash=source_hash,
         forced=force,
         reused=False,
+        version=docling_version(cfg.docling_cmd),
     )
     _append_docling_run(
         cfg,
@@ -254,7 +346,17 @@ def _write_docling_meta(
     source_hash: str,
     forced: bool,
     reused: bool,
+    version: str | None = None,
 ) -> None:
+    if reused:                       # the files were made by an earlier run: keep what it recorded
+        try:
+            old = json.loads(out.meta_path.read_text(encoding="utf-8")).get("docling") or {}
+        except (OSError, ValueError):
+            old = {}
+        version = old.get("version")
+        page_images = old.get("page_images")
+    else:
+        page_images = cfg.docling_page_images
     payload: dict[str, Any] = {
         "citekey": citekey,
         "run_id": run_id,
@@ -268,6 +370,8 @@ def _write_docling_meta(
             "cmd": list(cfg.docling_cmd),
             "formats": list(cfg.docling_to),
             "image_export_mode": cfg.docling_image_export_mode,
+            "version": version,
+            "page_images": page_images,
         },
         "outputs": {
             "md_path": str(out.md_path),

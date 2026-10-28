@@ -8,7 +8,7 @@
 | `biblio citekeys` | Manage `bib/config/citekeys.md` |
 | `biblio ingest` | Import DOIs, CSL JSON, RIS, or local PDFs |
 | `biblio bibtex` | Merge srcbib, fetch PDFs (local + open-access cascade) |
-| `biblio docling` | Run Docling to generate markdown and JSON (single or batch) |
+| `biblio docling` | Run Docling to generate markdown and JSON (single or batch); `slim` drops page images from existing JSON |
 | `biblio openalex` | Resolve srcbib entries to OpenAlex works |
 | `biblio add` | Add a paper by DOI, OpenAlex ID, or ORCID |
 | `biblio graph` | Expand the reference graph from OpenAlex data |
@@ -62,6 +62,8 @@ biblio docling batch                            # batch-process all pending pape
 biblio docling batch --concurrency 4            # parallel workers
 biblio docling batch --keys a_2020_X,b_2021_Y   # only these papers; others untouched
 biblio docling batch --from new-keys.txt        # one citekey per line
+biblio docling slim --all --dry-run             # bytes the page images take; writes nothing
+biblio docling slim --key a_2020_X              # drop pages[*].image in place (also --all, --dir DIR)
 
 # grobid
 biblio grobid check                             # test GROBID server connectivity

@@ -64,7 +64,16 @@ docling:
   cmd: docling                        # or a full path, ["pixi", "run", "-e", "docling", "docling"], ["uvx", "docling"]
   to: [md, json]
   image_export_mode: referenced
+  page_images: false                  # keep docling's base64 page renderings in <key>.json (default: only with embedded)
 ```
+
+Docling writes a rendering of every page into `<key>.json` as a base64 image
+(about 1 MB a page) even in `referenced` mode. biblio reads none of it, so it
+removes `pages[*].image` after each conversion unless `page_images: true`, or
+`image_export_mode: embedded` without `page_images`. `_biblio.json` records
+the docling version and whether page images were kept. See
+[Run Docling](../how-to/docling.md) for the pinned docling environment and
+`biblio docling slim`.
 
 ### `openalex`
 
