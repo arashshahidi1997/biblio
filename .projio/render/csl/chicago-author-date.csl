@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="utf-8"?>
+<style xmlns="http://purl.org/net/xbiblio/csl" class="author-date" version="1.0" demote-non-dropping-particle="sort-only">
+  <info>
+    <title>Chicago Manual of Style 18th edition (author-date)</title>
+    <title-short>Chicago (Author-Date)</title-short>
+    <id>http://www.zotero.org/styles/chicago-author-date</id>
+    <link href="http://www.zotero.org/styles/chicago-author-date" rel="self"/>
+    <link href="https://www.chicagomanualofstyle.org/" rel="documentation"/>
+    <author>
+      <name>Andrew Dunning</name>
+      <uri>https://orcid.org/0000-0003-0464-5036</uri>
+    </author>
+    <category citation-format="author-date"/>
+    <category field="generic-base"/>
+    <category field="anthropology"/>
+    <category field="communications"/>
+    <category field="history"/>
+    <category field="humanities"/>
+    <category field="law"/>
+    <category field="literature"/>
+    <category field="philosophy"/>
+    <category field="social_science"/>
+    <category field="sociology"/>
+    <summary>Chicago Manual of Style 18th edition author-date style</summary>
+    <updated>2026-02-14T00:00:00+00:00</updated>
+    <rights license="http://creativecommons.org/licenses/by-sa/3.0/">This work is licensed under a Creative Commons Attribution-ShareAlike 3.0 License</rights>
+  </info>
+  <locale xml:lang="en">
+    <date form="text">
+      <date-part name="month" form="long" suffix=" "/>
+      <date-part name="day" suffix=", "/>
+      <date-part name="year"/>
+    </date>
+  </locale>
+  <macro name="author">
+    <names variable="author">
+      <name and="text" et-al-min="3" et-al-use-first="1" name-as-sort-order="first"/>
+      <et-al font-style="italic"/>
+      <label form="short" prefix=" (" suffix=")"/>
+      <substitute>
+        <names variable="editor"/>
+        <names variable="translator"/>
+        <choose>
+          <if type="bill book graphic legal_case legislation motion_picture song" match="any">
+            <text variable="title"/>
+          </if>
+          <else>
+            <text variable="title"/>
+          </else>
+        </choose>
+      </substitute>
+    </names>
+  </macro>
+  <macro name="author-short">
+    <names variable="author">
+      <name form="short" and="text" et-al-min="3" et-al-use-first="1"/>
+      <et-al font-style="italic"/>
+      <substitute>
+        <names variable="editor"/>
+        <names variable="translator"/>
+        <choose>
+          <if type="bill book graphic legal_case legislation motion_picture song" match="any">
+            <text variable="title" form="short"/>
+          </if>
+          <else>
+            <text variable="title" form="short" quotes="true"/>
+          </else>
+        </choose>
+      </substitute>
+    </names>
+  </macro>
+  <macro name="issued">
+    <choose>
+      <if variable="issued">
+        <date variable="issued">
+          <date-part name="year"/>
+        </date>
+      </if>
+      <else>
+        <text term="no date" form="short"/>
+      </else>
+    </choose>
+  </macro>
+  <macro name="issued-full">
+    <choose>
+      <if variable="issued">
+        <date variable="issued">
+          <date-part name="month" form="long" suffix=" "/>
+          <date-part name="day" suffix=", "/>
+          <date-part name="year"/>
+        </date>
+      </if>
+      <else>
+        <text term="no date" form="short"/>
+      </else>
+    </choose>
+  </macro>
+  <macro name="title">
+    <choose>
+      <if type="bill book graphic legal_case legislation motion_picture song" match="any">
+        <text variable="title" font-style="italic"/>
+      </if>
+      <else>
+        <text variable="title" quotes="true"/>
+      </else>
+    </choose>
+  </macro>
+  <macro name="container-title">
+    <text variable="container-title" font-style="italic"/>
+  </macro>
+  <macro name="publisher">
+    <choose>
+      <if type="thesis" match="any">
+        <text variable="publisher"/>
+      </if>
+      <else>
+        <group delimiter=": ">
+          <text variable="publisher-place"/>
+          <text variable="publisher"/>
+        </group>
+      </else>
+    </choose>
+  </macro>
+  <macro name="locators">
+    <choose>
+      <if type="article-journal" match="any">
+        <group delimiter=", ">
+          <text variable="volume"/>
+          <text variable="issue"/>
+          <text variable="page"/>
+        </group>
+      </if>
+      <else>
+        <text variable="page"/>
+      </else>
+    </choose>
+  </macro>
+  <macro name="access">
+    <choose>
+      <if variable="DOI">
+        <text variable="DOI" prefix="https://doi.org/"/>
+      </if>
+      <else-if variable="URL">
+        <text variable="URL"/>
+      </else-if>
+    </choose>
+  </macro>
+  <citation et-al-min="4" et-al-use-first="1" et-al-subsequent-min="4" et-al-subsequent-use-first="1" disambiguate-add-names="true">
+    <sort>
+      <key macro="author-short"/>
+      <key macro="issued"/>
+    </sort>
+    <layout prefix="(" suffix=")" delimiter="; ">
+      <group delimiter=" ">
+        <text macro="author-short"/>
+        <text macro="issued"/>
+      </group>
+    </layout>
+  </citation>
+  <bibliography hanging-indent="true" et-al-min="3" et-al-use-first="1" entry-spacing="0" line-spacing="2">
+    <sort>
+      <key macro="author"/>
+      <key macro="issued"/>
+    </sort>
+    <layout>
+      <group delimiter=". ">
+        <text macro="author"/>
+        <text macro="issued-full"/>
+        <text macro="title"/>
+        <text macro="container-title"/>
+        <text macro="locators"/>
+        <text macro="publisher"/>
+        <text macro="access"/>
+      </group>
+      <text value="."/>
+    </layout>
+  </bibliography>
+</style>

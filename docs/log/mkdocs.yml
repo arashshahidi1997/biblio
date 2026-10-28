@@ -1,0 +1,7 @@
+site_name: log
+docs_dir: .
+nav:
+- Overview: index.md
+- Idea: idea/index.md
+- Issue: issue/index.md
+- Task: task/index.md

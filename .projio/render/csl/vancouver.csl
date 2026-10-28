@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<style xmlns="http://purl.org/net/xbiblio/csl" class="in-text" version="1.0" demote-non-dropping-particle="sort-only">
+  <info>
+    <title>Vancouver</title>
+    <title-short>Vancouver</title-short>
+    <id>http://www.zotero.org/styles/vancouver</id>
+    <link href="http://www.zotero.org/styles/vancouver" rel="self"/>
+    <link href="https://www.ncbi.nlm.nih.gov/books/NBK7256/" rel="documentation"/>
+    <author>
+      <name>Michael Berkowitz</name>
+      <email>mberkowi@gmu.edu</email>
+    </author>
+    <contributor>
+      <name>Andrew Dunning</name>
+      <uri>https://orcid.org/0000-0003-0464-5036</uri>
+    </contributor>
+    <category citation-format="numeric"/>
+    <category field="medicine"/>
+    <category field="generic-base"/>
+    <summary>Numeric citations used in biomedical sciences, such as PubMed</summary>
+    <updated>2023-10-12T00:00:00+00:00</updated>
+    <rights license="http://creativecommons.org/licenses/by-sa/3.0/">This work is licensed under a Creative Commons Attribution-ShareAlike 3.0 License</rights>
+  </info>
+  <locale xml:lang="en">
+    <date form="text">
+      <date-part name="year"/>
+      <date-part name="month" form="short" prefix=" " strip-periods="true"/>
+      <date-part name="day" prefix=" "/>
+    </date>
+  </locale>
+  <macro name="author">
+    <names variable="author">
+      <name et-al-min="7" et-al-use-first="6" sort-separator=" " delimiter=", " and="symbol" initialize-with=""/>
+      <label form="short" prefix=", "/>
+      <et-al font-style="italic"/>
+    </names>
+  </macro>
+  <macro name="issued">
+    <choose>
+      <if type="bill book chapter legislation paper-conference" match="any">
+        <date variable="issued" prefix=" (" suffix=")">
+          <date-part name="year"/>
+        </date>
+      </if>
+      <else>
+        <date variable="issued" prefix=" ">
+          <date-part name="year"/>
+        </date>
+      </else>
+    </choose>
+  </macro>
+  <macro name="title">
+    <choose>
+      <if type="bill book graphic legal_case legislation motion_picture song" match="any">
+        <text variable="title" font-style="italic"/>
+      </if>
+      <else>
+        <text variable="title"/>
+      </else>
+    </choose>
+  </macro>
+  <macro name="edition">
+    <choose>
+      <if is-numeric="edition">
+        <group delimiter=" ">
+          <number variable="edition" form="ordinal"/>
+          <text term="edition" form="short"/>
+        </group>
+      </if>
+      <else>
+        <text variable="edition"/>
+      </else>
+    </choose>
+  </macro>
+  <macro name="locators">
+    <text variable="page"/>
+  </macro>
+  <macro name="container-title">
+    <choose>
+      <if type="article-journal">
+        <text variable="container-title" form="short" font-style="italic" text-case="title"/>
+      </if>
+      <else>
+        <text variable="container-title" font-style="italic"/>
+      </else>
+    </choose>
+  </macro>
+  <macro name="publisher">
+    <group delimiter=": ">
+      <text variable="publisher-place"/>
+      <text variable="publisher"/>
+    </group>
+  </macro>
+  <macro name="access">
+    <choose>
+      <if variable="DOI">
+        <text variable="DOI" prefix="https://doi.org/"/>
+      </if>
+      <else-if type="webpage post-weblog post" match="any">
+        <group delimiter=" ">
+          <text term="accessed" text-case="capitalize-first"/>
+          <date variable="accessed">
+            <date-part name="year" prefix=" "/>
+            <date-part name="month" form="short" prefix=" " strip-periods="true"/>
+            <date-part name="day" prefix=" "/>
+          </date>
+          <text variable="URL" prefix=". "/>
+        </group>
+      </else-if>
+      <else>
+        <text variable="URL" prefix=" "/>
+      </else>
+    </choose>
+  </macro>
+  <citation collapse="citation-number">
+    <sort>
+      <key variable="citation-number"/>
+    </sort>
+    <layout vertical-align="sup" delimiter=",">
+      <text variable="citation-number"/>
+    </layout>
+  </citation>
+  <bibliography et-al-min="7" et-al-use-first="6" entry-spacing="0" second-field-align="flush">
+    <layout>
+      <text variable="citation-number" suffix=". "/>
+      <group delimiter=" ">
+        <text macro="author"/>
+        <text macro="title"/>
+        <choose>
+          <if type="article-journal">
+            <group delimiter=" ">
+              <text macro="container-title"/>
+              <text variable="volume" font-weight="bold" prefix=""/>
+              <text macro="locators" prefix=":" suffix=";"/>
+              <text macro="issued"/>
+            </group>
+          </if>
+          <else-if type="book chapter" match="any">
+            <group delimiter=" ">
+              <text macro="container-title"/>
+              <text macro="edition" prefix=". "/>
+              <text macro="publisher"/>
+              <text macro="issued"/>
+              <text macro="locators" prefix="p. "/>
+            </group>
+          </else-if>
+          <else-if type="webpage post-weblog post" match="any">
+            <text macro="container-title"/>
+            <text macro="access" prefix=" "/>
+          </else-if>
+          <else>
+            <text macro="title"/>
+            <text macro="publisher"/>
+            <text macro="issued"/>
+            <text macro="access" prefix=" "/>
+          </else>
+        </choose>
+      </group>
+      <text value="."/>
+    </layout>
+  </bibliography>
+</style>

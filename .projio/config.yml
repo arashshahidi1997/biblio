@@ -2,6 +2,8 @@
 project_name: biblio
 project_kind: tool
 push_sibling: github
+code:
+  runner: pixi
 description: ""
 
 indexio:

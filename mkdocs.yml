@@ -14,6 +14,11 @@ theme:
     - navigation.indexes
     - content.code.copy
 
+plugins:
+  - search
+  - monorepo
+  - ezlinks
+
 markdown_extensions:
   - admonition
   - attr_list
@@ -59,3 +64,4 @@ nav:
       - CLI: reference/cli.md
       - Workspace Layout: reference/workspace.md
       - Configuration: reference/configuration.md
+  - Log: '!include ./docs/log/mkdocs.yml'

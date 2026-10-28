@@ -1,0 +1,4 @@
+# Projio Quarto defaults for docs/deliverables/reports/*.qmd.
+# CSL + bibliography inherit from .projio/render.yml via report.qmd frontmatter;
+# report_build enforces min_version as a runtime check.
+min_version: "1.5"
