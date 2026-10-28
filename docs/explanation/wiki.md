@@ -113,7 +113,8 @@ exists, and that each description says when to use the skill.
 1. **Deterministic core** (done, 0.2.x): `init`, `stub`, `lint` (exact-only
    quote fidelity), `hubs`, `status`, `embeds`, `figure`, `review`; skills
    `wiki-ingest`, `wiki-maintain`, `wiki-review`. Used on pixecog (layer
-   identification, 47 pages) and journal-club (sleep coupling).
+   identification, 47 pages) and lit-studio (formerly journal-club,
+   `/storage2/arash/projects/lit-studio`; sleep coupling).
 2. **Restructuring and views:** `relink`, `merge`, `extract`, `suggest`,
    `views`; skill `wiki-synthesize`.
 3. **Digest-driven work:** the `subject`, `claims` and `methods` digest modes
