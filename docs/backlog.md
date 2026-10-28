@@ -1,6 +1,6 @@
 # Upgrade backlog
 
-**Updated:** 2026-10-22
+**Updated:** 2026-10-28
 
 The plan for bringing biblio to its proposed [scope](explanation/scope.md):
 digest and wiki as the core, discovery and ingest partial, a slimmer
@@ -18,10 +18,10 @@ Two projects drive the order of work:
 
 | Project | Goal | Needs first |
 |---------|------|-------------|
-| journal-club | lab-meeting talk on `alemanzapata_2026_DeltasSpindles`, **2026-10-23**: ingest the paper and its references, a literature wiki, figures, the talk (its `backlogs/2026-10-23-alemanzapata-tooling.md`) | **W16**, H01, then I04, I05, D10 |
+| lit-studio (formerly journal-club, `/storage2/arash/projects/lit-studio`) | lab-meeting talk on `alemanzapata_2026_DeltasSpindles`, **2026-10-23**: ingest the paper and its references, a literature wiki, figures, the talk (its `backlogs/2026-10-23-alemanzapata-tooling.md`) | **W16**, H01, then I04, I05, D10 |
 | pixecog | wiki subject "layer identification" (its `docs/wiki/BACKLOG.md`) | W02, W03, W04 |
 
-Requests from journal-club are tagged R01 to R06 below.
+Requests from lit-studio (formerly journal-club) are tagged Rnn below (R01 to R48 so far).
 
 ## H. Hygiene (M0)
 
@@ -197,8 +197,11 @@ Requests from journal-club are tagged R01 to R06 below.
   after its first review, so method and tools version together.
 - [ ] **W14 One vocabulary.** The wiki's `vocab.yml` and biblio's
   `tag_vocab.yml` become one file (pixecog wiki backlog E03).
-- [ ] **W15 Skill discovery (R05).** projio discovers skills shipped by
-  installed packages; until then `biblio skills install`.
+- [x] **W15 Skill discovery (R05).** projio discovers skills shipped by
+  installed packages: biblio declares the `projio.skills` entry point,
+  projio's `package_skill_dirs` reads it (projio 95a1c2f) and `projio sync`
+  installs them; confirmed by journal-club on 2026-10-22. R05 closed
+  2026-10-28.
 
 ## D. Digest (M2)
 
@@ -298,6 +301,21 @@ Requests from journal-club are tagged R01 to R06 below.
   of journal-club's wiki with the eLife text as `@published`: the 4 FID001
   errors on the simple/complex-learning question page clear, 111 pages
   0 errors. Not done: pinning a version per page (`fulltext_version:`).
+- [x] **I11 Docling JSON without page images (R47).** Docling embeds a base64
+  rendering of every page (`pages[*].image`, ~1 MB a page) even in
+  `referenced` mode; biblio reads none of it. Dropped after each conversion
+  unless `docling.page_images: true`; `biblio docling slim --key K | --all |
+  --dir DIR [--dry-run]` slims existing JSON in place (temp file + rename,
+  so a locked annex file becomes a regular file) and reports bytes saved. On
+  copies of two lit-studio papers: 20.0 MB -> 669 KB, 7.2 MB -> 207 KB. The
+  parts of the JSON biblio reads are listed in `how-to/docling.md`. Not run
+  on lit-studio or the pools: their owners run it.
+- [x] **I12 Pinned docling (R48).** pixi env `docling` in biblio: docling
+  2.64.1 with the companion versions of the conda env `rag` that made the
+  pools, CPU torch. `docling.cmd: ["pixi", "run", "--manifest-path",
+  "<biblio>/pixi.toml", "-e", "docling", "docling"]` from any project; a
+  sirocampus paper converted with it gives a byte-identical `.md`.
+  `_biblio.json` records `docling.version` and `page_images`.
 - [x] **D17 Quote spans (R39).** Every quote a digest checks stores
   `quote_line`, `quote_raw` (a plain substring of `<key>.md`, cut out by
   aligning letters and digits so glued words, entities, `/C24` and ligature

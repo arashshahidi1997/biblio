@@ -1,17 +1,25 @@
 # Changelog
 
-## Unreleased
+## 0.3.5 (2026-10-28)
+
+lit-studio's (formerly journal-club) requests R47, R48 and R41, after R38 and R39.
 
 ### Added
+- `biblio docling slim --key K | --all | --dir DIR [--dry-run]` (R47): removes the page images from docling JSON already converted, in place, and reports the bytes saved (a 16-page paper: 20 MB to 0.7 MB). Locked annex files become regular files; `datalad save` annexes them again.
+- `docling.page_images` (R47): docling's base64 page renderings are dropped from `<key>.json` after each conversion unless it is `true` (default: kept only with `image_export_mode: embedded`). `how-to/docling.md` lists the parts of the JSON biblio reads.
+- A pinned `docling` pixi environment (R48): docling 2.64.1 with the companion versions the shared pools were made with, CPU torch; usable from any project as `docling.cmd: ["pixi", "run", "--manifest-path", "<biblio>/pixi.toml", "-e", "docling", "docling"]`.
+- `_biblio.json` records `docling.version` and `docling.page_images` (R48).
 - Two versions of one paper under one citekey (journal-club R38): `<key>@<version>` beside `<key>` (own article and docling folders, own line numbers). `biblio add zotero REF --version published`, `biblio docling batch --keys <key>@published`, `biblio fulltext <key>@published`; the quote checker and wiki lint accept a quote found in any held version and report which; `paper_lookup` lists the versions.
 - Digest quotes carry where they are (journal-club R39): `quote_line`, `quote_raw` (the exact characters of `<key>.md`, so `grep -F` finds them; set when they differ from the clean quote) and `quote_sentence` (the whole sentence when the quote is a fragment of it). `biblio quotes check --json` reports `raw` and `sentence` too.
 - `biblio digest recheck [KEY...]`: re-checks stored digests' quotes against today's full text and fills those fields, without an LLM.
 - Prompt `claims-3`: quote the whole sentence when it states the claim.
 
 ### Fixed
+- The "docling not found" message names `.projio/biblio/biblio.yml` and the pinned environment.
 - The quote checker locates a quote by the whole quote first, so a quote whose first words also occur earlier gets its own line.
 
 ### Changed
+- Docs call the client lit-studio (formerly journal-club) where they describe it now (R41).
 - Development tasks are pixi tasks (`pixi task list`): `test`, `build`, `check`, `ui-serve`, `clean` in `dev`; `docs`, `docs-serve` in `docs`; `build-frontend` in `frontend`. The Makefile (with its conda env paths) and `.projio/projio.mk` are gone; save and push are `datalad save` / `datalad push`.
 
 ## 0.3.4 (2026-10-24)

@@ -1,34 +1,10 @@
 # Issue
 
-## open (6)
-
-[**[from lit-studio, R48] A pixi docling that biblio ships, so projects stop run...**](issue-arash-20261028-142319-555910.md){ .note-card-title }
-
-<small>**created:** 2026-10-28 · **status:** open · **confidence:** 1.0</small>
-
----
-
-[**[from lit-studio, R47] docling JSON embeds every page as a base64 image (abou...**](issue-arash-20261028-142316-584728.md){ .note-card-title }
-
-<small>**created:** 2026-10-28 · **status:** open · **confidence:** 1.0</small>
-
----
+## open (2)
 
 [**[from pixecog] Host the knowledge-wiki SPEC in biblio's docs**](issue-arash-20261028-010355-639068.md){ .note-card-title }
 
 <small>**created:** 2026-10-28 · **status:** open · **confidence:** 1.0</small>
-
----
-
-[**[from lit-studio, R41] journal-club is renamed lit-studio: update the living mentions in docs/explanation/wiki.md and docs/backlog.md**](issue-arash-20261024-015736-933042.md){ .note-card-title }
-
-<small>**created:** 2026-10-24 · **status:** open · **confidence:** 1.0</small>
-
----
-
-[**[from journal-club, R05] Wiki phase 1: commit with tests, and support a literature wiki whose sources live in pools**](issue-arash-20261022-154500-583284.md){ .note-card-title }
-
-<small>**created:** 2026-10-22 · **status:** open · **confidence:** 0.12</small>
 
 ---
 
@@ -38,8 +14,26 @@
 
 ---
 
-??? note "done (7)"
+??? note "done (11)"
 
+    [**[from lit-studio, R48] A pixi docling that biblio ships, so projects stop running docling through the shared conda env rag**](issue-arash-20261028-142319-555910.md){ .note-card-title }
+    
+    <small>**created:** 2026-10-28 · **status:** done · **confidence:** 1.0</small>
+    
+    ---
+    
+    [**[from lit-studio, R47] docling JSON embeds every page as a base64 image (about 20 MB per paper) although image_export_mode is referenced**](issue-arash-20261028-142316-584728.md){ .note-card-title }
+    
+    <small>**created:** 2026-10-28 · **status:** done · **confidence:** 1.0</small>
+    
+    ---
+    
+    [**[from lit-studio, R41] journal-club is renamed lit-studio: update the living mentions in docs/explanation/wiki.md and docs/backlog.md**](issue-arash-20261024-015736-933042.md){ .note-card-title }
+    
+    <small>**created:** 2026-10-24 · **status:** done · **confidence:** 1.0</small>
+    
+    ---
+    
     [**[from journal-club, R39] Digest quotes should be the full text's own span (added 2026-10-24)**](issue-arash-20261024-004610-178190.md){ .note-card-title }
     
     <small>**created:** 2026-10-24 · **status:** done · **confidence:** 1.0</small>
@@ -79,6 +73,12 @@
     [**[from journal-club, R27] Add a list of papers from Zotero, group libraries included**](issue-arash-20261023-153706-737912.md){ .note-card-title }
     
     <small>**created:** 2026-10-23 · **status:** done · **confidence:** 1.0</small>
+    
+    ---
+    
+    [**[from journal-club, R05] Wiki phase 1: commit with tests, and support a literature wiki whose sources live in pools**](issue-arash-20261022-154500-583284.md){ .note-card-title }
+    
+    <small>**created:** 2026-10-22 · **status:** done · **confidence:** 0.12</small>
     
     ---
     
