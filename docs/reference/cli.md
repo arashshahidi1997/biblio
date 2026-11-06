@@ -120,6 +120,9 @@ biblio graph expand                             # both directions (default)
 biblio graph expand --direction references      # papers your corpus cites
 biblio graph expand --direction citing          # papers that cite your corpus
 biblio graph expand --force                     # ignore cached work payloads
+biblio graph expand --keys KEY --fresh          # one seed paper; replace the candidates file
+biblio graph promote --seed KEY --dry-run       # candidates found from KEY that are not held yet
+biblio graph promote --seed KEY --tag T --top-n 50   # add them (filters: --min-citations --min-year --max-year --keyword)
 
 # reference triage for one paper (needs its GROBID output)
 biblio refs triage KEY                          # project + pools -> bib/derivatives/refs/KEY/triage.{json,md}

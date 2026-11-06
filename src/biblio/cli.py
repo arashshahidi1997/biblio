@@ -352,6 +352,23 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Expand past works, future works, or both (default: both).",
     )
 
+    graph_expand.add_argument("--keys", nargs="+", metavar="CITEKEY",
+                              help="Expand only these seed papers (default: every resolved seed).")
+    graph_expand.add_argument("--fresh", action="store_true",
+                              help="Replace the candidates file instead of adding to it (it holds every seed expanded so far).")
+    graph_promote = graph_sub.add_parser(
+        "promote", help="Add graph candidates to the bibliography (filter, dedupe against the library, ingest).")
+    graph_promote.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    graph_promote.add_argument("--seed", nargs="+", metavar="CITEKEY",
+                               help="Only the candidates found from these seed papers. Without it, every seed's "
+                                    "candidates in graph_candidates.json are eligible.")
+    graph_promote.add_argument("--top-n", type=int, help="At most N candidates, by citation count.")
+    graph_promote.add_argument("--min-citations", type=int)
+    graph_promote.add_argument("--min-year", type=int)
+    graph_promote.add_argument("--max-year", type=int)
+    graph_promote.add_argument("--keyword", help="Substring the title must contain.")
+    graph_promote.add_argument("--tag", action="append", dest="tags", help="Tag for the added papers (repeatable).")
+    graph_promote.add_argument("--dry-run", action="store_true", help="List what would be added; add nothing.")
     graph_local = graph_sub.add_parser(
         "local", help="Citation edges between held papers, from cached OpenAlex works (no expansion)."
     )
@@ -1645,11 +1662,36 @@ def main(argv: Iterable[str] | None = None) -> None:
         return
 
     if args.command == "graph":
-        if args.graph_cmd not in ("expand", "local"):
+        if args.graph_cmd not in ("expand", "local", "promote"):
             raise SystemExit(2)
         repo_root = (args.root.expanduser().resolve() if args.root else find_repo_root())
         cfg_path = default_config_path(root=repo_root)
         cfg = load_biblio_config(cfg_path, root=repo_root)
+        if args.graph_cmd == "promote":
+            from .graph_promote import promote_graph_candidates
+            res = promote_graph_candidates(
+                cfg, top_n=args.top_n, min_citations=args.min_citations, min_year=args.min_year,
+                max_year=args.max_year, keyword_filter=args.keyword, tags=args.tags,
+                seed_citekeys=args.seed, dry_run=bool(args.dry_run),
+            )
+            if "error" in res:
+                print(f"[ERROR] {res['error']}", file=sys.stderr)
+                if res.get("hint"):
+                    print(f"  {res['hint']}", file=sys.stderr)
+                raise SystemExit(1)
+            seeds = " ".join(f"{k}={v}" for k, v in res["by_seed"].items())
+            if res["dry_run"]:
+                print(f"[DRY-RUN] would add {res['candidates_selected']} (by seed: {seeds or '-'})")
+                for doi in res["dois"]:
+                    print(f"  {doi}")
+            else:
+                print(f"[OK] added {res['promoted']} (by seed: {seeds or '-'})")
+            print(f"  in scope={res['candidates_in_scope']}/{res['candidates_total']} "
+                  f"already held={res['skipped_existing']} no DOI={res['skipped_no_doi']} "
+                  f"filtered out={res['filtered_out']}")
+            if res.get("warning"):
+                print(f"[WARN] {res['warning']}", file=sys.stderr)
+            return
         input_path = args.input_path or (repo_root / "bib" / "derivatives" / "openalex" / "resolved.jsonl")
         input_path = (repo_root / input_path).resolve() if not input_path.is_absolute() else input_path
         if args.graph_cmd == "local":
@@ -1671,6 +1713,8 @@ def main(argv: Iterable[str] | None = None) -> None:
             out_path=output_path,
             direction=str(args.direction),
             force=bool(args.force),
+            merge=not args.fresh,
+            seed_citekeys=args.keys,
         )
         print(
             f"[OK] seeds={result.total_inputs} seeds_with_openalex={result.seeds_with_openalex} "

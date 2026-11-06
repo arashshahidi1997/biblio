@@ -442,6 +442,7 @@ def graph_promote(
     max_year: int | None = None,
     keyword_filter: str | None = None,
     tags: list[str] | None = None,
+    seed_citekeys: list[str] | None = None,
     dry_run: bool = False,
 ) -> dict[str, Any]:
     """Promote graph expansion candidates into the bibliography."""
@@ -456,6 +457,7 @@ def graph_promote(
         max_year=max_year,
         keyword_filter=keyword_filter,
         tags=tags,
+        seed_citekeys=seed_citekeys,
         dry_run=dry_run,
     )
 

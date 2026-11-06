@@ -71,3 +71,65 @@ def test_graph_expand_calls_expand_correctly(monkeypatch, tmp_path: Path) -> Non
     assert captured["force"] is True
     assert captured["seed_citekeys"] == ["smith2020"]
     assert len(captured["records"]) == 2
+
+
+# ── graph promote: seed scoping ─────────────────────────────────────────────
+
+
+def _promote_fixture(root: Path) -> None:
+    _minimal_biblio_yml(root)
+    oa = root / "bib" / "derivatives" / "openalex"
+    oa.mkdir(parents=True, exist_ok=True)
+    (oa / "resolved.jsonl").write_text(
+        json.dumps({"citekey": "ye_2026_BrainWide", "openalex_id": "https://openalex.org/W1"}) + "\n"
+        + json.dumps({"citekey": "swanson_2025_Topography", "openalex_id": "W2"}) + "\n",
+        encoding="utf-8",
+    )
+    cands = [
+        {"seed_openalex_id": "W1", "openalex_id": "W10", "doi": "https://doi.org/10.1/ye-a", "cited_by_count": 5},
+        {"seed_openalex_id": "W1", "openalex_id": "W11", "doi": "10.1/shared", "cited_by_count": 9},
+        {"seed_openalex_id": "W2", "openalex_id": "W11", "doi": "10.1/shared", "cited_by_count": 9},
+        {"seed_openalex_id": "W2", "openalex_id": "W20", "doi": "10.1/swanson-a", "cited_by_count": 50},
+    ]
+    (oa / "graph_candidates.json").write_text(json.dumps(cands), encoding="utf-8")
+
+
+def test_graph_promote_scoped_to_one_seed(monkeypatch, tmp_path: Path) -> None:
+    from biblio.mcp import graph_promote
+
+    _promote_fixture(tmp_path)
+    ingested: list[list[str]] = []
+
+    def fake_ingest(dois, *, root, tags=None):
+        ingested.append(list(dois))
+        return {"count": len(dois), "citekeys": [f"k{i}" for i in range(len(dois))]}
+
+    monkeypatch.setattr("biblio.mcp.ingest_dois", fake_ingest)
+    res = graph_promote(root=tmp_path, seed_citekeys=["ye_2026_BrainWide"], tags=["ye"])
+
+    assert res["promoted"] == 2
+    assert sorted(ingested[0]) == ["10.1/shared", "https://doi.org/10.1/ye-a"]
+    assert res["by_seed"] == {"ye_2026_BrainWide": 2}
+    assert res["candidates_in_scope"] == 2
+    assert res["candidates_total"] == 4
+    assert "warning" not in res
+
+
+def test_graph_promote_unscoped_warns_and_dedupes(tmp_path: Path) -> None:
+    from biblio.mcp import graph_promote
+
+    _promote_fixture(tmp_path)
+    res = graph_promote(root=tmp_path, dry_run=True)
+
+    assert res["dry_run"] is True
+    assert res["candidates_selected"] == 3  # the shared work counted once
+    assert set(res["by_seed"]) == {"ye_2026_BrainWide", "swanson_2025_Topography"}
+    assert "2 seeds" in res["warning"]
+
+
+def test_graph_promote_unknown_seed_is_an_error(tmp_path: Path) -> None:
+    from biblio.mcp import graph_promote
+
+    _promote_fixture(tmp_path)
+    res = graph_promote(root=tmp_path, seed_citekeys=["nobody_2020_X"], dry_run=True)
+    assert "nobody_2020_X" in res["error"]

@@ -2,7 +2,11 @@
 
 ## Unreleased
 
+### Added
+- `biblio graph promote` (the CLI form of the `biblio_graph_promote` tool) with `--seed KEY...` to promote only the candidates found from those seed papers; `biblio graph expand --keys KEY... [--fresh]` expands only those seeds and can replace the candidates file instead of adding to it.
+
 ### Fixed
+- `promote_graph_candidates` could not be limited to one seed and silently swept in every seed's candidates from the cumulative `graph_candidates.json`. It now takes `seed_citekeys` (an unknown seed is an error), reports `by_seed`, warns when an unscoped promotion spans several seeds, and promotes a work found from several seeds once.
 - `fetch-pdfs-oa` no longer reports a saved landing page as a success. The status `html_fallback` is now `no_pdf_html_saved`, a failure: the PDF slot stays empty, the result's `error` names the HTML file and the path to drop the PDF at, and the paper goes into the fetch queue. The CLI, the background job and the run ledger report `needs_pdf` (count and citekeys).
 - `biblio bibtex merge` reports one paper held under several citekeys: entries with the same DOI (normalized: case, `https://doi.org/` prefix) are listed on stderr, in `.projio/biblio/logs/duplicate_dois.txt` and in the result (`MergeResult.doi_duplicates`, the MCP `biblio_merge` result). All keys are kept, since documents may cite either.
 - The web UI's merge action unpacked two values from `merge_srcbib`, which returns three.
