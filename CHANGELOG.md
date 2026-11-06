@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- `fetch-pdfs-oa` no longer reports a saved landing page as a success. The status `html_fallback` is now `no_pdf_html_saved`, a failure: the PDF slot stays empty, the result's `error` names the HTML file and the path to drop the PDF at, and the paper goes into the fetch queue. The CLI, the background job and the run ledger report `needs_pdf` (count and citekeys).
+
 ## 0.3.5 (2026-10-28)
 
 lit-studio's (formerly journal-club) requests R47, R48 and R41, after R38 and R39.

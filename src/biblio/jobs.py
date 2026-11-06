@@ -369,7 +369,7 @@ def _read():
 
 try:
     from biblio.config import default_config_path, load_biblio_config
-    from biblio.pdf_fetch_oa import fetch_pdfs_oa, ALL_STATUSES
+    from biblio.pdf_fetch_oa import fetch_pdfs_oa, summarize_results, ALL_STATUSES
 
     root = Path({root!r})
     cfg = load_biblio_config(default_config_path(root=root), root=root)
@@ -406,7 +406,8 @@ try:
     )
 
     elapsed = round(time.monotonic() - _start, 1)
-    counts = {{s: sum(1 for r in results if r.status == s) for s in ALL_STATUSES}}
+    summary = summarize_results(results)
+    counts = {{s: summary[s] for s in ALL_STATUSES}}
     errors = [
         {{"citekey": r.citekey, "error": r.error}}
         for r in results if r.error
@@ -418,13 +419,15 @@ try:
     existing["result"] = {{
         "total": len(results),
         **counts,
+        "needs_pdf": summary["needs_pdf"],
+        "needs_pdf_citekeys": summary["needs_pdf_citekeys"][:50],
         "elapsed_s": elapsed,
         "errors": errors[:20],
     }}
     existing["progress"] = {{
         "total": len(results),
         "done": len(results),
-        "failed": counts.get("error", 0),
+        "failed": summary["needs_pdf"],
     }}
     _write(existing)
 

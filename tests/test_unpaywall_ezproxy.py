@@ -284,6 +284,31 @@ class TestFetchCascade:
         assert len(results) == 1
         assert results[0].status == "no_url"
 
+    def test_html_only_is_a_failure(self, tmp_path: Path):
+        """A saved landing page is not a PDF: fail, keep the PDF slot empty, queue it."""
+        cfg = self._make_cfg(tmp_path, sources=["openalex"])
+        self._write_openalex_jsonl(cfg, [
+            {"citekey": "html_2021_Only", "doi": "10.1234/html"},
+        ])
+        html = tmp_path / "bib" / "derivatives" / "html" / "html_2021_Only" / "html_2021_Only.html"
+
+        from biblio.pdf_fetch_oa import fetch_pdfs_oa, summarize_results, FAILED_STATUSES
+        from biblio.fetch_queue import load_queue
+        with patch("biblio.pdf_fetch_oa._try_html_fallback", return_value=html):
+            results = fetch_pdfs_oa(cfg, delay=0, queue=True)
+
+        r = results[0]
+        assert r.status == "no_pdf_html_saved"
+        assert r.status in FAILED_STATUSES
+        assert r.dest is None
+        assert r.html_path == str(html)
+        assert "place the PDF at" in (r.error or "")
+        assert not (cfg.pdf_root / cfg.pdf_pattern.format(citekey="html_2021_Only")).exists()
+        summary = summarize_results(results)
+        assert summary["needs_pdf"] == 1
+        assert summary["needs_pdf_citekeys"] == ["html_2021_Only"]
+        assert "html_2021_Only" in load_queue(cfg)
+
     def test_cascade_order_respects_config(self, tmp_path: Path):
         """If sources=[unpaywall, openalex] and unpaywall succeeds, openalex should not be tried."""
         cfg = self._make_cfg(tmp_path, sources=["unpaywall", "openalex"], email="x@y.com")

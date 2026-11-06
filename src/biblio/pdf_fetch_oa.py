@@ -19,16 +19,27 @@ USER_AGENT = "biblio-tools (https://github.com/arashshahidi1997/biblio)"
 _CHUNK = 1024 * 256  # 256 KB
 _DEFAULT_TIMEOUT = 30
 
-ALL_STATUSES = ("openalex", "unpaywall", "ezproxy", "pool_linked", "html_fallback", "skipped", "no_url", "error")
+ALL_STATUSES = ("openalex", "unpaywall", "ezproxy", "pool_linked", "skipped", "no_pdf_html_saved", "no_url", "error")
+# Statuses that leave the paper without a PDF. ``no_pdf_html_saved`` is a
+# failure: only the publisher landing page was saved (under derivatives/html).
+FAILED_STATUSES = ("no_pdf_html_saved", "no_url", "error")
 
 
 @dataclass
 class OaFetchResult:
     citekey: str
-    status: str          # "openalex" | "unpaywall" | "ezproxy" | "pool_linked" | "skipped" | "no_url" | "error"
+    status: str          # one of ALL_STATUSES
     url: str | None
-    dest: str | None
+    dest: str | None     # the PDF path; None when no PDF was obtained
     error: str | None
+    html_path: str | None = None  # landing page saved when no PDF was found
+
+
+def summarize_results(results: list[OaFetchResult]) -> dict[str, Any]:
+    """Counts per status plus the papers that still need a PDF."""
+    counts = {s: sum(1 for r in results if r.status == s) for s in ALL_STATUSES}
+    needs_pdf = [r.citekey for r in results if r.status in FAILED_STATUSES]
+    return {"total": len(results), **counts, "needs_pdf": len(needs_pdf), "needs_pdf_citekeys": needs_pdf}
 
 
 def _oa_pdf_url(record: dict[str, Any]) -> str | None:
@@ -343,24 +354,32 @@ def fetch_pdfs_oa(
                     break
 
         if not fetched:
-            # HTML fallback: save the publisher landing page for docling extraction
+            # No PDF. Save the publisher landing page for docling extraction,
+            # but report it as a failure: the PDF slot stays empty.
             html_path = _try_html_fallback(citekey, doi, cfg)
+            paper_url = str((record.get("primary_location") or {}).get("landing_page_url") or "").strip() or None
             if html_path is not None:
+                if queue:
+                    add_to_queue(cfg, citekey, doi=doi, url=paper_url, oa_status="no_pdf_html_saved",
+                                 note=f"landing page saved at {html_path}")
                 results.append(OaFetchResult(
-                    citekey=citekey, status="html_fallback",
+                    citekey=citekey, status="no_pdf_html_saved",
                     url=f"https://doi.org/{doi}" if doi else None,
-                    dest=str(html_path), error=None,
+                    dest=None,
+                    error=f"no PDF obtained (only the landing page HTML was saved at {html_path}); "
+                          f"place the PDF at {dest}",
+                    html_path=str(html_path),
                 ))
             else:
                 if queue:
-                    paper_url = str((record.get("primary_location") or {}).get("landing_page_url") or "").strip() or None
                     add_to_queue(cfg, citekey, doi=doi, url=paper_url, oa_status="no_url")
                 results.append(OaFetchResult(citekey=citekey, status="no_url", url=None, dest=None, error=None))
 
     if progress_cb:
         progress_cb({"completed": total, "total": total, "citekey": None})
 
-    counts = {s: sum(1 for r in results if r.status == s) for s in ALL_STATUSES}
+    summary = summarize_results(results)
+    counts = {s: summary[s] for s in ALL_STATUSES}
     append_jsonl(
         cfg.ledger.docling_runs.parent.parent / "runs" / "pdf_fetch_oa.jsonl",
         {
@@ -370,6 +389,7 @@ def fetch_pdfs_oa(
             "status": "success",
             "force": force,
             **counts,
+            "needs_pdf": summary["needs_pdf"],
         },
     )
 

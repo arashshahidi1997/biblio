@@ -1446,7 +1446,7 @@ def main(argv: Iterable[str] | None = None) -> None:
                 print(f"[WARN] missing log: {cfg.pdf_fetch.missing_log}", file=sys.stderr)
             return
         if args.bibtex_cmd == "fetch-pdfs-oa":
-            from .pdf_fetch_oa import fetch_pdfs_oa, ALL_STATUSES
+            from .pdf_fetch_oa import fetch_pdfs_oa, summarize_results, ALL_STATUSES
             ck_filter = set(args.citekeys) if args.citekeys else None
 
             def _progress(p: dict) -> None:
@@ -1456,9 +1456,10 @@ def main(argv: Iterable[str] | None = None) -> None:
                 print(f"  [{done}/{total}] {ck}", flush=True)
 
             results = fetch_pdfs_oa(cfg, force=args.force, citekey_filter=ck_filter, progress_cb=_progress)
-            counts = {s: sum(1 for r in results if r.status == s) for s in ALL_STATUSES}
-            parts = [f"{k}={v}" for k, v in counts.items() if v > 0]
-            print(f"[OK] total={len(results)} {' '.join(parts)}")
+            summary = summarize_results(results)
+            parts = [f"{k}={summary[k]}" for k in ALL_STATUSES if summary[k] > 0]
+            tag = "[WARN]" if summary["needs_pdf"] else "[OK]"
+            print(f"{tag} total={len(results)} {' '.join(parts)} needs_pdf={summary['needs_pdf']}")
             errors = [r for r in results if r.error]
             for r in errors[:5]:
                 print(f"[ERROR] {r.citekey}: {r.error}", file=sys.stderr)
