@@ -1418,7 +1418,6 @@ def main(argv: Iterable[str] | None = None) -> None:
         cfg_path = (repo_root / args.config).resolve() if args.config else default_config_path(root=repo_root)
         cfg = load_biblio_config(cfg_path, root=repo_root)
         if args.bibtex_cmd == "backfill-venue":
-            from .ingest import default_import_bib_path
             from .venue import backfill_venues, cached_openalex_loader
             bibs = [(repo_root / b).resolve() if not b.is_absolute() else b for b in (args.bib or [])]
             bibs = bibs or [default_import_bib_path(repo_root)]
