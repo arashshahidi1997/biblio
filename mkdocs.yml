@@ -62,6 +62,7 @@ nav:
   - Reference:
       - reference/index.md
       - CLI: reference/cli.md
+      - Wiki Specification: reference/wiki-spec.md
       - Workspace Layout: reference/workspace.md
       - Configuration: reference/configuration.md
   - Log: '!include ./docs/log/mkdocs.yml'

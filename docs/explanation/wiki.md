@@ -6,9 +6,10 @@
 biblio builds and maintains a project's knowledge wiki: small, linked markdown
 pages about concepts, methods, markers, pitfalls, tools and sources, drafted
 with an agent and reviewed by people. The method (principles P1 to P12, page
-types, frontmatter, lifecycle) is defined in the wiki specification first
-written for pixecog (`docs/wiki/SPEC.md` there). This page defines what biblio
-provides to apply it.
+types, frontmatter, three-tier lifecycle) is defined in the
+[wiki specification](../reference/wiki-spec.md), which lives in biblio so the
+method and the tools version together (first written for pixecog). This page
+defines what biblio provides to apply it.
 
 ## Who does what
 
@@ -43,7 +44,8 @@ binding (bibliography, vocabulary, extra relation keys, project tokens).
 | `extract PAGE --section H --name N [--apply]` | section to a new page, leave lede and link; logged | P1 | 2 (done) |
 | `suggest` | lint findings as refactor suggestions (signal, principle, op) | | 2 |
 | `views` | Obsidian Bases tables (review queue, contested, stubs) and static HTML (people, typed graph) | P12 | 2 |
-| `promote --tag T` | gate check and plan for the lab hub; copies only after approval | | 3 |
+| `promote [PAGES] [--tag T] [--target WIKI]` | gate check and plan for moving pages one tier up (SPEC §9); writes nothing | P10, P11 | 3 (gate and plan done) |
+| `integrate` | the receiving tier writes the moved page, `origin:`, and both logs | P11 | 3 |
 
 ### Lint checks
 
@@ -122,5 +124,5 @@ exists, and that each description says when to use the skill.
 
 ## Open
 
-1. The wiki specification moves from pixecog into biblio's docs once reviewed,
-   so the method and the tools version together.
+1. `integrate` (the write side of a move) waits for the first two moves by hand
+   (pixecog to lit-studio), whose checklist it will follow.
