@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.3.6 (2026-11-06)
+
+A correctness batch (pdf-fetch-oa failure status, DOI duplicates in merge, `graph promote --seed`, extract parsing, `bibtex backfill-venue`, lit-studio R52 and R60) and the wiki SPEC v0.2-draft in `docs/reference/wiki-spec.md`, with the `wiki promote` gate and plan, the `origin` key and one tag vocabulary per project.
 
 ### Added
 - The wiki specification now lives in biblio: `docs/reference/wiki-spec.md`, v0.2-draft (W13; moved from pixecog's `docs/wiki/SPEC.md`). From lit-studio R44: three tiers (project, personal, lab) with a gate per step, moves instead of copies and never sideways (§9); `origin: [{project, path, commit, date}]` and a wiki prefix in `promoted_to` (§5); relative markdown links as the link style, wikilinks an optional binding (§6, §10, §12); the `synthesis` page type (§4).
