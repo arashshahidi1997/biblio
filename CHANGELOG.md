@@ -3,9 +3,11 @@
 ## Unreleased
 
 ### Added
+- `biblio bibtex backfill-venue [--bib PATH ...] [--dry-run] [--limit N]`: fills `journal` on @article entries that have a DOI but no journal (OpenAlex imports from before 0.3.3, which mkdocs-bibtex rejects). The venue comes from the DOI registry, or from a cached OpenAlex work that carries the same DOI; the file is edited in place, one inserted line per entry. Default file: `bib/srcbib/imported.bib`.
 - `biblio graph promote` (the CLI form of the `biblio_graph_promote` tool) with `--seed KEY...` to promote only the candidates found from those seed papers; `biblio graph expand --keys KEY... [--fresh]` expands only those seeds and can replace the candidates file instead of adding to it.
 
 ### Fixed
+- `biblio add doi` / `add openalex` set `journal` from the OpenAlex venue when the DOI registry has no record (it was always empty on that path).
 - `promote_graph_candidates` could not be limited to one seed and silently swept in every seed's candidates from the cumulative `graph_candidates.json`. It now takes `seed_citekeys` (an unknown seed is an error), reports `by_seed`, warns when an unscoped promotion spans several seeds, and promotes a work found from several seeds once.
 - `extract_for_citekey` (the `question` lens, `biblio_extract`) failed on about one paper in five when the model left a colon inside a YAML value. It now asks for JSON and reads the answer with `parse_llm_mapping`: JSON first, then YAML, then YAML with such values quoted. The output is still `extract.yml`.
 - `fetch-pdfs-oa` no longer reports a saved landing page as a success. The status `html_fallback` is now `no_pdf_html_saved`, a failure: the PDF slot stays empty, the result's `error` names the HTML file and the path to drop the PDF at, and the paper goes into the fetch queue. The CLI, the background job and the run ledger report `needs_pdf` (count and citekeys).

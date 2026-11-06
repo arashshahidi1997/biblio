@@ -114,6 +114,7 @@ def test_add_openalex_work_to_bib_by_doi(monkeypatch, tmp_path: Path) -> None:
             "publication_year": 2024,
             "authorships": [{"author": {"display_name": "Doe, Jane"}}],
             "ids": {"doi": "https://doi.org/10.1000/test"},
+            "primary_location": {"source": {"display_name": "Journal of Tests"}},
         }
     }
 
@@ -134,6 +135,7 @@ def test_add_openalex_work_to_bib_by_doi(monkeypatch, tmp_path: Path) -> None:
     assert result.citekeys_path.exists()
     text = result.output_path.read_text(encoding="utf-8")
     assert "Added Paper" in text
+    assert "journal = {Journal of Tests}" in text
 
 
 def _cfg_cache(tmp_path):

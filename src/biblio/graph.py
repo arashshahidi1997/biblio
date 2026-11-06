@@ -291,16 +291,19 @@ def add_openalex_work_to_bib(
             raw_id=normalized_id or doi,
         )
     elif work is not None:
+        entry_type = OPENALEX_ENTRY_TYPES.get(str(work.get("type") or "article"), "misc")
+        source = (work.get("primary_location") or {}).get("source") or {}
+        venue = str(source.get("display_name") or "").strip() or None if isinstance(source, dict) else None
         record = IngestRecord(
             source_type="openalex_add",
             source_ref=doi or (normalized_id or ""),
-            entry_type=OPENALEX_ENTRY_TYPES.get(str(work.get("type") or "article"), "misc"),
+            entry_type=entry_type,
             title=str(work.get("display_name") or "").strip() or None,
             authors=_work_authors(work),
             year=str(work.get("publication_year") or "").strip() or None,
             doi=_doi_from_work(work),
             url=_openalex_url(normalized_id),
-            journal=None,
+            journal=venue if entry_type == "article" else None,
             booktitle=None,
             raw_id=normalized_id or doi,
             file=None,

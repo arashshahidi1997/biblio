@@ -49,6 +49,7 @@ biblio ingest pdfs ~/Downloads/papers/
 
 # bibtex
 biblio bibtex merge
+biblio bibtex backfill-venue --dry-run           # journal for @article entries with a DOI and none (default: srcbib/imported.bib)
 biblio bibtex fetch-pdfs                        # copy/symlink from Zotero file= fields
 biblio bibtex fetch-pdfs-oa                     # open-access cascade (pool/OA/Unpaywall/EZProxy)
 biblio bibtex fetch-pdfs-oa --citekeys a b c    # fetch specific papers only

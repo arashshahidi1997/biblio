@@ -222,6 +222,16 @@ def _build_parser() -> argparse.ArgumentParser:
     bt_merge.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")
     bt_merge.add_argument("--dry-run", action="store_true", help="Parse and report, but do not write output.")
 
+    bt_venue = bt_sub.add_parser(
+        "backfill-venue",
+        help="Fill the journal of @article entries that have a DOI but no journal (DOI registry, then cached OpenAlex).")
+    bt_venue.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    bt_venue.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")
+    bt_venue.add_argument("--bib", type=Path, action="append",
+                          help="Bib file to edit in place (repeatable; default: bib/srcbib/imported.bib).")
+    bt_venue.add_argument("--limit", type=int, help="Look up at most N entries per file.")
+    bt_venue.add_argument("--dry-run", action="store_true", help="Look up and report; do not write.")
+
     bt_export = bt_sub.add_parser("export", help="Export BibTeX entries for selected citekeys.")
     bt_export.add_argument("citekeys", nargs="*", help="Citekeys to export. Omit to use --all or --status.")
     bt_export.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
@@ -1407,6 +1417,32 @@ def main(argv: Iterable[str] | None = None) -> None:
         repo_root = (args.root.expanduser().resolve() if args.root else find_repo_root())
         cfg_path = (repo_root / args.config).resolve() if args.config else default_config_path(root=repo_root)
         cfg = load_biblio_config(cfg_path, root=repo_root)
+        if args.bibtex_cmd == "backfill-venue":
+            from .ingest import default_import_bib_path
+            from .venue import backfill_venues, cached_openalex_loader
+            bibs = [(repo_root / b).resolve() if not b.is_absolute() else b for b in (args.bib or [])]
+            bibs = bibs or [default_import_bib_path(repo_root)]
+            loader = cached_openalex_loader(cfg.openalex_cache)
+            unresolved = 0
+            for bib in bibs:
+                if not bib.exists():
+                    print(f"[ERROR] not found: {bib}", file=sys.stderr)
+                    raise SystemExit(1)
+                res = backfill_venues(bib, dry_run=args.dry_run, limit=args.limit, load_openalex_work=loader)
+                verb = "would fill" if args.dry_run else "filled"
+                print(f"[OK] {bib}: {res.candidates} @article without journal; {verb} {len(res.filled)}, "
+                      f"unresolved {len(res.unresolved)}")
+                for key, venue in list(res.filled.items())[:10]:
+                    print(f"  {key}: {venue} ({res.sources[key]})")
+                if len(res.filled) > 10:
+                    print(f"  ... and {len(res.filled) - 10} more")
+                for key in res.unresolved:
+                    print(f"  [unresolved] {key}", file=sys.stderr)
+                unresolved += len(res.unresolved)
+            if unresolved and not args.dry_run:
+                print("[WARN] unresolved entries have no venue in the DOI registry or a matching OpenAlex work; "
+                      "set their journal by hand or retype them (@misc for preprints).", file=sys.stderr)
+            return
         if args.bibtex_cmd == "merge":
             merge_result = merge_srcbib(cfg.bibtex_merge, dry_run=args.dry_run)
             n_sources, n_entries, quality_warnings = merge_result
