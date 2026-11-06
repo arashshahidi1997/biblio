@@ -1,6 +1,8 @@
 """LLM-driven extraction of paper relevance against research questions."""
 from __future__ import annotations
 
+import json
+import re
 import yaml
 from pathlib import Path
 from typing import Any
@@ -13,26 +15,22 @@ _SYSTEM_PROMPT = """\
 You are a research assistant extracting structured information from an academic
 paper in the context of a set of research questions / hypotheses.
 
-Given the paper's full text and the research questions, produce **only** a YAML
-document (no markdown fences, no prose) with exactly this schema:
+Given the paper's full text and the research questions, produce **only** a JSON
+object (no markdown fences, no prose) with exactly this schema:
 
 ```
-citekey: <citekey>
-relevance:
-  - question_id: <id>
-    relevance: high | medium | low | none
-    summary: <1-2 sentences>
-    supports: true | false | null
-methods:
-  - <method>
-dataset_opportunities:
-  - <dataset or resource>
-species:
-  - <species if biological>
-regions:
-  - <brain region / geographic region if applicable>
-key_findings:
-  - <finding>
+{
+  "citekey": "<citekey>",
+  "relevance": [
+    {"question_id": "<id>", "relevance": "high | medium | low | none",
+     "summary": "<1-2 sentences>", "supports": true | false | null}
+  ],
+  "methods": ["<method>"],
+  "dataset_opportunities": ["<dataset or resource>"],
+  "species": ["<species if biological>"],
+  "regions": ["<brain region / geographic region if applicable>"],
+  "key_findings": ["<finding>"]
+}
 ```
 
 Rules:
@@ -40,6 +38,57 @@ Rules:
 - Only include fields that have actual content — omit empty lists.
 - Be precise and concise.
 """
+
+
+_KEY_VALUE_RE = re.compile(r"^(\s*(?:-\s+)?[A-Za-z_][\w-]*:\s+)(.+?)\s*$")
+_LIST_ITEM_RE = re.compile(r"^(\s*-\s+)(.+?)\s*$")
+
+
+def _quote_yaml_scalars(text: str) -> str:
+    """Quote plain scalar values that YAML would misread (``summary: a: b``)."""
+    out = []
+    for line in text.split("\n"):
+        m = _KEY_VALUE_RE.match(line) or _LIST_ITEM_RE.match(line)
+        if m:
+            value = m.group(2)
+            if value[0] not in "\"'[{|>&*!" and (": " in value or " #" in value or value.endswith(":")):
+                line = m.group(1) + json.dumps(value, ensure_ascii=False)
+        out.append(line)
+    return "\n".join(out)
+
+
+def parse_llm_mapping(text: str) -> dict[str, Any]:
+    """Parse an LLM's structured answer: JSON first, then YAML, then repaired YAML.
+
+    Models asked for YAML often leave colons inside plain values
+    (``summary: the sequence: SPWRs before delta``), which YAML rejects.
+    Raises ``ValueError`` when no mapping can be read.
+    """
+    raw = text.strip()
+    if raw.startswith("```"):
+        raw = "\n".join(ln for ln in raw.split("\n") if not ln.strip().startswith("```")).strip()
+
+    start, end = raw.find("{"), raw.rfind("}")
+    if start != -1 and end > start:
+        try:
+            value = json.loads(raw[start:end + 1])
+            if isinstance(value, dict):
+                return value
+        except json.JSONDecodeError:
+            pass
+
+    error: Exception | None = None
+    for candidate in (raw, _quote_yaml_scalars(raw)):
+        try:
+            value = yaml.safe_load(candidate)
+        except yaml.YAMLError as e:
+            error = error or e
+            continue
+        if isinstance(value, dict):
+            return value
+    if error is not None:
+        raise ValueError(f"Failed to parse LLM output as JSON or YAML: {error}")
+    raise ValueError("LLM output is not a JSON object or YAML mapping")
 
 
 def extract_for_citekey(
@@ -94,7 +143,7 @@ def extract_for_citekey(
         f"# Paper: {key}\n\n"
         f"## Research Questions\n{questions_text}\n\n"
         f"## Paper Full Text (excerpt)\n{text_excerpt}\n\n"
-        "Extract structured YAML as specified in the system prompt."
+        "Extract the JSON object specified in the system prompt."
     )
 
     from .llm import call_llm
@@ -104,20 +153,10 @@ def extract_for_citekey(
     if result["error"]:
         return {"citekey": key, "status": "error", "error": result["error"]}
 
-    raw_text = (result["text"] or "").strip()
-    # Strip markdown code fences if present
-    if raw_text.startswith("```"):
-        lines = raw_text.split("\n")
-        lines = [ln for ln in lines if not ln.strip().startswith("```")]
-        raw_text = "\n".join(lines)
-
     try:
-        extraction = yaml.safe_load(raw_text)
-    except yaml.YAMLError as e:
-        return {"citekey": key, "status": "error", "error": f"Failed to parse LLM YAML: {e}"}
-
-    if not isinstance(extraction, dict):
-        return {"citekey": key, "status": "error", "error": "LLM output is not a YAML mapping"}
+        extraction = parse_llm_mapping(result["text"] or "")
+    except ValueError as e:
+        return {"citekey": key, "status": "error", "error": str(e)}
 
     # Ensure citekey is set
     extraction.setdefault("citekey", key)
