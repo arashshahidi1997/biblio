@@ -129,8 +129,8 @@ Requests from lit-studio (formerly journal-club) are tagged Rnn below (R01 to R4
   concept, method and tool pages; SPEC's ">5 H2 = split" contradicts the
   method template (6 required); default `scope` for tool pages about project
   code; whether `localizes` needs anatomy pages first; marker vs tool page
-  boundary for code detail. pixecog's SPEC still says wikilinks (§6.2) and its
-  section numbers drifted (W13 moves the spec here).
+  boundary for code detail. (SPEC links and section numbers: settled by W13,
+  2026-11-06.)
 - [ ] **W22 Stub and vocab ergonomics.** Relation flags on `stub`; a command
   to bump `updated:`; add a facet from the CLI; `vocab.yml` writes safe for
   parallel writers (W02 pre-added tags to avoid the race); SUG001 word count
@@ -192,11 +192,22 @@ Requests from lit-studio (formerly journal-club) are tagged Rnn below (R01 to R4
   libraries. Open: delivery to Claude Code with real descriptions (projio
   sync wrote command files whose description was a comment, so agents never
   picked a skill from the task); evals beyond the one `wiki-ingest` run.
-- [ ] **W12 promote.** Gate check and plan for the lab hub. (SPEC §9)
-- [ ] **W13 Spec home.** Move the wiki SPEC from pixecog into biblio's docs
-  after its first review, so method and tools version together.
-- [ ] **W14 One vocabulary.** The wiki's `vocab.yml` and biblio's
-  `tag_vocab.yml` become one file (pixecog wiki backlog E03).
+- [ ] **W12 promote.** Gate check and plan for a move one tier up (SPEC §9).
+  Progress 2026-11-06: `biblio wiki promote [PAGES] [--tag T] [--target
+  WIKI]` checks the step's gate (project to personal: general, lint-clean,
+  held sources, committed; personal to lab: reviewed, lab bibliography) and
+  prints the plan (destination, `origin:`, facets stripped, what stays, links
+  to move first); refuses sideways and two-step targets; writes nothing. On
+  pixecog all 47 layer-ID pages are blocked on `sources: []`. Open:
+  `integrate` (the receiving tier's write), after the first two moves by hand.
+- [x] **W13 Spec home.** 2026-11-06: the SPEC is
+  [reference/wiki-spec.md](reference/wiki-spec.md), v0.2-draft with
+  lit-studio R44 (three tiers, `origin`, tier prefix in `promoted_to`,
+  relative markdown links, `synthesis`); pixecog keeps a pointer.
+- [x] **W14 One vocabulary.** 2026-11-06: with a wiki, its `vocab.yml` (or
+  `vocab:` in `wiki.yml`) is the project's one tag vocabulary; library tags,
+  autotag and `library lint` read it (`default_tag_vocab_path`). Without a
+  wiki, `.projio/biblio/tag_vocab.yml`.
 - [x] **W15 Skill discovery (R05).** projio discovers skills shipped by
   installed packages: biblio declares the `projio.skills` entry point,
   projio's `package_skill_dirs` reads it (projio 95a1c2f) and `projio sync`

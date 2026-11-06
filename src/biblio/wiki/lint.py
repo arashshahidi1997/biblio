@@ -19,7 +19,7 @@ from .fidelity import QuoteChecker
 from .hubs import stale_views
 from .pages import Page, iter_page_paths, load_pages
 from .sources import SourceIndex
-from .schema import AUTHORS, REQUIRED_KEYS, REVIEWED_STATUSES, SCOPES, STATUSES, WikiConfig
+from .schema import AUTHORS, ORIGIN_FIELDS, REQUIRED_KEYS, REVIEWED_STATUSES, SCOPES, STATUSES, WikiConfig
 
 SEVERITIES = ("error", "warning", "suggestion", "info")
 CODE_ANCHOR_RE = re.compile(r"^(?P<path>[^:]+?)(?:::(?P<symbol>[\w.]+))?$")
@@ -349,6 +349,20 @@ def _check_page(cfg, page: Page, add, sources: SourceIndex, vocab, resolver: _Re
     updated = fm.get("updated")
     if updated is not None and not isinstance(updated, date) and not re.match(r"^\d{4}-\d{2}-\d{2}$", str(updated)):
         add(Finding("warning", "FM007", page.rel, 1, f"updated '{updated}' is not YYYY-MM-DD"))
+    # moves between tiers (SPEC §5, §9)
+    origin = fm.get("origin")
+    if origin not in (None, [], ""):
+        entries = origin if isinstance(origin, list) else [origin]
+        for entry in entries:
+            missing = [k for k in ORIGIN_FIELDS if not (isinstance(entry, dict) and entry.get(k))]
+            if missing:
+                add(Finding("warning", "FM009", page.rel, 1,
+                            f"origin entry {entry!r} lacks {', '.join(missing)} "
+                            "(expected {project, path, commit, date})", "P8"))
+    promoted_to = fm.get("promoted_to")
+    if promoted_to and not re.match(r"^[\w.-]+:\S", str(promoted_to)):
+        add(Finding("warning", "FM010", page.rel, 1,
+                    f"promoted_to '{promoted_to}' has no wiki prefix (e.g. lit-studio:concepts/x.md)", "P7"))
     ptype = page.type
     if ptype in cfg.page_types:
         folder = cfg.page_types[ptype][0]

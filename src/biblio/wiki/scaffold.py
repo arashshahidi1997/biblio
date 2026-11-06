@@ -13,7 +13,7 @@ WIKI_YML = """\
 # Paths are relative to the repository root. Every key is optional.
 
 # bibliography: .projio/render/compiled.bib   # citekey checks (default: compiled.bib, then bib/main.bib)
-# vocab: {vocab}                       # faceted tags (biblio tag_vocab format)
+# vocab: {vocab}                       # faceted tags (biblio tag_vocab format); the project's one vocabulary
 # fulltext_root: bib/derivatives/docling      # <root>/<citekey>/<citekey>.md, for quote checks
 # link_roots: []                              # extra folders whose .md files links may point to
 # link_style: markdown                        # how biblio writes links: markdown (relative paths) | wikilink
@@ -21,6 +21,9 @@ WIKI_YML = """\
 # extra_keys: []                              # extra frontmatter keys allowed
 # project_tokens: ['\\bsub-\\d+', '\\bses-\\d+']   # flagged on scope: general pages
 # max_words: 800
+# tier: project                               # SPEC §9: project | personal | lab
+# name: <repo folder>                         # prefix other wikis write in promoted_to (e.g. lit-studio)
+# project_facets: []                          # tag facets that stay behind on a move, e.g. [px-analysis]
 """
 
 VOCAB_YML = """\

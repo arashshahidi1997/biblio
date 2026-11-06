@@ -3,8 +3,15 @@
 ## Unreleased
 
 ### Added
+- The wiki specification now lives in biblio: `docs/reference/wiki-spec.md`, v0.2-draft (W13; moved from pixecog's `docs/wiki/SPEC.md`). From lit-studio R44: three tiers (project, personal, lab) with a gate per step, moves instead of copies and never sideways (§9); `origin: [{project, path, commit, date}]` and a wiki prefix in `promoted_to` (§5); relative markdown links as the link style, wikilinks an optional binding (§6, §10, §12); the `synthesis` page type (§4).
+- `biblio wiki promote [PAGES] [--tag T] [--target WIKI] [--format text|json]` (W12): checks each page against the gate of its step (project to personal: general scope, lint-clean, held sources, committed; personal to lab: reviewed, and with `--target` every citekey in the lab's bibliography) and prints the plan: destination, the `origin:` entry, project facets stripped, what stays behind, links that do not resolve in the receiving wiki. Writes nothing; exit 1 when a page is blocked. A target in the same tier (sideways) or two tiers up is refused.
+- `wiki.yml` keys `tier` (project, personal, lab), `name` (the prefix in another wiki's `promoted_to`; default the repository folder) and `project_facets`.
+- Wiki frontmatter key `origin` is known (no `FM005`); lint `FM009` (an `origin` entry lacks project, path, commit or date) and `FM010` (`promoted_to` without a wiki prefix).
 - `biblio bibtex backfill-venue [--bib PATH ...] [--dry-run] [--limit N]`: fills `journal` on @article entries that have a DOI but no journal (OpenAlex imports from before 0.3.3, which mkdocs-bibtex rejects). The venue comes from the DOI registry, or from a cached OpenAlex work that carries the same DOI; the file is edited in place, one inserted line per entry. Default file: `bib/srcbib/imported.bib`.
 - `biblio graph promote` (the CLI form of the `biblio_graph_promote` tool) with `--seed KEY...` to promote only the candidates found from those seed papers; `biblio graph expand --keys KEY... [--fresh]` expands only those seeds and can replace the candidates file instead of adding to it.
+
+### Changed
+- One tag vocabulary per project (W14): when the project has a wiki, its `vocab.yml` (or the file `vocab:` names in `wiki.yml`) is the vocabulary for library tags too (`library lint`, autotag, the `tag_vocab` tool). `.projio/biblio/tag_vocab.yml` is used only without a wiki.
 
 ### Fixed
 - `biblio add zotero --local` copies the PDF from Zotero's storage folder for `imported_url` attachments too (PDFs the Zotero Connector saved from a publisher page), not only `imported_file` (lit-studio R52, first ask).

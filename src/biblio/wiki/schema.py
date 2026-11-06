@@ -1,4 +1,4 @@
-"""Wiki schema defaults (wiki SPEC v0.1) and the per-wiki configuration.
+"""Wiki schema defaults (wiki SPEC v0.2, docs/reference/wiki-spec.md) and the per-wiki configuration.
 
 The defaults encode the page types, required sections, statuses and relation
 keys of the wiki specification. A wiki can extend them in ``<wiki>/wiki.yml``.
@@ -15,6 +15,9 @@ STATUSES = ("stub", "draft", "reviewed", "stable", "promoted")
 REVIEWED_STATUSES = ("reviewed", "stable", "promoted")
 SCOPES = ("general", "project")
 AUTHORS = ("human", "llm", "mixed")
+# SPEC §9: knowledge moves one tier up, never sideways
+TIERS = ("project", "personal", "lab")
+ORIGIN_FIELDS = ("project", "path", "commit", "date")
 
 # type -> (folder, required H2 sections). "A|B" accepts either heading.
 PAGE_TYPES: dict[str, tuple[str, tuple[str, ...]]] = {
@@ -47,6 +50,7 @@ KNOWN_KEYS = (
     "tags", "sources", "evidence", "code", "review_flags", "promoted_to",
     "match", "exclude_tags",       # hubs: which pages they list (match: any | all)
     "redirect",                    # a page merged into another (biblio wiki merge): the surviving page
+    "origin",                      # a page moved up a tier: [{project, path, commit, date}] (SPEC §5, §9)
 )
 
 REQUIRED_KEYS = ("title", "type", "status", "scope")
@@ -74,6 +78,9 @@ class WikiConfig:
     bibliography_explicit: bool = False      # set in wiki.yml; otherwise project defaults are merged
     vocab_explicit: bool = False             # set in wiki.yml; otherwise the wiki's own vocab.yml wins
     link_style: str = "markdown"        # "markdown" | "wikilink" (used when biblio writes links)
+    tier: str = "project"               # SPEC §9: project | personal | lab
+    name: str = ""                      # this wiki's name, the prefix in another wiki's promoted_to
+    project_facets: tuple[str, ...] = ()  # tag facets stripped when a page moves up (SPEC §3)
 
     @property
     def known_keys(self) -> set[str]:
@@ -91,6 +98,24 @@ def _first_existing(root: Path, candidates: tuple[str, ...]) -> Path | None:
     return None
 
 
+def wiki_vocab_path(repo_root: Path, wiki_root: Path | None = None) -> Path | None:
+    """The wiki's tag vocabulary: ``vocab:`` in ``wiki.yml``, else ``<wiki>/vocab.yml``; None without one.
+
+    When a project has a wiki this file is the project's one tag vocabulary (SPEC §3, W14).
+    """
+    wiki_root = wiki_root or repo_root / "docs" / "wiki"
+    cfg_path = wiki_root / "wiki.yml"
+    if cfg_path.is_file():
+        try:
+            data = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
+        except yaml.YAMLError:
+            data = {}
+        if isinstance(data, dict) and data.get("vocab"):
+            return (repo_root / str(data["vocab"])).resolve()
+    own = wiki_root / "vocab.yml"
+    return own.resolve() if own.is_file() else None
+
+
 def load_wiki_config(repo_root: Path, wiki_root: Path | None = None) -> WikiConfig:
     """Load ``<wiki>/wiki.yml`` over the defaults. Paths in the file are repo-relative."""
     repo_root = repo_root.resolve()
@@ -105,10 +130,10 @@ def load_wiki_config(repo_root: Path, wiki_root: Path | None = None) -> WikiConf
 
     bibliography = rel(data.get("bibliography")) or _first_existing(
         repo_root, (".projio/render/compiled.bib", ".projio/biblio/merged.bib", "bib/main.bib"))
-    vocab = rel(data.get("vocab"))
+    vocab = wiki_vocab_path(repo_root, wiki_root)
     if vocab is None:
-        vocab = next((p for p in (wiki_root / "vocab.yml", repo_root / ".projio" / "biblio" / "tag_vocab.yml")
-                      if p.is_file()), None)
+        legacy = repo_root / ".projio" / "biblio" / "tag_vocab.yml"
+        vocab = legacy if legacy.is_file() else None
     fulltext_root = rel(data.get("fulltext_root")) or (repo_root / "bib" / "derivatives" / "docling")
     link_roots = tuple(rel(p) for p in data.get("link_roots", []) if p) or ()
 
@@ -129,6 +154,9 @@ def load_wiki_config(repo_root: Path, wiki_root: Path | None = None) -> WikiConf
         project_tokens=tuple(data.get("project_tokens", DEFAULT_PROJECT_TOKENS)),
         max_words=int(data.get("max_words", 800)),
         link_style=str(data.get("link_style", "markdown")),
+        tier=str(data.get("tier", "project")),
+        name=str(data.get("name") or repo_root.name),
+        project_facets=tuple(str(f).rstrip("/") for f in data.get("project_facets", ())),
         bibliography_explicit=bool(data.get("bibliography")),
         vocab_explicit=bool(data.get("vocab")),
     )

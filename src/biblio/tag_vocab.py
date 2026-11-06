@@ -11,6 +11,15 @@ from .config import BiblioConfig
 
 
 def default_tag_vocab_path(repo_root: Path) -> Path:
+    """The project's one tag vocabulary (wiki SPEC §3, W14).
+
+    With a wiki (``docs/wiki``), its vocabulary is the project's: library tags and wiki
+    pages use the same file. Otherwise ``.projio/biblio/tag_vocab.yml`` (or the legacy path).
+    """
+    from .wiki.schema import wiki_vocab_path
+    wiki_vocab = wiki_vocab_path(repo_root.resolve())
+    if wiki_vocab is not None and wiki_vocab.is_file():
+        return wiki_vocab
     new_path = (repo_root / ".projio" / "biblio" / "tag_vocab.yml").resolve()
     if new_path.exists():
         return new_path

@@ -112,6 +112,15 @@ def add_parsers(sub) -> None:
     p.add_argument("--wiki", type=Path, help="Wiki root (default: <repo>/docs/wiki).")
     p.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
 
+    p = wsub.add_parser("promote", help="Gate check and plan for moving pages one tier up (SPEC §9); writes nothing.")
+    _common(p)
+    p.add_argument("pages", nargs="*", help="Pages (path or basename).")
+    p.add_argument("--tag", help="Also every page with this tag (facet/value).")
+    p.add_argument("--target", type=Path,
+                   help="The receiving wiki folder (its wiki.yml gives tier and name); checks tier, "
+                        "existing pages, links and, for the lab, its bibliography.")
+    p.add_argument("--format", default="text", choices=["text", "json"])
+
     p_sk = sub.add_parser("skills", help="Agent skills shipped with biblio.")
     sksub = p_sk.add_subparsers(dest="skills_cmd", required=True)
     sksub.add_parser("list", help="List bundled skills.")
@@ -253,6 +262,28 @@ def run(args) -> None:
         else:
             print("dry run: nothing written; add --apply to carry it out.")
         return
+
+    if args.wiki_cmd == "promote":
+        from .promote import PromoteError, describe, plan_promote
+        target = None
+        if args.target:
+            troot = args.target.expanduser().resolve()
+            if not troot.is_dir():
+                print(f"error: no wiki folder {args.target}", file=sys.stderr)
+                raise SystemExit(2)
+            from ..paths import find_repo_root as _find
+            target = load_wiki_config(_find(troot), troot)
+        try:
+            plan = plan_promote(cfg, args.pages, args.tag, target)
+        except PromoteError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            raise SystemExit(2)
+        if args.format == "json":
+            import json
+            print(json.dumps(plan.to_dict(), indent=2))
+        else:
+            print(describe(plan))
+        raise SystemExit(0 if plan.ok else 1)
 
     if args.wiki_cmd == "lint":
         from .lint import SEVERITIES, format_findings, lint, page_count
