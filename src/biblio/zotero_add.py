@@ -322,7 +322,10 @@ def fetch_pdf(zot: Any, item_key: str, dest: Path, *, local: bool = False) -> st
             return "copied"
         if content:
             status = "not-pdf"
-        if local and att["data"].get("linkMode") == "imported_file" and _from_storage(att["data"]["key"], dest):
+        # Both imported modes keep a copy in storage/<attachment key>/ (imported_url:
+        # saved from a web page by the Connector); linked files and URLs do not.
+        if local and att["data"].get("linkMode") in ("imported_file", "imported_url") \
+                and _from_storage(att["data"]["key"], dest):
             return "copied"
     return status
 

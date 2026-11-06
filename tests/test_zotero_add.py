@@ -335,6 +335,23 @@ def test_pdf_from_local_storage_when_the_api_cannot_serve_it(cfg, monkeypatch, t
     assert res.pdf_status == "copied" and res.pdf_path.read_bytes() == PDF
 
 
+@pytest.mark.parametrize("link,expected", [("imported_url", "copied"), ("linked_url", "failed")])
+def test_local_storage_fallback_for_connector_captures(monkeypatch, tmp_path, link, expected):
+    """R52: PDFs the Zotero Connector saved from a publisher page are imported_url, also kept in storage."""
+    store = tmp_path / "Zotero" / "storage" / "SDE5X4SM"
+    store.mkdir(parents=True)
+    (store / "Nunez 1997.pdf").write_bytes(PDF)
+    monkeypatch.setattr(zotero_add, "zotero_storage_dirs", lambda: [tmp_path / "Zotero" / "storage"])
+
+    class ConnectorZot(FakeZot):
+        def children(self, key):
+            return [_att("SDE5X4SM", "ScienceDirect Full Text PDF", link)]
+
+    dest = tmp_path / "out" / "nunez.pdf"
+    assert zotero_add.fetch_pdf(ConnectorZot(files={}), "DIZUL9NI", dest, local=True) == expected
+    assert dest.exists() == (expected == "copied")
+
+
 def test_add_a_second_version_of_a_held_paper(cfg):
     """R38: --version keeps the item's PDF as <key>@<version>; the entry is not touched."""
     add_from_zotero(cfg, ZCFG, "ABCD1234", client=_client(FakeZot()))
