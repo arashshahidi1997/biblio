@@ -7,6 +7,7 @@
 - `biblio graph promote` (the CLI form of the `biblio_graph_promote` tool) with `--seed KEY...` to promote only the candidates found from those seed papers; `biblio graph expand --keys KEY... [--fresh]` expands only those seeds and can replace the candidates file instead of adding to it.
 
 ### Fixed
+- `biblio wiki lint` no longer reports `SYN001` on the `**synthesis**` group heading biblio writes into hub listings (lit-studio R60). Prose rules (`SYN*`, `SCOPE001`) skip lines inside generated `<!-- biblio:<name>:start/end -->` blocks, and a Synthesis paragraph needs the colon (`**Synthesis:**`).
 - `biblio add doi` / `add openalex` set `journal` from the OpenAlex venue when the DOI registry has no record (it was always empty on that path).
 - `promote_graph_candidates` could not be limited to one seed and silently swept in every seed's candidates from the cumulative `graph_candidates.json`. It now takes `seed_citekeys` (an unknown seed is an error), reports `by_seed`, warns when an unscoped promotion spans several seeds, and promotes a work found from several seeds once.
 - `extract_for_citekey` (the `question` lens, `biblio_extract`) failed on about one paper in five when the model left a colon inside a YAML value. It now asks for JSON and reads the answer with `parse_llm_mapping`: JSON first, then YAML, then YAML with such values quoted. The output is still `extract.yml`.

@@ -213,7 +213,27 @@ def lint(cfg: WikiConfig, paths: list[Path] | None = None) -> list[Finding]:
     return findings
 
 
-SYNTHESIS_RE = re.compile(r"^\s*(?:>\s*)?\*\*Synthesis:?\*\*:?", re.I)
+SYNTHESIS_RE = re.compile(r"^\s*(?:>\s*)?\*\*Synthesis(?::\*\*|\*\*:)", re.I)
+_GENERATED_START_RE = re.compile(r"<!--\s*biblio:[\w-]+:start\s*-->")
+_GENERATED_END_RE = re.compile(r"<!--\s*biblio:[\w-]+:end\s*-->")
+
+
+def _generated_lines(lines: list[str]) -> set[int]:
+    """Indices of lines inside ``<!-- biblio:<name>:start -->`` ... ``:end -->`` blocks.
+
+    Those blocks (hub page listings, hub lists) are written by biblio; prose
+    rules skip them, since nobody can fix a finding there by hand.
+    """
+    out: set[int] = set()
+    inside = False
+    for idx, line in enumerate(lines):
+        if _GENERATED_START_RE.search(line):
+            inside = True
+        if inside:
+            out.add(idx)
+        if _GENERATED_END_RE.search(line):
+            inside = False
+    return out
 RESTS_ON_RE = re.compile(r"(?:\*{1,2}|_)?\b(?:rests[ _]on)\b:?(?:\*{1,2}|_)?:?\s*(?P<refs>.+)$", re.I)
 _POINTER_RE = re.compile(r"@?([A-Za-z][\w:+.-]*?):(C\d+)\b")
 
@@ -237,6 +257,7 @@ def _claim_ids(cfg, key: str, cache: dict) -> set[str] | None:
 def _check_synthesis(cfg, page: Page, add, listed: set[str]) -> None:
     """W23: every **Synthesis:** paragraph names the claims it combines (``Rests on: key:C3, key:C5``)."""
     lines = page.body_lines
+    generated = _generated_lines(lines)
     cache = getattr(cfg, "_claim_cache", None)
     if cache is None:
         cache = {}
@@ -246,7 +267,7 @@ def _check_synthesis(cfg, page: Page, add, listed: set[str]) -> None:
             pass
     i = 0
     while i < len(lines):
-        if not SYNTHESIS_RE.match(lines[i]):
+        if i in generated or not SYNTHESIS_RE.match(lines[i]):
             i += 1
             continue
         start = i
@@ -457,7 +478,10 @@ def _check_page(cfg, page: Page, add, sources: SourceIndex, vocab, resolver: _Re
 
     # scope: project tokens on general pages
     if fm.get("scope") == "general":
+        generated = _generated_lines(page.body_lines)
         for idx, raw in enumerate(page.body_lines):
+            if idx in generated:
+                continue
             lineno = page.body_offset + idx
             section = (page.section_of(lineno) or "").lower()
             if section.startswith(EXPERIENCE_SECTIONS):

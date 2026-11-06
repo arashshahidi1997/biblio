@@ -923,6 +923,19 @@ Rests on: sirota_2003_CommunicationNeocortex:C1, sirota_2003_CommunicationNeocor
     assert "SYN003" in codes_ and "SYN004" in codes_                   # other_2020_Paper: no digest, not a source
 
 
+
+def test_synthesis_rule_skips_generated_hub_listing(repo):
+    """R60: the '**synthesis**' group heading biblio writes into hub listings is not a Synthesis paragraph."""
+    cfg = load_wiki_config(repo)
+    hub = stub(cfg, "ripples", "hub", tags=["event/ripple"])
+    stub(cfg, "ripple-heterogeneity", "synthesis", tags=["event/ripple"])
+    regenerate(cfg)
+    assert "**synthesis**" in hub.read_text()
+    assert "SYN001" not in [f.code for f in lint(cfg, [hub])]
+    # Outside the generated block the rule still applies, and needs the colon.
+    hub.write_text(hub.read_text() + "\n**Synthesis:** a claim with no pointer.\n\n**synthesis** a label.\n")
+    assert [f.code for f in lint(cfg, [hub])].count("SYN001") == 1
+
 # --- W05-W07: relink, merge, extract ---
 
 def _refactor_wiki(repo):
