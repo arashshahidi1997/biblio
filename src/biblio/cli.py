@@ -1391,11 +1391,20 @@ def main(argv: Iterable[str] | None = None) -> None:
         cfg_path = (repo_root / args.config).resolve() if args.config else default_config_path(root=repo_root)
         cfg = load_biblio_config(cfg_path, root=repo_root)
         if args.bibtex_cmd == "merge":
-            n_sources, n_entries, quality_warnings = merge_srcbib(cfg.bibtex_merge, dry_run=args.dry_run)
+            merge_result = merge_srcbib(cfg.bibtex_merge, dry_run=args.dry_run)
+            n_sources, n_entries, quality_warnings = merge_result
             suffix = " (dry-run)" if args.dry_run else ""
             print(f"[OK] merged sources={n_sources} entries={n_entries} -> {cfg.bibtex_merge.out_bib}{suffix}")
             if cfg.bibtex_merge.duplicates_log.exists() and not args.dry_run:
                 print(f"[WARN] duplicates log: {cfg.bibtex_merge.duplicates_log}", file=sys.stderr)
+            if merge_result.doi_duplicates:
+                from .bibtex import doi_duplicates_log_path
+                print(f"[WARN] {len(merge_result.doi_duplicates)} DOIs held by more than one citekey:", file=sys.stderr)
+                for group in merge_result.doi_duplicates[:5]:
+                    keys = ", ".join(e["citekey"] for e in group["entries"])
+                    print(f"  {group['doi']}: {keys}", file=sys.stderr)
+                if not args.dry_run:
+                    print(f"  full list: {doi_duplicates_log_path(cfg.bibtex_merge)}", file=sys.stderr)
             if quality_warnings:
                 print(f"[WARN] {len(quality_warnings)} low-quality entries (noise/stub):", file=sys.stderr)
                 for w in quality_warnings[:5]:

@@ -162,6 +162,44 @@ def test_bibtex_merge_tolerates_duplicate_citekeys(tmp_path: Path) -> None:
     assert list(db.entries.keys()) == ["dupkey"]
 
 
+def test_bibtex_merge_reports_doi_duplicates(tmp_path: Path) -> None:
+    src_dir = tmp_path / "bib" / "srcbib"
+    src_dir.mkdir(parents=True)
+    (src_dir / "zotero.bib").write_text(
+        "@article{Sirota_2003_Communication, title={Communication}, doi={10.1073/PNAS.0437938100}}\n"
+        "@article{other_2020_X, title={X}, doi={10.1/x}}\n",
+        encoding="utf-8",
+    )
+    (src_dir / "src-pixecog.bib").write_text(
+        "@article{sirota_2003_CommunicationNeocortex, title={Communication}, doi={https://doi.org/10.1073/pnas.0437938100}}\n",
+        encoding="utf-8",
+    )
+    cfg = BibtexMergeConfig(
+        repo_root=tmp_path,
+        src_dir=src_dir,
+        src_glob="*.bib",
+        out_bib=tmp_path / "bib" / "main.bib",
+        file_field_mode="drop",
+        file_field_template="bib/articles/{citekey}/{citekey}.pdf",
+        duplicates_log=tmp_path / "bib" / "logs" / "duplicate_bib_ids.txt",
+    )
+    result = merge_srcbib(cfg, dry_run=False)
+    n_sources, n_entries, _quality = result
+    assert n_entries == 3  # both keys kept: documents may cite either
+    assert len(result.doi_duplicates) == 1
+    group = result.doi_duplicates[0]
+    assert group["doi"] == "10.1073/pnas.0437938100"
+    assert [e["citekey"] for e in group["entries"]] == ["Sirota_2003_Communication", "sirota_2003_CommunicationNeocortex"]
+    assert group["entries"][0]["source"].endswith("zotero.bib")
+    log = tmp_path / "bib" / "logs" / "duplicate_dois.txt"
+    assert "sirota_2003_CommunicationNeocortex" in log.read_text(encoding="utf-8")
+
+    # Fixing the sources clears the log on the next merge.
+    (src_dir / "src-pixecog.bib").unlink()
+    assert merge_srcbib(cfg, dry_run=False).doi_duplicates == []
+    assert not log.exists()
+
+
 def test_fetch_pdfs_from_file_field(tmp_path: Path) -> None:
     src_pdf = tmp_path / "Downloads" / "paper.pdf"
     src_pdf.parent.mkdir(parents=True)

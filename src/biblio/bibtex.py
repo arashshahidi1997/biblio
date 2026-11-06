@@ -19,17 +19,57 @@ class BibtexMergeConfig:
     duplicates_log: Path
 
 
+class MergeResult(tuple):
+    """``(n_sources, n_entries, quality_warnings)``, plus ``doi_duplicates``.
+
+    ``doi_duplicates`` lists the DOIs held by more than one citekey in the
+    merged output: ``[{"doi": ..., "entries": [{"citekey": ..., "source": ...}]}]``.
+    """
+
+    doi_duplicates: list[dict]
+
+    def __new__(cls, n_sources: int, n_entries: int, quality_warnings: list[str], doi_duplicates: list[dict]):
+        obj = super().__new__(cls, (n_sources, n_entries, quality_warnings))
+        obj.doi_duplicates = doi_duplicates
+        return obj
+
+
+def doi_duplicates_log_path(cfg: BibtexMergeConfig) -> Path:
+    return cfg.duplicates_log.parent / "duplicate_dois.txt"
+
+
+def find_doi_duplicates(entries: dict, provenance: dict[str, str]) -> list[dict]:
+    """Group citekeys by normalized DOI; return the groups with more than one key."""
+    from .dedup import _normalize_doi
+
+    buckets: dict[str, list[str]] = {}
+    for key, entry in entries.items():
+        doi = _normalize_doi(entry.fields.get("doi"))
+        if doi:
+            buckets.setdefault(doi, []).append(key)
+    return [
+        {"doi": doi, "entries": [{"citekey": k, "source": provenance.get(k, "<unknown>")} for k in sorted(keys)]}
+        for doi, keys in sorted(buckets.items())
+        if len(keys) > 1
+    ]
+
+
 def _iter_bib_files(src_dir: Path, glob: str) -> list[Path]:
     if not src_dir.exists():
         return []
     return sorted(p for p in src_dir.glob(glob) if p.is_file())
 
 
-def merge_srcbib(cfg: BibtexMergeConfig, *, dry_run: bool = False) -> tuple[int, int]:
+def merge_srcbib(cfg: BibtexMergeConfig, *, dry_run: bool = False) -> MergeResult:
     """
     Merge many .bib files into one.
 
-    Returns: (n_sources, n_entries_written)
+    Entries with the same citekey collapse (last wins, logged to
+    ``duplicates_log``). Different citekeys with the same DOI are kept, since
+    documents may cite either, but are reported: ``result.doi_duplicates`` and
+    ``duplicate_dois.txt`` beside ``duplicates_log``.
+
+    Returns: ``MergeResult`` (n_sources, n_entries_written, quality_warnings)
     """
     require_pybtex("BibTeX features")
     from pybtex.database import BibliographyData, Entry
@@ -104,6 +144,24 @@ def merge_srcbib(cfg: BibtexMergeConfig, *, dry_run: bool = False) -> tuple[int,
     elif not duplicates and not dry_run and cfg.duplicates_log.exists():
         cfg.duplicates_log.unlink()
 
+    doi_duplicates = find_doi_duplicates(out_db.entries, provenance)
+    doi_log = doi_duplicates_log_path(cfg)
+    if doi_duplicates and not dry_run:
+        doi_log.parent.mkdir(parents=True, exist_ok=True)
+        lines = [
+            "DOIs held by more than one citekey (one paper, several keys; all kept):",
+            f"({len(doi_duplicates)} DOIs)",
+            "",
+        ]
+        for group in doi_duplicates:
+            lines.append(group["doi"])
+            for e in group["entries"]:
+                lines.append(f"  {e['citekey']}  ({e['source']})")
+            lines.append("")
+        doi_log.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+    elif not doi_duplicates and not dry_run and doi_log.exists():
+        doi_log.unlink()
+
     if not dry_run:
         cfg.out_bib.parent.mkdir(parents=True, exist_ok=True)
         writer = Writer()
@@ -121,12 +179,13 @@ def merge_srcbib(cfg: BibtexMergeConfig, *, dry_run: bool = False) -> tuple[int,
             "source_count": len(bib_files),
             "entry_count": len(out_db.entries),
             "duplicate_count": len(duplicates),
+            "doi_duplicate_count": len(doi_duplicates),
             "out_bib": str(cfg.out_bib),
             "file_field_mode": cfg.file_field_mode,
         },
     )
 
-    return (len(bib_files), len(out_db.entries), quality_warnings)
+    return MergeResult(len(bib_files), len(out_db.entries), quality_warnings, doi_duplicates)
 
 
 def default_bibtex_merge_config(repo_root: str | Path) -> BibtexMergeConfig:

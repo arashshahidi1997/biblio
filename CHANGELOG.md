@@ -4,6 +4,8 @@
 
 ### Fixed
 - `fetch-pdfs-oa` no longer reports a saved landing page as a success. The status `html_fallback` is now `no_pdf_html_saved`, a failure: the PDF slot stays empty, the result's `error` names the HTML file and the path to drop the PDF at, and the paper goes into the fetch queue. The CLI, the background job and the run ledger report `needs_pdf` (count and citekeys).
+- `biblio bibtex merge` reports one paper held under several citekeys: entries with the same DOI (normalized: case, `https://doi.org/` prefix) are listed on stderr, in `.projio/biblio/logs/duplicate_dois.txt` and in the result (`MergeResult.doi_duplicates`, the MCP `biblio_merge` result). All keys are kept, since documents may cite either.
+- The web UI's merge action unpacked two values from `merge_srcbib`, which returns three.
 
 ## 0.3.5 (2026-10-28)
 

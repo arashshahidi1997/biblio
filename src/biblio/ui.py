@@ -701,11 +701,13 @@ def create_ui_app(cfg: BiblioConfig):
     @app.post("/api/actions/bibtex-merge", response_class=responses.JSONResponse)
     def action_bibtex_merge():
         active_cfg = current_cfg()
-        n_sources, n_entries = merge_srcbib(active_cfg.bibtex_merge, dry_run=False)
+        merge_result = merge_srcbib(active_cfg.bibtex_merge, dry_run=False)
+        n_sources, n_entries, _quality = merge_result
         return _action_result(
             f"Merged {n_sources} source files into {n_entries} entries.",
             sources=n_sources,
             entries=n_entries,
+            doi_duplicates=merge_result.doi_duplicates,
         )
 
     @app.post("/api/export/bibtex")
