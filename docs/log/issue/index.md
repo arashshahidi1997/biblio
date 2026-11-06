@@ -1,6 +1,54 @@
 # Issue
 
-## open (2)
+## open (10)
+
+[**[from lit-studio, R69] Pool text cash_2009_HumanK includes the neighbouring a...**](issue-arash-20261105-152603-052912.md){ .note-card-title }
+
+<small>**created:** 2026-11-05 · **status:** open · **confidence:** 1.0</small>
+
+---
+
+[**[from lit-studio, R66] Citekey alias across pools: ji_2006_CoordinatedMemory and ji_2007_CoordinatedMemory are one paper**](issue-arash-20261105-023530-002101.md){ .note-card-title }
+
+<small>**created:** 2026-11-05 · **status:** open · **confidence:** 1.0</small>
+
+---
+
+[**[from lit-studio, R65] wiki lint: configurable meta-file list (generated terms.md at the wiki root is linted as a page)**](issue-arash-20261105-021220-918557.md){ .note-card-title }
+
+<small>**created:** 2026-11-05 · **status:** open · **confidence:** 1.0</small>
+
+---
+
+[**[from lit-studio, R60] wiki lint SYN001 fires on the generated synthesis heading in hub listings**](issue-arash-20261104-210003-830208.md){ .note-card-title }
+
+<small>**created:** 2026-11-04 · **status:** open · **confidence:** 1.0</small>
+
+---
+
+[**[from lit-studio, R55] Make biblio shareable as a minimal, independent tool: install, README, CLI scope, CI, release, optional own MCP server**](issue-arash-20261103-145640-304621.md){ .note-card-title }
+
+<small>**created:** 2026-11-03 · **status:** open · **confidence:** 1.0</small>
+
+---
+
+[**[from lit-studio, R53] Figure crops for maingret_2016: fig-S1..S6 are main-article fragments, main figures uncropped**](issue-arash-20261102-020054-612672.md){ .note-card-title }
+
+<small>**created:** 2026-11-02 · **status:** open · **confidence:** 1.0</small>
+
+---
+
+[**[from lit-studio, R52] add zotero --local: fall back to Zotero storage for imported_url PDF attachments too**](issue-arash-20261101-215537-460002.md){ .note-card-title }
+
+<small>**created:** 2026-11-01 · **status:** open · **confidence:** 1.0</small>
+
+---
+
+[**[from lit-studio, R50] wiki lint: make the severity of TAG001 (unknown tag) configurable**](issue-arash-20261031-224006-766942.md){ .note-card-title }
+
+<small>**created:** 2026-10-31 · **status:** open · **confidence:** 1.0</small>
+
+---
 
 [**[from pixecog] Host the knowledge-wiki SPEC in biblio's docs**](issue-arash-20261028-010355-639068.md){ .note-card-title }
 
