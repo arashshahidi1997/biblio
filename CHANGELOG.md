@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Added
+- `pixi run -e dev publish` and `publish-test` (`scripts/publish.py`): build, check and upload this version; token from `TWINE_PASSWORD` or `~/.config/tokens/{pypi,testpypi}.token`. Named in RELEASE.md.
+
 ### Fixed
 - `bibtex backfill-venue` and `add doi`: registry HTML entities are unescaped ("Learning &amp; Memory" becomes `Learning \& Memory`); a bare `&` in a written field is escaped for LaTeX (pixecog 20261108).
 - `graph promote --seed`: a citekey that shares its OpenAlex work with another citekey is found; a requested seed with nothing new prints `seed=0` (pixecog 20261108).

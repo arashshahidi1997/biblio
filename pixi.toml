@@ -25,6 +25,8 @@ pillow = "*"           # figures integration test
 test     = "python -m pytest tests -q"
 build    = "python -m build"
 check    = "python -m twine check dist/*"
+publish      = "python scripts/publish.py"         # build, check, upload to PyPI (RELEASE.md)
+publish-test = "python scripts/publish.py --test"  # the same to TestPyPI
 ui-serve = "biblio ui serve"
 clean    = "python -c \"import shutil, glob; [shutil.rmtree(p, ignore_errors=True) for p in ['build', 'dist', 'site', '.pytest_cache', *glob.glob('src/*.egg-info')]]\""
 
