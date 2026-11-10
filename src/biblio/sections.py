@@ -72,10 +72,13 @@ def text_lines(text: str) -> list[str]:
 
 def fulltext_path(cfg: BiblioConfig, citekey: str) -> Path | None:
     """The paper's docling markdown: the project's copy, else a pool's."""
+    from .aliases import load_aliases
+
     key = citekey.lstrip("@")
-    local = cfg.out_root / key / f"{key}.md"
-    if local.is_file():
-        return local
+    for k in load_aliases(getattr(cfg, "repo_root", None)).equivalents(key):
+        local = cfg.out_root / k / f"{k}.md"
+        if local.is_file():
+            return local
     from .pool import resolve_pool_derivative
     pooled = resolve_pool_derivative(cfg, key, "docling")
     if pooled is not None:

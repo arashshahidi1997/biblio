@@ -90,12 +90,18 @@ class SourceIndex:
     def has_bibliography(self) -> bool:
         return bool(self.bibliographies or self.pool_keys)
 
+    @property
+    def aliases(self):
+        from ..aliases import load_aliases
+        return load_aliases(self.cfg.repo_root)
+
     def locate(self, citekey: str) -> str | None:
-        """'project', the pool root holding the key, or None."""
-        if citekey in self.project_keys:
+        """'project', the pool root holding the key (or one of its aliases), or None."""
+        keys = self.aliases.equivalents(citekey)
+        if any(k in self.project_keys for k in keys):
             return "project"
-        for pool_root, keys in self.pool_keys.items():
-            if citekey in keys:
+        for pool_root, pool_keys in self.pool_keys.items():
+            if any(k in pool_keys for k in keys):
                 return str(pool_root)
         if self.biblio_cfg is not None and self.pool_roots and self._pool_dir(citekey) is not None:
             return "pool"
@@ -108,6 +114,9 @@ class SourceIndex:
     def fulltext(self, citekey: str) -> Path:
         """The paper's docling markdown: the project's copy, else a pool's."""
         local = self.cfg.fulltext_path(citekey)
+        for key in self.aliases.equivalents(citekey)[1:]:
+            if not local.is_file() and self.cfg.fulltext_path(key).is_file():
+                return self.cfg.fulltext_path(key)
         if local.is_file() or self.biblio_cfg is None or not self.pool_roots:
             return local
         pool_dir = self._pool_dir(citekey)

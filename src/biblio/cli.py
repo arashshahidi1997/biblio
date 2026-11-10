@@ -127,6 +127,11 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Attempt metadata resolution (OpenAlex/GROBID/CrossRef) for entries missing authors.",
     )
     p_citekey_norm.add_argument("--json", action="store_true", help="Emit plan as JSON.")
+    p_citekey_alias = citekey_sub.add_parser(
+        "alias", help="Record other citekeys of one paper (.projio/biblio/citekey_aliases.yml); no args lists them.")
+    p_citekey_alias.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    p_citekey_alias.add_argument("canonical", nargs="?", help="The key to cite.")
+    p_citekey_alias.add_argument("aliases", nargs="*", help="Other keys of the same paper (e.g. a pool's key).")
 
     p_ingest = sub.add_parser("ingest", help="Import non-BibTeX inputs into bib/srcbib/imported.bib.")
     ingest_sub = p_ingest.add_subparsers(dest="ingest_cmd", required=True)
@@ -221,6 +226,9 @@ def _build_parser() -> argparse.ArgumentParser:
     bt_merge.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
     bt_merge.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")
     bt_merge.add_argument("--dry-run", action="store_true", help="Parse and report, but do not write output.")
+    bt_merge.add_argument("--collapse-aliases", action="store_true",
+                          help="Drop entries whose key is an alias (.projio/biblio/citekey_aliases.yml) of a merged "
+                               "key with the same DOI; documents citing the alias then no longer render it.")
 
     bt_venue = bt_sub.add_parser(
         "backfill-venue",
@@ -1125,6 +1133,28 @@ def main(argv: Iterable[str] | None = None) -> None:
                 print(f"@{k}")
         return
 
+    if args.command == "citekey" and args.citekey_cmd == "alias":
+        from .aliases import add_alias, aliases_path, load_aliases
+
+        repo_root = args.root.expanduser().resolve() if args.root else find_repo_root()
+        if args.canonical and not args.aliases:
+            print("error: name at least one alias: biblio citekey alias CANONICAL ALIAS...", file=sys.stderr)
+            raise SystemExit(2)
+        try:
+            for alias in args.aliases:
+                path = add_alias(repo_root, args.canonical, alias)
+                print(f"[OK] {alias} -> {args.canonical.lstrip('@')} ({path})")
+            known = load_aliases(repo_root)
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            raise SystemExit(1)
+        if not args.aliases:
+            if not known:
+                print(f"no aliases ({aliases_path(repo_root)})")
+            for alias, canon in sorted(known.canonical_of.items(), key=lambda kv: (kv[1], kv[0])):
+                print(f"{alias} -> {canon}")
+        return
+
     if args.command == "citekey":
         if args.citekey_cmd != "normalize":
             raise SystemExit(2)
@@ -1443,10 +1473,15 @@ def main(argv: Iterable[str] | None = None) -> None:
                       "set their journal by hand or retype them (@misc for preprints).", file=sys.stderr)
             return
         if args.bibtex_cmd == "merge":
-            merge_result = merge_srcbib(cfg.bibtex_merge, dry_run=args.dry_run)
+            merge_result = merge_srcbib(cfg.bibtex_merge, dry_run=args.dry_run,
+                                        collapse_aliases=args.collapse_aliases)
             n_sources, n_entries, quality_warnings = merge_result
             suffix = " (dry-run)" if args.dry_run else ""
             print(f"[OK] merged sources={n_sources} entries={n_entries} -> {cfg.bibtex_merge.out_bib}{suffix}")
+            for alias, canon in merge_result.collapsed.items():
+                print(f"  collapsed {alias} -> {canon}")
+            for w in merge_result.alias_warnings:
+                print(f"[WARN] {w}", file=sys.stderr)
             if cfg.bibtex_merge.duplicates_log.exists() and not args.dry_run:
                 print(f"[WARN] duplicates log: {cfg.bibtex_merge.duplicates_log}", file=sys.stderr)
             if merge_result.doi_duplicates:
@@ -1457,6 +1492,8 @@ def main(argv: Iterable[str] | None = None) -> None:
                     print(f"  {group['doi']}: {keys}", file=sys.stderr)
                 if not args.dry_run:
                     print(f"  full list: {doi_duplicates_log_path(cfg.bibtex_merge)}", file=sys.stderr)
+                print("  one key per paper: `biblio citekey alias CANONICAL OTHER`, then merge --collapse-aliases",
+                      file=sys.stderr)
             if quality_warnings:
                 print(f"[WARN] {len(quality_warnings)} low-quality entries (noise/stub):", file=sys.stderr)
                 for w in quality_warnings[:5]:

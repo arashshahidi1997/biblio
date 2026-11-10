@@ -27,10 +27,14 @@ class MergeResult(tuple):
     """
 
     doi_duplicates: list[dict]
+    collapsed: dict[str, str]  # alias -> canonical, entries dropped by collapse_aliases
+    alias_warnings: list[str] = []
 
-    def __new__(cls, n_sources: int, n_entries: int, quality_warnings: list[str], doi_duplicates: list[dict]):
+    def __new__(cls, n_sources: int, n_entries: int, quality_warnings: list[str], doi_duplicates: list[dict],
+                collapsed: dict[str, str] | None = None):
         obj = super().__new__(cls, (n_sources, n_entries, quality_warnings))
         obj.doi_duplicates = doi_duplicates
+        obj.collapsed = collapsed or {}
         return obj
 
 
@@ -60,14 +64,39 @@ def _iter_bib_files(src_dir: Path, glob: str) -> list[Path]:
     return sorted(p for p in src_dir.glob(glob) if p.is_file())
 
 
-def merge_srcbib(cfg: BibtexMergeConfig, *, dry_run: bool = False) -> MergeResult:
+def collapse_alias_entries(entries: dict, canonical_of: dict[str, str]) -> tuple[dict[str, str], list[str]]:
+    """Drop entries whose key is an alias of a key that is also present with the same DOI.
+
+    Returns (alias -> canonical dropped, warnings for aliases kept because their DOI differs).
+    """
+    from .dedup import _normalize_doi
+
+    dropped: dict[str, str] = {}
+    warnings: list[str] = []
+    for alias, canon in sorted(canonical_of.items()):
+        if alias not in entries or canon not in entries:
+            continue
+        a_doi = _normalize_doi(entries[alias].fields.get("doi"))
+        c_doi = _normalize_doi(entries[canon].fields.get("doi"))
+        if a_doi and c_doi and a_doi != c_doi:
+            warnings.append(f"{alias} kept: its DOI {a_doi} differs from {canon}'s {c_doi}")
+            continue
+        dropped[alias] = canon
+    for alias in dropped:
+        del entries[alias]
+    return dropped, warnings
+
+
+def merge_srcbib(cfg: BibtexMergeConfig, *, dry_run: bool = False, collapse_aliases: bool = False) -> MergeResult:
     """
     Merge many .bib files into one.
 
     Entries with the same citekey collapse (last wins, logged to
     ``duplicates_log``). Different citekeys with the same DOI are kept, since
     documents may cite either, but are reported: ``result.doi_duplicates`` and
-    ``duplicate_dois.txt`` beside ``duplicates_log``.
+    ``duplicate_dois.txt`` beside ``duplicates_log``. With ``collapse_aliases``
+    an entry whose key is listed in ``citekey_aliases.yml`` as an alias of a
+    key that is also merged (same DOI, or none) is dropped (``result.collapsed``).
 
     Returns: ``MergeResult`` (n_sources, n_entries_written, quality_warnings)
     """
@@ -108,6 +137,12 @@ def merge_srcbib(cfg: BibtexMergeConfig, *, dry_run: bool = False) -> MergeResul
     # Assign entries directly so pybtex does not re-raise on source duplicates
     # that have already been collapsed in `merged`.
     out_db.entries = dict(sorted(merged.items(), key=lambda kv: kv[0]))
+    collapsed: dict[str, str] = {}
+    alias_warnings: list[str] = []
+    if collapse_aliases:
+        from .aliases import load_aliases
+        collapsed, alias_warnings = collapse_alias_entries(
+            out_db.entries, load_aliases(cfg.repo_root).canonical_of)
 
     # Quality check: warn about noise/stub entries
     quality_warnings: list[str] = []
@@ -185,7 +220,9 @@ def merge_srcbib(cfg: BibtexMergeConfig, *, dry_run: bool = False) -> MergeResul
         },
     )
 
-    return MergeResult(len(bib_files), len(out_db.entries), quality_warnings, doi_duplicates)
+    result = MergeResult(len(bib_files), len(out_db.entries), quality_warnings, doi_duplicates, collapsed)
+    result.alias_warnings = alias_warnings
+    return result
 
 
 def default_bibtex_merge_config(repo_root: str | Path) -> BibtexMergeConfig:

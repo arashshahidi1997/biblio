@@ -97,7 +97,10 @@ def _resolve_pool_citekey(
     1. Direct citekey match (fast — just stat the directory)
     2. DOI lookup in pool's bib index (handles citekey mismatches)
     """
+    from .aliases import load_aliases
+
     key = citekey.lstrip("@")
+    keys = load_aliases(getattr(cfg, "repo_root", None)).equivalents(key)
     norm_doi = _normalize_doi(doi) if doi else ""
     matches: list[tuple[Path, str]] = []
 
@@ -107,9 +110,11 @@ def _resolve_pool_citekey(
             if not deriv_base.is_dir():
                 continue
 
-            # 1. Direct citekey match
-            if (deriv_base / "docling" / key).is_dir() or (deriv_base / "grobid" / key).is_dir():
-                matches.append((deriv_base, key))
+            # 1. Direct citekey match (the key, then its aliases)
+            hit = next((k for k in keys
+                        if (deriv_base / "docling" / k).is_dir() or (deriv_base / "grobid" / k).is_dir()), None)
+            if hit is not None:
+                matches.append((deriv_base, hit))
                 break
 
             # 2. DOI-based lookup

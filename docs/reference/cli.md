@@ -48,11 +48,14 @@ biblio ingest ris exports/library.ris
 biblio ingest pdfs ~/Downloads/papers/
 
 # bibtex
-biblio bibtex merge
+biblio bibtex merge                              # reports DOIs held by several citekeys (duplicate_dois.txt)
+biblio bibtex merge --collapse-aliases           # keep only the canonical key of each aliased paper
+biblio citekey alias ji_2007_CoordinatedMemory ji_2006_CoordinatedMemory   # one paper, two keys (.projio/biblio/citekey_aliases.yml)
+biblio citekey alias                             # list the aliases
 biblio bibtex backfill-venue --dry-run           # journal for @article entries with a DOI and none (default: srcbib/imported.bib)
 biblio bibtex fetch-pdfs                        # copy/symlink from Zotero file= fields
 biblio bibtex fetch-pdfs-oa                     # open-access cascade (pool/OA/Unpaywall/EZProxy)
-biblio bibtex fetch-pdfs-oa --citekeys a b c    # fetch specific papers only
+biblio bibtex fetch-pdfs-oa --citekeys a b c    # fetch specific papers only; failures in logs/runs/pdf_fetch_oa_failures.tsv
 biblio bibtex export --all -o refs.bib          # export all entries
 
 # docling

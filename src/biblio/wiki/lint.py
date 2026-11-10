@@ -432,6 +432,12 @@ def _check_page(cfg, page: Page, add, sources: SourceIndex, vocab, resolver: _Re
     # citations
     listed = {s.lstrip("@") for s in page.list_field("sources")}
     cited = {c.key for c in page.citations}
+    canon = sources.aliases.canonical
+    for key in sorted(cited | listed):
+        if canon(key) != key:
+            line = next((c.line for c in page.citations if c.key == key), 1)
+            add(Finding("info", "CIT006", page.rel, line,
+                        f"@{key} is an alias of @{canon(key)} (citekey_aliases.yml); cite the canonical key", "P8"))
     if sources.has_bibliography:
         for key in sorted(cited | listed):
             line = next((c.line for c in page.citations if c.key == key), 1)
@@ -442,10 +448,12 @@ def _check_page(cfg, page: Page, add, sources: SourceIndex, vocab, resolver: _Re
                 add(Finding("info", "CIT003", page.rel, line,
                             f"@{key} is in a pool ({where}) but not in the project bibliography; "
                             "add it before rendering", "P8"))
-    for key in sorted(cited - listed):
+    # an alias and its canonical key are one paper
+    cited_c, listed_c = {canon(k) for k in cited}, {canon(k) for k in listed}
+    for key in sorted(k for k in cited if canon(k) not in listed_c):
         line = next(c.line for c in page.citations if c.key == key)
         add(Finding("warning", "CIT002", page.rel, line, f"@{key} is cited but not listed in sources:", "P8"))
-    for key in sorted(listed - cited):
+    for key in sorted(k for k in listed if canon(k) not in cited_c):
         add(Finding("info", "CIT004", page.rel, 1, f"@{key} is in sources: but never cited in the text", "P8"))
 
     # fidelity
