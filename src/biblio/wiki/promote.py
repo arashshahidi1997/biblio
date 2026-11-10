@@ -98,7 +98,7 @@ def _select(cfg: WikiConfig, names: list[str], tag: str | None) -> list[Page]:
     if tag:
         tag = tag.lstrip("#").replace(":", "/")
         seen = {p.path.resolve() for p in pages}
-        pages += [p for p in load_pages(cfg.wiki_root)
+        pages += [p for p in load_pages(cfg.wiki_root, meta_files=cfg.meta_files)
                   if tag in p.list_field("tags") and p.path.resolve() not in seen]
     if not pages:
         raise PromoteError("no pages to promote: name pages or give --tag")

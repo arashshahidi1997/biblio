@@ -68,7 +68,9 @@ Every lint signal and refactor operation (§7–8) serves one of these.
    - General facets (movable), e.g. `region/ signal/ event/ state/ technique/ device/ species/`.
    - Project facets prefixed with the project (e.g. `px-analysis/`, `px-hypothesis/`), declared in
      `wiki.yml` as `project_facets`; stripped when a page moves up a tier (§9).
-   - Keep it small (~50–80 values); lint rejects unknown tags.
+   - Keep it small (~50–80 values); lint reports unknown tags (`TAG001`, an error unless the
+     wiki sets `severity_overrides: {TAG001: warning}` in `wiki.yml`, for a vocabulary that is
+     linted rather than enforced). `biblio wiki lint --tag-candidates` lists them with page counts.
 3. **Hubs = views** (`hubs/hub-<name>.md`): a curated reading order + a **generated** list of pages
    carrying the hub's tag(s) (P12). A page appears in every hub it is relevant to. Tutorials are
    ordered paths through pages.
@@ -261,7 +263,10 @@ A project declares only:
 8. **Decisions log** (project-specific choices).
 
 The machine-readable part lives in `wiki.yml` next to the pages; `biblio wiki init` writes a
-commented template.
+commented template. Two keys tune lint for the project: `meta_files` (wiki-relative files that
+are not pages, such as a generated `terms.md`, added to the defaults `index.md`, `log.md`,
+`README.md`, `SCHEMA.md`, ...) and `severity_overrides` (lint code to `error`, `warning`,
+`suggestion`, `info` or `off`).
 
 ## 12. Open questions
 

@@ -81,6 +81,8 @@ class WikiConfig:
     tier: str = "project"               # SPEC §9: project | personal | lab
     name: str = ""                      # this wiki's name, the prefix in another wiki's promoted_to
     project_facets: tuple[str, ...] = ()  # tag facets stripped when a page moves up (SPEC §3)
+    meta_files: tuple[str, ...] = META_FILES  # wiki-relative files that are not pages (+ wiki.yml meta_files)
+    severity_overrides: dict[str, str] = field(default_factory=dict)  # lint code -> severity or "off"
 
     @property
     def known_keys(self) -> set[str]:
@@ -159,4 +161,21 @@ def load_wiki_config(repo_root: Path, wiki_root: Path | None = None) -> WikiConf
         project_facets=tuple(str(f).rstrip("/") for f in data.get("project_facets", ())),
         bibliography_explicit=bool(data.get("bibliography")),
         vocab_explicit=bool(data.get("vocab")),
+        meta_files=META_FILES + tuple(str(f).strip("/") for f in data.get("meta_files") or () if f),
+        severity_overrides=_severity_overrides(data.get("severity_overrides"), cfg_path),
     )
+
+
+SEVERITY_LEVELS = ("error", "warning", "suggestion", "info", "off")
+
+
+def _severity_overrides(value: Any, cfg_path: Path) -> dict[str, str]:
+    """``severity_overrides: {TAG001: warning}``; "off" drops the finding."""
+    out: dict[str, str] = {}
+    for code, level in (value or {}).items():
+        level = "off" if level is False else str(level).strip().lower()   # YAML reads a bare off as false
+        if level not in SEVERITY_LEVELS:
+            raise ValueError(f"{cfg_path}: severity_overrides.{code}: '{level}' is not one of "
+                             f"{', '.join(SEVERITY_LEVELS)}")
+        out[str(code).strip().upper()] = level
+    return out

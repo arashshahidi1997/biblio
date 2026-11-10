@@ -9,7 +9,7 @@ from .schema import STATUSES, WikiConfig
 
 
 def status(cfg: WikiConfig) -> dict:
-    pages = load_pages(cfg.wiki_root)
+    pages = load_pages(cfg.wiki_root, meta_files=cfg.meta_files)
     by_type: dict[str, Counter] = {}
     for page in pages:
         by_type.setdefault(page.type or "?", Counter())[page.status or "?"] += 1

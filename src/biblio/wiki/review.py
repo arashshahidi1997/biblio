@@ -271,7 +271,7 @@ def packet(cfg: WikiConfig, path: Path) -> str:
     targets = sorted({ln.target for ln in page.links if not ln.embed})
     tags = set(page.list_field("tags"))
     from .hubs import hub_covers
-    hubs = [p.rel for p in load_pages(cfg.wiki_root) if p.type == "hub" and hub_covers(p, page)]
+    hubs = [p.rel for p in load_pages(cfg.wiki_root, meta_files=cfg.meta_files) if p.type == "hub" and hub_covers(p, page)]
     out += ["", "### Placement", "",
             f"- hubs: {', '.join(hubs) if hubs else 'none (no hub shares a tag with this page)'}",
             f"- links out ({len(targets)}): {', '.join(targets) if targets else 'none'}"]

@@ -61,7 +61,7 @@ class Embed:
 
 
 def find_embeds(cfg: WikiConfig, pages: list[Page] | None = None) -> list[Embed]:
-    pages = pages if pages is not None else load_pages(cfg.wiki_root)
+    pages = pages if pages is not None else load_pages(cfg.wiki_root, meta_files=cfg.meta_files)
     out = []
     for page in pages:
         for link in page.links:

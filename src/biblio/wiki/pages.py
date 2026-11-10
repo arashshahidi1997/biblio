@@ -291,18 +291,26 @@ def parse_page(path: Path, wiki_root: Path) -> Page:
     return page
 
 
-def iter_page_paths(wiki_root: Path) -> list[Path]:
-    """All markdown pages under the wiki root, excluding meta files and hidden folders."""
+def iter_page_paths(wiki_root: Path, meta_files: tuple[str, ...] = META_FILES) -> list[Path]:
+    """All markdown pages under the wiki root, excluding meta files and hidden folders.
+
+    ``meta_files`` are wiki-relative paths (``WikiConfig.meta_files`` adds the
+    ``meta_files`` of ``wiki.yml`` to the defaults).
+    """
+    meta = set(meta_files)
     out = []
     for path in sorted(wiki_root.rglob("*.md")):
         rel = path.relative_to(wiki_root)
         if any(part.startswith(".") for part in rel.parts):
             continue
-        if len(rel.parts) == 1 and (rel.name in META_FILES or rel.name.startswith("review-")):
+        if rel.as_posix() in meta:
+            continue
+        if len(rel.parts) == 1 and rel.name.startswith("review-"):
             continue                     # review packets written next to the wiki's meta files
         out.append(path)
     return out
 
 
-def load_pages(wiki_root: Path, paths: list[Path] | None = None) -> list[Page]:
-    return [parse_page(p, wiki_root) for p in (paths or iter_page_paths(wiki_root))]
+def load_pages(wiki_root: Path, paths: list[Path] | None = None,
+               meta_files: tuple[str, ...] = META_FILES) -> list[Page]:
+    return [parse_page(p, wiki_root) for p in (paths or iter_page_paths(wiki_root, meta_files))]

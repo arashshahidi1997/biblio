@@ -171,6 +171,43 @@ def test_frontmatter_and_tag_checks(repo):
         assert code in found, code
 
 
+def test_severity_overrides_and_tag_candidates(repo, capsys):
+    """lit-studio R50: TAG001 as a warning per wiki, and the unknown tags with their page counts."""
+    cfg = load_wiki_config(repo)
+    for name in ("a", "b"):
+        write(cfg.wiki_root / "concepts" / f"{name}.md", tags="event/spindle", body=f"\n# {name}\n\nLede.\n")
+    write(cfg.wiki_root / "concepts" / "c.md", tags="event/kcomplex, event/spindle", body="\n# c\n\nLede.\n")
+    assert ("error", "TAG001") in [(f.severity, f.code) for f in lint(cfg)]
+
+    (cfg.wiki_root / "wiki.yml").write_text("severity_overrides: {TAG001: warning, orph001: off}\n")
+    cfg = load_wiki_config(repo)
+    sev = [(f.severity, f.code) for f in lint(cfg)]
+    assert ("warning", "TAG001") in sev and ("error", "TAG001") not in sev
+    assert "ORPH001" not in [c for _, c in sev]
+
+    with pytest.raises(SystemExit) as exc:
+        main(["wiki", "lint", "--root", str(repo), "--tag-candidates"])
+    assert exc.value.code == 0
+    out = capsys.readouterr().out
+    assert out.splitlines()[0].split()[:2] == ["3", "event/spindle"]
+    assert "event/kcomplex" in out and "2 tags outside the vocabulary" in out
+
+    (cfg.wiki_root / "wiki.yml").write_text("severity_overrides: {TAG001: loud}\n")
+    with pytest.raises(ValueError, match="loud"):
+        load_wiki_config(repo)
+
+
+def test_meta_files_from_wiki_yml_are_not_pages(repo):
+    """lit-studio R65: a generated overview at the wiki root (terms.md) is not linted as a page."""
+    cfg = load_wiki_config(repo)
+    (cfg.wiki_root / "terms.md").write_text("---\ntype: meta\n---\n\n# Terms\n\n[@nobody_2000_X]\n")
+    assert "terms.md" in {f.page for f in lint(cfg)}
+    (cfg.wiki_root / "wiki.yml").write_text("meta_files: [terms.md]\n")
+    cfg = load_wiki_config(repo)
+    assert "terms.md" in cfg.meta_files and "index.md" in cfg.meta_files
+    assert "terms.md" not in {f.page for f in lint(cfg)}
+
+
 def test_duplicate_basenames_and_embeds(repo):
     cfg = load_wiki_config(repo)
     write(cfg.wiki_root / "concepts" / "same.md", body="\n# A\n\nLede.\n\n![[other]]\n")

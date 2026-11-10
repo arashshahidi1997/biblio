@@ -115,7 +115,7 @@ class _Resolver:
 
 
 def lint(cfg: WikiConfig, paths: list[Path] | None = None) -> list[Finding]:
-    all_pages = load_pages(cfg.wiki_root)
+    all_pages = load_pages(cfg.wiki_root, meta_files=cfg.meta_files)
     targets = {p.resolve() for p in paths} if paths else None
     pages = [p for p in all_pages if targets is None or p.path.resolve() in targets]
     findings: list[Finding] = []
@@ -207,6 +207,11 @@ def lint(cfg: WikiConfig, paths: list[Path] | None = None) -> list[Finding]:
             if count >= 5 and tag not in hub_tags:
                 add(Finding("suggestion", "SUG003", "-", None,
                             f"{count} pages share tag '{tag}' and no hub covers it", "P6", "hub"))
+
+    if cfg.severity_overrides:                    # wiki.yml severity_overrides (R50)
+        for f in findings:
+            f.severity = cfg.severity_overrides.get(f.code, f.severity)
+        findings[:] = [f for f in findings if f.severity != "off"]
 
     order = {s: i for i, s in enumerate(SEVERITIES)}
     findings.sort(key=lambda f: (f.page, order[f.severity], f.line or 0, f.code))
@@ -509,6 +514,33 @@ def _check_page(cfg, page: Page, add, sources: SourceIndex, vocab, resolver: _Re
                     break
 
 
+def unknown_tags(cfg: WikiConfig) -> list[tuple[str, list[str]]]:
+    """Tags not in the vocabulary with the pages using them, most used first (TAG001 candidates)."""
+    vocab = _vocab_tags(cfg.vocab)
+    if vocab is None:
+        return []
+    by_tag: dict[str, list[str]] = defaultdict(list)
+    for page in load_pages(cfg.wiki_root, meta_files=cfg.meta_files):
+        if page.frontmatter.get("redirect"):
+            continue
+        for tag in page.list_field("tags"):
+            if tag.lstrip("#") not in vocab:
+                by_tag[tag.lstrip("#")].append(page.rel)
+    return sorted(by_tag.items(), key=lambda kv: (-len(kv[1]), kv[0]))
+
+
+def format_tag_candidates(rows: list[tuple[str, list[str]]], fmt: str = "text") -> str:
+    if fmt == "json":
+        return json.dumps([{"tag": t, "count": len(p), "pages": p} for t, p in rows], indent=1)
+    if fmt == "tsv":
+        return "\n".join(["tag\tcount\tpages"] + [f"{t}\t{len(p)}\t{','.join(p)}" for t, p in rows])
+    if not rows:
+        return "no tags outside the vocabulary"
+    out = [f"{len(p):>4}  {t}  ({', '.join(p[:3])}{', ...' if len(p) > 3 else ''})" for t, p in rows]
+    out.append(f"\n{len(rows)} tags outside the vocabulary: add to vocab.yml, alias, or replace")
+    return "\n".join(out)
+
+
 def summarize(findings: list[Finding]) -> dict[str, int]:
     counts = Counter(f.severity for f in findings)
     return {s: counts.get(s, 0) for s in SEVERITIES}
@@ -541,7 +573,7 @@ def resolve_page_args(cfg: WikiConfig, args: list[Path]) -> tuple[list[Path], li
 
     Returns (pages, arguments that matched no page). Folders expand to the pages inside them.
     """
-    pages_all = {p.resolve() for p in iter_page_paths(cfg.wiki_root)}
+    pages_all = {p.resolve() for p in iter_page_paths(cfg.wiki_root, cfg.meta_files)}
     found: list[Path] = []
     unmatched: list[str] = []
     for arg in args:
@@ -559,4 +591,4 @@ def resolve_page_args(cfg: WikiConfig, args: list[Path]) -> tuple[list[Path], li
 
 
 def page_count(cfg: WikiConfig) -> int:
-    return len(iter_page_paths(cfg.wiki_root))
+    return len(iter_page_paths(cfg.wiki_root, cfg.meta_files))

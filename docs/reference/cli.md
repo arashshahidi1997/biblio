@@ -106,6 +106,9 @@ biblio quotes check sources.md                  # every '- id, key, section, L<n
 biblio quotes check a.md b.md --json out.json   # results as JSON
 biblio quotes check sources.md --fix-lines      # rewrite wrong L<n> with the located line
 
+# tags outside the vocabulary, most used first (TAG001 candidates: add to vocab.yml, alias, or replace)
+biblio wiki lint --tag-candidates [--format json|tsv]
+
 # wiki refactors (dry run unless --apply; logged in log.md)
 biblio wiki relink old-name new-name            # rename; or folder/ to move; every link rewritten
 biblio wiki merge page-a page-b                 # A into B; A stays as a redirect stub

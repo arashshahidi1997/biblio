@@ -24,6 +24,8 @@ WIKI_YML = """\
 # tier: project                               # SPEC §9: project | personal | lab
 # name: <repo folder>                         # prefix other wikis write in promoted_to (e.g. lit-studio)
 # project_facets: []                          # tag facets that stay behind on a move, e.g. [px-analysis]
+# meta_files: []                              # wiki-relative files that are not pages, e.g. [terms.md]
+# severity_overrides: {{}}                    # lint code -> error|warning|suggestion|info|off, e.g. {{TAG001: warning}}
 """
 
 VOCAB_YML = """\

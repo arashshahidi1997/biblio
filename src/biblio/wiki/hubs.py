@@ -91,7 +91,7 @@ def expected_index_text(cfg: WikiConfig, index_path: Path, current: str, hubs: l
 
 def stale_views(cfg: WikiConfig, pages: list[Page] | None = None) -> dict[Path, str]:
     """Return {path: expected text} for every generated view that is out of date."""
-    pages = pages if pages is not None else load_pages(cfg.wiki_root)
+    pages = pages if pages is not None else load_pages(cfg.wiki_root, meta_files=cfg.meta_files)
     hubs = [p for p in pages if p.type == "hub"]
     out: dict[Path, str] = {}
     for hub in hubs:

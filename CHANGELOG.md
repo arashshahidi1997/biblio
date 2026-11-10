@@ -4,6 +4,8 @@
 
 ### Added
 - `pixi run -e dev publish` and `publish-test` (`scripts/publish.py`): build, check and upload this version; token from `TWINE_PASSWORD` or `~/.config/tokens/{pypi,testpypi}.token`. Named in RELEASE.md.
+- `wiki.yml` `severity_overrides: {CODE: error|warning|suggestion|info|off}` sets a lint code's severity per wiki, e.g. `TAG001: warning` for a vocabulary that is linted, not enforced; `biblio wiki lint --tag-candidates` lists unknown tags with their page counts (lit-studio R50).
+- `wiki.yml` `meta_files: [terms.md]`: wiki-relative files that are not pages, added to the built-in list, so a generated overview at the wiki root is not linted (lit-studio R65).
 
 ### Fixed
 - `bibtex backfill-venue` and `add doi`: registry HTML entities are unescaped ("Learning &amp; Memory" becomes `Learning \& Memory`); a bare `&` in a written field is escaped for LaTeX (pixecog 20261108).

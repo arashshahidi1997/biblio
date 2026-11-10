@@ -43,6 +43,8 @@ def add_parsers(sub) -> None:
     p.add_argument("--format", default="text", choices=["text", "json", "tsv"])
     p.add_argument("--min-severity", default="info", choices=["error", "warning", "suggestion", "info"],
                    help="Hide findings below this severity.")
+    p.add_argument("--tag-candidates", action="store_true",
+                   help="List tags outside the vocabulary with their page counts (the TAG001 candidates) and exit.")
 
     p = wsub.add_parser("hubs", help="Regenerate hub page lists and the hub index.")
     _common(p)
@@ -290,6 +292,13 @@ def run(args) -> None:
         if not cfg.wiki_root.is_dir():
             print(f"error: no wiki at {rel(cfg.wiki_root)} (run `biblio wiki init`)", file=sys.stderr)
             raise SystemExit(2)
+        if args.tag_candidates:
+            from .lint import format_tag_candidates, unknown_tags
+            if cfg.vocab is None:
+                print("error: no vocabulary (vocab.yml) found", file=sys.stderr)
+                raise SystemExit(2)
+            print(format_tag_candidates(unknown_tags(cfg), args.format))
+            raise SystemExit(0)
         from .lint import resolve_page_args
         paths = None
         if args.paths:
