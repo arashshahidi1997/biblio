@@ -99,6 +99,8 @@ biblio fulltext KEY --grep "spindle"            # lines as grep -n counts them i
 biblio fulltext KEY --lines 288-292             # those lines, cleaned (fi, ~5 ms, Buzsáki, spacing)
 biblio fulltext KEY --lines 290 --raw           # docling's text as written
 biblio fulltext KEY --changes                   # every cleaning substitution, by line
+biblio fulltext KEY --span                      # the article's own lines; a reprint's neighbouring articles named
+biblio fulltext --survey [--pools] [--format tsv]   # texts that hold other articles (quotes check warns on them)
 biblio fulltext KEY@published                   # another held version of the paper (own line numbers)
 biblio digest claims KEY [--context talk]       # claims with checked quotes
 biblio digest claims --from keys.txt --screen   # a list in the background; existing digests skipped

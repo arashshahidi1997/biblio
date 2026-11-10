@@ -19,6 +19,7 @@ from __future__ import annotations
 import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Any
 
 from .config import BiblioConfig
 from .sections import fulltext_path
@@ -60,6 +61,7 @@ class QuoteResult:
     raw: str = ""          # the exact characters of <key>.md the quote matches (grep -F finds them)
     sentence: str = ""     # the whole sentence around the quote, in the cleaned text
     version: str = ""      # the held version it matched, e.g. "published" (<key>@published); "" = default
+    outside: str = ""      # set when the text holds other articles and the quote lies outside this one (R69)
 
     @property
     def line_ok(self) -> bool:
@@ -131,6 +133,23 @@ def check_quotes(cfg: BiblioConfig, items: list[QuoteItem]) -> list[QuoteResult]
 
     qc = QuoteChecker(path_for)
     out: list[QuoteResult] = []
+    spans: dict[Path, Any] = {}
+    titles: dict[str, str] | None = None
+
+    def outside(key: str, path: Path | None, line: int | None) -> str:
+        nonlocal titles
+        from .article_span import bib_titles, span_for_file
+        if path is None or line is None or not path.is_file():
+            return ""
+        if path not in spans:
+            if titles is None:
+                titles = bib_titles(cfg)
+            base = key.split("@", 1)[0]
+            spans[path] = span_for_file(path, titles.get(base))
+        span = spans[path]
+        if not span.mixed or span.contains(line):
+            return ""
+        return f"L{line} is outside the article (lines {span.start}-{span.end}): " + "; ".join(span.reasons())
     for it in items:
         if not it.citekey:
             out.append(QuoteResult(it.id, "", it.section, "no-citekey", "", None, it.line, "", "", "",
@@ -148,7 +167,8 @@ def check_quotes(cfg: BiblioConfig, items: list[QuoteItem]) -> list[QuoteResult]
             where=_where(cfg, p) if p else "", text=str(p) if p else "",
             file_line=it.file_line, claimed=it.claimed,
             raw=(sp or {}).get("raw") or "", sentence=(sp or {}).get("sentence") or "",
-            version=(sp or {}).get("version") or m.version or ""))
+            version=(sp or {}).get("version") or m.version or "",
+            outside=outside(it.citekey, p, loc[0] if loc else None)))
     return out
 
 

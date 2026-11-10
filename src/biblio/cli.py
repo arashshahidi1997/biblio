@@ -753,7 +753,14 @@ def _build_parser() -> argparse.ArgumentParser:
     fig_run.add_argument("--licence", default="unknown", help="Licence of the figures, recorded in the manifest (e.g. 'CC BY 4.0').")
 
     p_ft = sub.add_parser("fulltext", help="A held paper's full text (project or pool): sections, one section, or a search.")
-    p_ft.add_argument("citekey")
+    p_ft.add_argument("citekey", nargs="?")
+    p_ft.add_argument("--span", action="store_true",
+                      help="Where the article itself sits in the text, and whether neighbouring articles are mixed in.")
+    p_ft.add_argument("--survey", action="store_true",
+                      help="List the project's docling texts that hold other articles (a reprint's neighbours).")
+    p_ft.add_argument("--pools", action="store_true", help="With --survey: the pools' texts too.")
+    p_ft.add_argument("--format", dest="ft_format", default="text", choices=["text", "tsv"],
+                      help="With --survey: output format.")
     p_ft.add_argument("--grep", help="Find exact wording (case-insensitive regex); prints section and line per hit.")
     p_ft.add_argument("--section", help="Print one section by id (S12) or title.")
     p_ft.add_argument("--lines", help="Print lines A-B (or one line A) of <key>.md, numbered as grep -n.")
@@ -2232,6 +2239,28 @@ def main(argv: Iterable[str] | None = None) -> None:
         from .sections import read_sections
         repo_root = (args.root.expanduser().resolve() if args.root else find_repo_root())
         cfg = load_biblio_config(default_config_path(root=repo_root), root=repo_root)
+        if args.survey:
+            from .article_span import survey
+            roots = [cfg.out_root]
+            if args.pools:
+                for pool in cfg.pool_search:
+                    roots += [b / "derivatives" / "docling" for b in (pool, pool.parent)
+                              if (b / "derivatives" / "docling").is_dir()][:1]
+            rows = survey(cfg, roots)
+            if args.ft_format == "tsv":
+                print("citekey\tstart\tend\tlines\tpath\treasons")
+                for key, md, span in rows:
+                    print(f"{key}\t{span.start or ''}\t{span.end or ''}\t{span.lines}\t{md}\t{'; '.join(span.reasons())}")
+            else:
+                for key, md, span in rows:
+                    print(f"{key}: lines {span.start}-{span.end} of {span.lines} ({md})")
+                    for reason in span.reasons():
+                        print(f"  {reason}")
+                print(f"{len(rows)} text(s) with other articles mixed in"
+                      f" (searched {', '.join(str(r) for r in roots)})")
+            return
+        if not args.citekey:
+            raise SystemExit("[ERROR] name a citekey (or --survey)")
         try:
             sections, source, kind = read_sections(cfg, args.citekey)
         except FileNotFoundError as exc:
@@ -2242,7 +2271,20 @@ def main(argv: Iterable[str] | None = None) -> None:
             others = [v for v, _ in text_versions(source) if v]
             if others:
                 print("# other versions: " + ", ".join(f"{v} (`biblio fulltext {args.citekey}@{v}`)" for v in others))
-        if args.section:
+        if args.span:
+            from .article_span import bib_titles, span_for_file
+            if kind != "docling":
+                raise SystemExit(f"[ERROR] --span needs the docling text; {source} is {kind}")
+            key = args.citekey.lstrip("@").split("@", 1)[0]
+            span = span_for_file(source, bib_titles(cfg).get(key))
+            if span.start is None:
+                print("article: title heading not found; span unknown")
+            else:
+                print(f"article: lines {span.start}-{span.end} of {span.lines}"
+                      + (" (other articles mixed in)" if span.mixed else ""))
+            for reason in span.reasons():
+                print(f"  {reason}")
+        elif args.section:
             want = args.section.strip().lower()
             sec = next((x for x in sections if x.id.lower() == want or x.title.lower() == want), None) or next(
                 (x for x in sections if want in x.title.lower()), None)
@@ -2332,16 +2374,19 @@ def main(argv: Iterable[str] | None = None) -> None:
             counts: dict[str, int] = {}
             for r in results:
                 counts[r.status] = counts.get(r.status, 0) + 1
-                problem = r.status != "exact" or not r.line_ok
+                problem = r.status != "exact" or not r.line_ok or bool(r.outside)
                 if problem or args.show_all:
                     line = (f"L{r.line}" if r.line is not None else "L-") + (f" @{r.version}" if r.version else "")
                     moved = "" if r.line_ok else f" (written L{r.written_line})"
                     print(f"{path.name}:{r.file_line}: {r.id:6} {r.status:11} {line}{moved} {r.citekey} "
-                          f"[{r.heading}] {r.where}" + (f"\n    {r.diff}" if r.diff else ""))
+                          f"[{r.heading}] {r.where}" + (f"\n    {r.diff}" if r.diff else "")
+                          + (f"\n    [WARN] {r.outside}" if r.outside else ""))
             wrong_lines = sum(1 for r in results if not r.line_ok)
+            n_outside = sum(1 for r in results if r.outside)
             summary = ", ".join(f"{n} {k}" for k, n in sorted(counts.items()))
             print(f"[{'OK' if all(r.status == 'exact' for r in results) else 'FAIL'}] {path}: "
-                  f"{len(results)} quotes ({summary or 'none found'}); {wrong_lines} line(s) differ")
+                  f"{len(results)} quotes ({summary or 'none found'}); {wrong_lines} line(s) differ"
+                  + (f"; {n_outside} outside the cited article" if n_outside else ""))
             if unchecked:
                 print(f"  not checked (no L<n>): {path.name} lines {', '.join(map(str, unchecked))}")
             if args.fix_lines and wrong_lines:
