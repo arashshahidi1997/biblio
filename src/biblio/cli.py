@@ -333,6 +333,10 @@ def _build_parser() -> argparse.ArgumentParser:
     add_zot.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml).")
     add_zot.add_argument("--local", action="store_true",
                          help="Use the Zotero app's local API on this machine (Zotero 7+, no key, no config).")
+    add_zot.add_argument("--doi", action="store_true",
+                         help="Every ref is a DOI (an error otherwise). Items sharing it: the one with a PDF "
+                              "(on disk, with --local) is taken and the others named; with --local a DOI the "
+                              "API search misses is looked up in zotero.sqlite.")
     add_zot.add_argument("--extract", action="store_true", help="Then run GROBID and docling for the paper.")
     add_zot.add_argument("--dry-run", action="store_true", help="Find the item and show the key; write nothing.")
     add_orcid = add_sub.add_parser("orcid", help="Add papers by author ORCID via OpenAlex.")
@@ -1006,6 +1010,11 @@ def _add_zotero(args: argparse.Namespace, cfg: Any, cfg_path: Path, repo_root: P
     refs = [r for r in dict.fromkeys(r.strip() for r in refs) if r]
     if not refs:
         raise SystemExit("[ERROR] name a ref (item key, DOI, citekey or title), or --from list.txt")
+    if getattr(args, "doi", False):
+        from .refs import normalize_doi
+        not_doi = [r for r in refs if not normalize_doi(r).startswith("10.")]
+        if not_doi:
+            raise SystemExit(f"[ERROR] --doi: not a DOI: {', '.join(not_doi)}")
     where = "the local API (is Zotero running, with local API access enabled?)" if zcfg.local else "the web API"
     try:
         libs = open_libraries(zcfg, args.library or ("all" if zcfg.local else "own"))

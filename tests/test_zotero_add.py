@@ -363,3 +363,119 @@ def test_add_a_second_version_of_a_held_paper(cfg):
     assert (cfg.repo_root / "bib" / "srcbib" / "zotero.bib").read_text() == zbib
     with pytest.raises(ZoteroLookupError, match="not in the project yet"):
         add_from_zotero(cfg, ZCFG, "ZZZZ9999", client=_client(FakeZot()), version="published")
+
+
+# --- R52 (rest): DOI via zotero.sqlite, PDF on disk first, title on the first page ---
+
+def _text_pdf(*lines: str) -> bytes:
+    """A one-page PDF whose text pdftotext can read."""
+    ops = "BT /F1 12 Tf 40 760 Td 14 TL " + " ".join(
+        f"({ln.replace('(', '').replace(')', '')}) Tj T*" for ln in lines) + " ET"
+    objs = [
+        "<< /Type /Catalog /Pages 2 0 R >>",
+        "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R "
+        "/Resources << /Font << /F1 5 0 R >> >> >>",
+        f"<< /Length {len(ops)} >>\nstream\n{ops}\nendstream",
+        "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    ]
+    out, offsets = b"%PDF-1.4\n", []
+    for i, body in enumerate(objs, 1):
+        offsets.append(len(out))
+        out += f"{i} 0 obj\n{body}\nendobj\n".encode()
+    xref = len(out)
+    out += f"xref\n0 {len(objs) + 1}\n0000000000 65535 f \n".encode()
+    out += "".join(f"{o:010d} 00000 n \n" for o in offsets).encode()
+    out += f"trailer\n<< /Size {len(objs) + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n".encode()
+    return out
+
+
+needs_pdftotext = pytest.mark.skipif(__import__("shutil").which("pdftotext") is None, reason="poppler not installed")
+TITLE = "Deltas' and spindles' cross-area synchronization and ripple subtypes"
+
+
+@needs_pdftotext
+def test_title_on_first_page():
+    from biblio.zotero_add import title_on_first_page
+    own = _text_pdf("SLEEP 2026", "Deltas and spindles cross-", "area synchronization and ripple subtypes")
+    other = _text_pdf("Hippocampal place-cell sequences depict future paths")
+    assert title_on_first_page(own, TITLE) is True          # hyphenation across the line joined
+    assert title_on_first_page(other, TITLE) is False
+    assert title_on_first_page(own, "Sleep") is None         # too short to tell
+
+
+@needs_pdftotext
+def test_add_prefers_the_attachment_showing_the_title_and_warns_otherwise(cfg):
+    own = _text_pdf("Deltas and spindles cross-area synchronization and ripple subtypes")
+    wrong = _text_pdf("Hippocampal place-cell sequences depict future paths")
+    children = [_att("WRNG0001", "Full Text PDF"), _att("RGHT0001", "Full Text PDF")]
+    res = add_from_zotero(cfg, ZCFG, "ABCD1234", client=_client(
+        FakeZot(children=children, files={"WRNG0001": wrong, "RGHT0001": own})))
+    assert res.pdf_status == "copied" and res.pdf_path.read_bytes() == own
+    assert not any("title not found" in n for n in res.notes)
+
+    res.pdf_path.unlink()
+    res = add_from_zotero(cfg, ZCFG, "ABCD1234", client=_client(
+        FakeZot(children=children[:1], files={"WRNG0001": wrong})))
+    assert res.pdf_status == "copied"                         # warn, not block, with one candidate
+    assert any("title not found on the first page of the PDF" in n for n in res.notes)
+
+
+def test_doi_missed_by_the_api_is_found_in_zotero_sqlite(monkeypatch, tmp_path):
+    import sqlite3
+    data_dir = tmp_path / "Zotero"
+    (data_dir / "storage" / "FILE0001").mkdir(parents=True)
+    (data_dir / "storage" / "FILE0001" / "a.pdf").write_bytes(PDF)
+    con = sqlite3.connect(data_dir / "zotero.sqlite")
+    con.executescript("""
+        CREATE TABLE items (itemID INTEGER, libraryID INTEGER, key TEXT, itemTypeID INTEGER);
+        CREATE TABLE itemData (itemID INTEGER, fieldID INTEGER, valueID INTEGER);
+        CREATE TABLE itemDataValues (valueID INTEGER, value TEXT);
+        CREATE TABLE fields (fieldID INTEGER, fieldName TEXT);
+        CREATE TABLE itemTypes (itemTypeID INTEGER, typeName TEXT);
+        CREATE TABLE deletedItems (itemID INTEGER);
+        CREATE TABLE itemAttachments (itemID INTEGER, parentItemID INTEGER, contentType TEXT, linkMode INTEGER);
+        INSERT INTO items VALUES (1, 1, 'ABCD1234', 1);
+        INSERT INTO itemTypes VALUES (1, 'journalArticle');
+        INSERT INTO fields VALUES (1, 'DOI'), (2, 'title');
+        INSERT INTO itemDataValues VALUES (1, '10.1093/sleep/zsag001'), (2, 'Deltas');
+        INSERT INTO itemData VALUES (1, 1, 1), (1, 2, 2);
+    """)
+    con.commit()
+    con.close()
+    monkeypatch.setattr(zotero_add, "zotero_storage_dirs", lambda: [data_dir / "storage"])
+
+    class BlindSearch(FakeZot):                 # the local API's quick search misses the DOI
+        def items(self, q="", qmode="titleCreatorYear", limit=25):
+            return []
+
+    libs = [zotero_add.Library("user", BlindSearch())]
+    with pytest.raises(ZoteroLookupError):
+        zotero_add.resolve_item(libs, "10.1093/sleep/zsag001")
+    item, _, _ = zotero_add.resolve_item(libs, "10.1093/sleep/zsag001", local=True)
+    assert item["key"] == "ABCD1234"
+
+
+def test_duplicate_with_the_pdf_on_disk_wins(monkeypatch, tmp_path):
+    store = tmp_path / "storage"
+    (store / "DISK0001").mkdir(parents=True)
+    (store / "DISK0001" / "x.pdf").write_bytes(PDF)
+    monkeypatch.setattr(zotero_add, "zotero_storage_dirs", lambda: [store])
+    twin = {"key": "TWIN0001", "data": {**PAPER["data"], "key": "TWIN0001"}}
+
+    class TwoCopies(FakeZot):
+        def children(self, key):
+            # the first copy's PDF is an imported_file Zotero has not downloaded; the twin's is on disk
+            return [_att("CLOUD001", "Full Text PDF")] if key == "ABCD1234" else \
+                [_att("DISK0001", "Full Text PDF", "imported_url")]
+
+    libs = [zotero_add.Library("user", TwoCopies(items=(PAPER, twin)))]
+    item, _, notes = zotero_add.resolve_item(libs, "10.1093/sleep/zsag001", local=True)
+    assert item["key"] == "TWIN0001"
+    assert notes == ["duplicate user ABCD1234 (PDF not on disk) not used"]
+
+
+def test_cli_doi_flag_rejects_other_refs(cfg):
+    from biblio.cli import main
+    with pytest.raises(SystemExit, match="not a DOI: ABCD1234"):
+        main(["add", "zotero", "--local", "--doi", "10.1093/sleep/zsag001", "ABCD1234", "--root", str(cfg.repo_root)])

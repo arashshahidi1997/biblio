@@ -89,6 +89,7 @@ biblio add zotero ABCD1234 --local              # item key, DOI or citekey; loca
 biblio add zotero 10.1093/sleep/zsag001         # web API (zotero.library_id + BIBLIO_ZOTERO_API_KEY)
 biblio add zotero KEY --local --dry-run         # show the item and biblio's key, write nothing
 biblio add zotero --from refs.txt --local       # a list (keys, DOIs, citekeys, titles); groups searched too
+biblio add zotero --local --doi 10.1038/nn1825 10.1126/science.1169597   # DOIs only; zotero.sqlite when the API misses one
 biblio add zotero DOI --local --library group:4242   # one group library only
 biblio add zotero ITEMKEY --local --version published   # a second text of a held paper: <key>@published
 

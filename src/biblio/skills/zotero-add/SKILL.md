@@ -48,15 +48,20 @@ PDFs stored in Zotero's cloud storage; linked files are never reachable.
    library and every group library are searched (`--library group:<id>` for
    one); a `[group:...]` tag says where an item was found. The output prints
    biblio's citekey; use that one from now on. Duplicates of one paper are
-   resolved to the copy with a stored PDF (the others are listed as `note:
-   duplicate ...`); different papers matching one ref are an error that lists
-   their item keys.
+   resolved to the copy with a stored PDF, with `--local` the one whose PDF is
+   on disk (the others are listed as `note: duplicate ...`); different papers
+   matching one ref are an error that lists their item keys. For a list of
+   DOIs pass `--doi`: every ref must be a DOI, and with `--local` a DOI the
+   API search misses is looked up in `zotero.sqlite`.
 2. **Add them**: the same command without `--dry-run`. The last line sums up
    added, already present, no PDF, not found and duplicates. The entry goes to
    `bib/srcbib/zotero.bib` with a `zotero = {ITEMKEY}` field, the PDF to
    `bib/articles/<key>/<key>.pdf`. A paper already in the project keeps its
    key; only a missing PDF is filled in. Read the `note:` lines: "no PDF
-   attached" means the user has to attach one in Zotero first.
+   attached" means the user has to attach one in Zotero first; "title not
+   found on the first page" means the PDF written may belong to another paper
+   (the title's opening words are not on page 1; book chapters often fail
+   this harmlessly): open it and check before extracting.
 3. **Save and push** (laptop): `datalad save -m "bib: add <key> from Zotero"`
    then `datalad push --to <sibling>`.
 4. **Extract** (server): `datalad update --how merge`, `datalad get
