@@ -45,18 +45,24 @@ def promote_graph_candidates(
         return {"error": "graph_candidates.json is empty or not a list"}
     candidates_total = len(candidates)
 
-    from .graph import _normalize_openalex_id, _seed_citekeys, load_openalex_seed_records
+    from .graph import _normalize_openalex_id, _seed_citekeys_all, load_openalex_seed_records
 
     resolved_path = cfg.repo_root / "bib" / "derivatives" / "openalex" / "resolved.jsonl"
-    seed_by_id = _seed_citekeys(load_openalex_seed_records(resolved_path))
+    keys_by_id = _seed_citekeys_all(load_openalex_seed_records(resolved_path))
+    requested = list(dict.fromkeys(seed_citekeys or []))
 
     def _seed_of(cand: dict[str, Any]) -> str:
+        # Several citekeys can share one OpenAlex work; report the one asked for.
         sid = _normalize_openalex_id(cand.get("seed_openalex_id"))
-        return seed_by_id.get(sid or "", sid or "<unknown>")
+        keys = keys_by_id.get(sid or "")
+        if not keys:
+            return sid or "<unknown>"
+        return next((k for k in keys if k in requested), keys[0])
 
-    if seed_citekeys:
-        wanted_ids = {sid for sid, ck in seed_by_id.items() if ck in set(seed_citekeys)}
-        unknown = sorted(set(seed_citekeys) - {seed_by_id[sid] for sid in wanted_ids})
+    if requested:
+        wanted_ids = {sid for sid, keys in keys_by_id.items() if set(keys) & set(requested)}
+        found = {k for sid in wanted_ids for k in keys_by_id[sid]}
+        unknown = sorted(set(requested) - found)
         if unknown:
             return {
                 "error": f"seed citekeys not found in {resolved_path.name} (no OpenAlex id): {', '.join(unknown)}",
@@ -117,11 +123,11 @@ def promote_graph_candidates(
         filtered = filtered[:top_n]
 
     dois_to_promote = [c["doi"] for c in filtered if c.get("doi")]
-    by_seed: dict[str, int] = {}
+    by_seed: dict[str, int] = {k: 0 for k in requested}
     for c in filtered:
         by_seed[_seed_of(c)] = by_seed.get(_seed_of(c), 0) + 1
     scope: dict[str, Any] = {"seed_citekeys": list(seed_citekeys or []), "by_seed": by_seed}
-    if not seed_citekeys and len(by_seed) > 1:
+    if not requested and len(by_seed) > 1:
         scope["warning"] = (
             f"candidates from {len(by_seed)} seeds are selected; pass seed_citekeys "
             "(CLI: --seed) to promote one paper's references"

@@ -87,3 +87,29 @@ def test_backfill_inserts_journal_and_is_idempotent(tmp_path: Path) -> None:
 
     _, again, _ = _run(tmp_path, dry_run=False)
     assert again.candidates == 1 and again.filled == {}
+
+
+def test_backfill_unescapes_html_entities_and_escapes_ampersand(tmp_path: Path) -> None:
+    """Crossref returns "Learning &amp; Memory"; the bib gets {Learning \\& Memory} (pixecog 20261108)."""
+    from pybtex.database import parse_file
+
+    bib = tmp_path / "imported.bib"
+    bib.write_text("@article{lm_2001_X,\n  title = {T},\n  doi = {10.1/lm}\n}\n", encoding="utf-8")
+    res = backfill_venues(bib, dry_run=False, fetch_csl=lambda doi: {"container-title": ["Learning &amp; Memory"]})
+    assert res.filled == {"lm_2001_X": "Learning & Memory"}
+    text = bib.read_text(encoding="utf-8")
+    assert "journal = {Learning \\& Memory}" in text
+    assert "&amp;" not in text
+    assert parse_file(str(bib)).entries["lm_2001_X"].fields["journal"] == "Learning \\& Memory"
+
+
+def test_add_doi_record_unescapes_container_and_renders_ampersand() -> None:
+    from biblio.ingest import record_from_csl, render_bibtex
+
+    rec = record_from_csl(
+        {"DOI": "10.1/lm", "type": "article-journal", "title": "A &amp; B", "container-title": "Learning &amp; Memory"},
+        source_type="doi", source_ref="10.1/lm",
+    )
+    assert rec.journal == "Learning & Memory" and rec.title == "A & B"
+    out = render_bibtex([("lm_2001_X", rec)])
+    assert "journal = {Learning \\& Memory}" in out and "title = {A \\& B}" in out

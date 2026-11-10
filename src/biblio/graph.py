@@ -44,6 +44,18 @@ def _seed_citekeys(records: list[dict[str, Any]]) -> dict[str, str]:
     return out
 
 
+def _seed_citekeys_all(records: list[dict[str, Any]]) -> dict[str, list[str]]:
+    """OpenAlex id -> every citekey resolved to it (two bib entries can share a work)."""
+    out: dict[str, list[str]] = {}
+    for record in records:
+        sid = _normalize_openalex_id(record.get("openalex_id"))
+        if sid and record.get("citekey"):
+            keys = out.setdefault(sid, [])
+            if str(record["citekey"]) not in keys:
+                keys.append(str(record["citekey"]))
+    return out
+
+
 def _local_edge(seed_by_id: dict[str, str], source_id: str, target_id: str) -> dict[str, Any]:
     return {
         "source_citekey": seed_by_id.get(source_id),

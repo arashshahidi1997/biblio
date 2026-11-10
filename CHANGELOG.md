@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- `bibtex backfill-venue` and `add doi`: registry HTML entities are unescaped ("Learning &amp; Memory" becomes `Learning \& Memory`); a bare `&` in a written field is escaped for LaTeX (pixecog 20261108).
+- `graph promote --seed`: a citekey that shares its OpenAlex work with another citekey is found; a requested seed with nothing new prints `seed=0` (pixecog 20261108).
+- `bibtex fetch-pdfs-oa`: every paper left without a PDF is written to `<logs>/runs/pdf_fetch_oa_failures.tsv` (citekey, status, error) and counted correctly (`no_url` now carries an error text); the last progress line reads `done` instead of `None`; requested citekeys absent from the OpenAlex records are named (pixecog 20261108).
+
 ## 0.3.6 (2026-11-06)
 
 A correctness batch (pdf-fetch-oa failure status, DOI duplicates in merge, `graph promote --seed`, extract parsing, `bibtex backfill-venue`, lit-studio R52 and R60) and the wiki SPEC v0.2-draft in `docs/reference/wiki-spec.md`, with the `wiki promote` gate and plan, the `origin` key and one tag vocabulary per project.

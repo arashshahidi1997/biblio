@@ -11,6 +11,7 @@ after each entry's opening line, so the rest of the file is unchanged.
 """
 from __future__ import annotations
 
+import html
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -36,7 +37,7 @@ def _csl_container(item: Mapping[str, Any] | None) -> str | None:
     value = item.get("container-title")
     if isinstance(value, list):
         value = value[0] if value else None
-    text = " ".join(str(value or "").split())
+    text = " ".join(html.unescape(str(value or "")).split())
     return text or None
 
 
@@ -46,7 +47,7 @@ def _openalex_venue(work: Mapping[str, Any] | None, doi: str) -> str | None:
     if not work or not openalex_matches_doi(work, doi):
         return None
     source = (work.get("primary_location") or {}).get("source") or {}
-    text = " ".join(str(source.get("display_name") or "").split()) if isinstance(source, Mapping) else ""
+    text = " ".join(html.unescape(str(source.get("display_name") or "")).split()) if isinstance(source, Mapping) else ""
     return text or None
 
 

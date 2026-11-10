@@ -42,6 +42,21 @@ def summarize_results(results: list[OaFetchResult]) -> dict[str, Any]:
     return {"total": len(results), **counts, "needs_pdf": len(needs_pdf), "needs_pdf_citekeys": needs_pdf}
 
 
+def failures_tsv_path(cfg: BiblioConfig) -> Path:
+    """Where the CLI writes the full failure list of the last fetch-pdfs-oa run."""
+    return cfg.ledger.docling_runs.parent.parent / "runs" / "pdf_fetch_oa_failures.tsv"
+
+
+def write_failures_tsv(results: list[OaFetchResult], path: Path) -> list[OaFetchResult]:
+    """Write every result that left a paper without a PDF (citekey, status, error); return them."""
+    failed = [r for r in results if r.status in FAILED_STATUSES]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lines = ["citekey\tstatus\terror"]
+    lines += [f"{r.citekey}\t{r.status}\t{' '.join((r.error or '').split())}" for r in failed]
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return failed
+
+
 def _oa_pdf_url(record: dict[str, Any]) -> str | None:
     """Return the best available OA PDF URL from an OpenAlex record."""
     candidates = _oa_pdf_url_candidates(record)
@@ -373,7 +388,10 @@ def fetch_pdfs_oa(
             else:
                 if queue:
                     add_to_queue(cfg, citekey, doi=doi, url=paper_url, oa_status="no_url")
-                results.append(OaFetchResult(citekey=citekey, status="no_url", url=None, dest=None, error=None))
+                results.append(OaFetchResult(
+                    citekey=citekey, status="no_url", url=None, dest=None,
+                    error="no PDF URL from any source in the cascade",
+                ))
 
     if progress_cb:
         progress_cb({"completed": total, "total": total, "citekey": None})

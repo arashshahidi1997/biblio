@@ -336,3 +336,24 @@ class TestFetchCascade:
         from biblio.pdf_fetch_oa import fetch_pdfs_oa
         results = fetch_pdfs_oa(cfg, delay=0, queue=False)
         assert results[0].status == "skipped"
+
+
+def test_cli_fetch_pdfs_oa_lists_every_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys) -> None:
+    """All failures land in a TSV whose count matches needs_pdf; no 'None' progress line (pixecog 20261108)."""
+    from biblio.cli import main
+
+    cfg = TestFetchCascade()._make_cfg(tmp_path, sources=["openalex"])
+    keys = [f"k{i:02d}_2020_X" for i in range(30)]
+    TestFetchCascade()._write_openalex_jsonl(cfg, [{"citekey": k, "doi": f"10.1/{k}"} for k in keys])
+    monkeypatch.chdir(tmp_path)
+    with patch("biblio.pdf_fetch_oa._try_html_fallback", return_value=None), \
+         patch("biblio.pdf_fetch_oa.time.sleep"):
+        main(["bibtex", "fetch-pdfs-oa", "--root", str(tmp_path), "--citekeys", *keys, "missing_2000_Y"])
+    out, err = capsys.readouterr()
+    assert "None" not in out
+    assert "[30/30] done" in out
+    assert "missing_2000_Y" in err
+    from biblio.pdf_fetch_oa import failures_tsv_path
+    rows = failures_tsv_path(cfg).read_text(encoding="utf-8").splitlines()
+    assert len(rows) == 31 and rows[1].startswith("k00_2020_X\tno_url\t")
+    assert "all 30 without a PDF" in err and "and 10 more" in err

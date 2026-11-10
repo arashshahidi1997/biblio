@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import html
 import re
 import shutil
 import time
@@ -97,7 +98,8 @@ def find_existing_dois(repo_root: str | Path) -> dict[str, str]:
 def _clean_text(value: Any) -> str | None:
     if value is None:
         return None
-    text = str(value).replace("\n", " ").replace("\r", " ").strip()
+    # Registries return HTML entities ("Learning &amp; Memory").
+    text = html.unescape(str(value)).replace("\n", " ").replace("\r", " ").strip()
     text = re.sub(r"\s+", " ", text)
     return text or None
 
@@ -895,7 +897,8 @@ def parse_pdf_inputs(paths: Iterable[str | Path]) -> list[IngestRecord]:
 
 
 def _bibtex_escape(value: str) -> str:
-    return value.replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}")
+    out = value.replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}")
+    return re.sub(r"(?<!\\)&", r"\\&", out)  # a bare & breaks LaTeX
 
 
 def render_bibtex(records: Iterable[tuple[str, IngestRecord]]) -> str:

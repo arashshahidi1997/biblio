@@ -133,3 +133,28 @@ def test_graph_promote_unknown_seed_is_an_error(tmp_path: Path) -> None:
     _promote_fixture(tmp_path)
     res = graph_promote(root=tmp_path, seed_citekeys=["nobody_2020_X"], dry_run=True)
     assert "nobody_2020_X" in res["error"]
+
+
+def test_graph_promote_seed_sharing_an_openalex_id(tmp_path: Path) -> None:
+    """Two citekeys resolved to one work: either key works as the seed (pixecog 20261108)."""
+    from biblio.mcp import graph_promote
+
+    _promote_fixture(tmp_path)
+    resolved = tmp_path / "bib" / "derivatives" / "openalex" / "resolved.jsonl"
+    with resolved.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps({"citekey": "swanson_2025_TopographyPutative", "openalex_id": "W2"}) + "\n")
+
+    for key in ("swanson_2025_Topography", "swanson_2025_TopographyPutative"):
+        res = graph_promote(root=tmp_path, seed_citekeys=[key], dry_run=True)
+        assert "error" not in res, res
+        assert res["by_seed"] == {key: 2}
+
+
+def test_graph_promote_seed_with_nothing_new_reports_zero(monkeypatch, tmp_path: Path) -> None:
+    from biblio.mcp import graph_promote
+
+    _promote_fixture(tmp_path)
+    monkeypatch.setattr("biblio.ingest.find_existing_dois", lambda root: {"10.1/ye-a", "10.1/shared"})
+    res = graph_promote(root=tmp_path, seed_citekeys=["ye_2026_BrainWide"], dry_run=True)
+    assert res["candidates_selected"] == 0
+    assert res["by_seed"] == {"ye_2026_BrainWide": 0}

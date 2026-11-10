@@ -1507,13 +1507,15 @@ def main(argv: Iterable[str] | None = None) -> None:
                 print(f"[WARN] missing log: {cfg.pdf_fetch.missing_log}", file=sys.stderr)
             return
         if args.bibtex_cmd == "fetch-pdfs-oa":
-            from .pdf_fetch_oa import fetch_pdfs_oa, summarize_results, ALL_STATUSES
+            from .pdf_fetch_oa import (
+                ALL_STATUSES, failures_tsv_path, fetch_pdfs_oa, summarize_results, write_failures_tsv,
+            )
             ck_filter = set(args.citekeys) if args.citekeys else None
 
             def _progress(p: dict) -> None:
                 total = p.get("total", "?")
                 done = p.get("completed", 0)
-                ck = p.get("citekey", "")
+                ck = p.get("citekey") or "done"
                 print(f"  [{done}/{total}] {ck}", flush=True)
 
             results = fetch_pdfs_oa(cfg, force=args.force, citekey_filter=ck_filter, progress_cb=_progress)
@@ -1521,11 +1523,20 @@ def main(argv: Iterable[str] | None = None) -> None:
             parts = [f"{k}={summary[k]}" for k in ALL_STATUSES if summary[k] > 0]
             tag = "[WARN]" if summary["needs_pdf"] else "[OK]"
             print(f"{tag} total={len(results)} {' '.join(parts)} needs_pdf={summary['needs_pdf']}")
-            errors = [r for r in results if r.error]
-            for r in errors[:5]:
-                print(f"[ERROR] {r.citekey}: {r.error}", file=sys.stderr)
-            if len(errors) > 5:
-                print(f"  ... and {len(errors) - 5} more errors", file=sys.stderr)
+            if ck_filter:
+                found = {r.citekey for r in results}
+                absent = sorted(ck_filter - found)
+                if absent:
+                    print(f"[WARN] {len(absent)} citekeys not in the OpenAlex records (resolve them first): "
+                          + " ".join(absent[:20]) + (" ..." if len(absent) > 20 else ""), file=sys.stderr)
+            if summary["needs_pdf"]:
+                tsv = failures_tsv_path(cfg)
+                failed = write_failures_tsv(results, tsv)
+                for r in failed[:20]:
+                    print(f"[ERROR] {r.citekey} ({r.status}): {r.error}", file=sys.stderr)
+                if len(failed) > 20:
+                    print(f"  ... and {len(failed) - 20} more", file=sys.stderr)
+                print(f"  all {len(failed)} without a PDF: {tsv}", file=sys.stderr)
             return
         raise SystemExit(2)
 
@@ -1716,11 +1727,11 @@ def main(argv: Iterable[str] | None = None) -> None:
                 raise SystemExit(1)
             seeds = " ".join(f"{k}={v}" for k, v in res["by_seed"].items())
             if res["dry_run"]:
-                print(f"[DRY-RUN] would add {res['candidates_selected']} (by seed: {seeds or '-'})")
+                print(f"[DRY-RUN] would add {res['candidates_selected']} (by seed: {seeds or 'none'})")
                 for doi in res["dois"]:
                     print(f"  {doi}")
             else:
-                print(f"[OK] added {res['promoted']} (by seed: {seeds or '-'})")
+                print(f"[OK] added {res['promoted']} (by seed: {seeds or 'none'})")
             print(f"  in scope={res['candidates_in_scope']}/{res['candidates_total']} "
                   f"already held={res['skipped_existing']} no DOI={res['skipped_no_doi']} "
                   f"filtered out={res['filtered_out']}")
