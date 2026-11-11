@@ -93,3 +93,19 @@ def test_cli(cfg, capsys, tmp_path):
     text = capsys.readouterr().out
     assert "| 1 | 10.1002/hipo.22488" in text and "Zotero not searched" in text
     assert '"status": "project: full text"' in out.read_text()
+
+
+def test_failed_openalex_lookup_is_reported_not_silent(tmp_path, monkeypatch, capsys):
+    """An offline or failing OpenAlex lookup must not read as "not held" with exit 0 (R76)."""
+    from biblio import cli
+
+    def boom(*a, **k):
+        raise ConnectionError("network is unreachable")
+    monkeypatch.setattr("biblio.locate._openalex", boom)
+    monkeypatch.setattr("biblio.profile.load_user_config", lambda: {})
+    with pytest.raises(SystemExit) as exc:
+        cli.main(["locate", "Nobody 2001 A paper nobody holds", "--openalex", "--root", str(tmp_path)])
+    assert exc.value.code == 1
+    captured = capsys.readouterr()
+    assert "lookup failed: OpenAlex: ConnectionError" in captured.out
+    assert "1 of 1 lookups failed" in captured.err

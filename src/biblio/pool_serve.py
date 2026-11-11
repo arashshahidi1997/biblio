@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from ._extras import install_hint
+
 from pathlib import Path
 
 from .ledger import utc_now_iso
@@ -21,7 +23,7 @@ def create_pool_app(inbox_dir: Path):
         from fastapi.middleware.cors import CORSMiddleware
     except ImportError as e:
         raise ImportError(
-            "FastAPI is required for biblio pool serve. Install with: pip install biblio-tools[ui]"
+            "FastAPI is required for biblio pool serve: install " + install_hint("ui")
         ) from e
 
     inbox_dir = inbox_dir.expanduser().resolve()
@@ -99,7 +101,7 @@ def serve_pool(
         import uvicorn
     except ImportError as e:
         raise ImportError(
-            "uvicorn is required for biblio pool serve. Install with: pip install biblio-tools[ui]"
+            "uvicorn is required for biblio pool serve: install " + install_hint("ui")
         ) from e
 
     app = create_pool_app(inbox_dir)

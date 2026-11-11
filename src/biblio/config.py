@@ -81,18 +81,31 @@ class BiblioConfig:
     pdf_fetch_cascade: PdfFetchCascadeConfig
 
 
+def _bundled_docling() -> list[str]:
+    """``docling`` from PATH, else the one installed beside this Python (the ``docling`` extra
+    in a ``uv tool`` or pipx env, whose other scripts are not on PATH)."""
+    import shutil
+    import sys
+
+    if shutil.which("docling") is None:
+        beside = Path(sys.executable).parent / ("docling.exe" if sys.platform == "win32" else "docling")
+        if beside.exists():
+            return [str(beside)]
+    return ["docling"]
+
+
 def _as_cmd(value: Any) -> list[str]:
     if value is None:
-        return ["docling"]
+        return _bundled_docling()
     if isinstance(value, str):
         import shlex
 
         parts = shlex.split(value)
-        if not parts:
-            return ["docling"]
+        if not parts or parts == ["docling"]:
+            return _bundled_docling()
         return parts
     if isinstance(value, (list, tuple)) and all(isinstance(x, str) for x in value):
-        return list(value)
+        return _bundled_docling() if list(value) == ["docling"] else list(value)
     raise TypeError("docling_cmd must be a string or list[str]")
 
 
@@ -165,7 +178,7 @@ def load_biblio_config(path: str | Path, *, root: str | Path | None = None) -> B
     grobid = GrobidConfig(
         url=str(grobid_mapping.get("url") or "http://127.0.0.1:8070"),
         installation_path=_abs(Path(raw_inst_path)) if raw_inst_path else None,
-        timeout_seconds=int(grobid_mapping.get("timeout_seconds") or 30),
+        timeout_seconds=int(grobid_mapping.get("timeout_seconds") or 120),   # a full paper on a CPU server
         consolidate_header=bool(grobid_mapping.get("consolidate_header", True)),
         consolidate_citations=bool(grobid_mapping.get("consolidate_citations", False)),
     )

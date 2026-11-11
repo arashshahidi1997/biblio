@@ -51,7 +51,7 @@ def test_paper_lookup(root):
 def test_job_runs_the_cli_and_reports(root):
     started = job("start", root=root, kind="grobid", keys=["smith_2020_Ripples"])
     assert started["started"] and started["argv"] == ["biblio", "grobid", "run", "--keys", "smith_2020_Ripples"]
-    for _ in range(100):
+    for _ in range(600):   # up to 60 s: the CLI subprocess starts slowly on network storage
         st = job("status", root=root, job_id=started["job_id"])
         if st["status"] != "running":
             break

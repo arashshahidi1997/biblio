@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from ._extras import install_hint
+
 import importlib
 import io
 import json
@@ -126,7 +128,7 @@ def _require_fastapi():
         fastapi = importlib.import_module("fastapi")
     except Exception as e:  # pragma: no cover
         raise RuntimeError(
-            'UI features require `fastapi` and `uvicorn` (install with `pip install "biblio-tools[ui]"`).'
+            'UI features require `fastapi` and `uvicorn`: install ' + install_hint("ui") + '.'
         ) from e
     responses = importlib.import_module("fastapi.responses")
     return fastapi, responses
@@ -137,7 +139,7 @@ def _require_uvicorn():
         return importlib.import_module("uvicorn")
     except Exception as e:  # pragma: no cover
         raise RuntimeError(
-            'UI features require `uvicorn` (install with `pip install "biblio-tools[ui]"`).'
+            'UI features require `uvicorn`: install ' + install_hint("ui") + '.'
         ) from e
 
 

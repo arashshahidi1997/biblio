@@ -4,6 +4,8 @@ Depends on pyzotero (optional). Import guarded so the rest of biblio works witho
 """
 from __future__ import annotations
 
+from ._extras import install_hint
+
 import hashlib
 import os
 import re
@@ -29,7 +31,7 @@ def _require_pyzotero() -> None:
     if not HAS_PYZOTERO:
         raise ImportError(
             "pyzotero is required for Zotero integration. "
-            "Install with: pip install 'biblio-tools[zotero]'"
+            "Install " + install_hint("zotero")
         )
 
 

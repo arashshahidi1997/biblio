@@ -98,3 +98,50 @@ def test_a_second_version_of_a_paper_is_checked_too(cfg, tmp_path):
     assert qc.versions(A) == ["", "published"]
     from biblio.sections import read_sections
     assert [s.title for s in read_sections(cfg, f"{A}@published")[0]] == ["Conditions"]
+
+
+# ── --text: any quoted string against named texts (the claim format of an answer or digest) ──
+
+ANSWER = f"""---
+paper: {A}
+note: "a frontmatter value that is not checked"
+---
+- **measured** — Ripples dropped after the lesion (rat, n = 4). "Ripples were less frequent after the lesion in all rats" (Results)
+- **derived** — Timing. "Spindles followed ripples … about 200 ms" (Results)
+- **interpreted** — "Spindles followed ripples by about 900 ms" (Results)
+- short "too short" quotes are not checked
+"""
+
+
+def test_text_mode_checks_every_quote_against_a_path_and_a_key(cfg, tmp_path):
+    from biblio.quotes import check_against, free_quotes
+    page = tmp_path / "answer.md"
+    page.write_text(ANSWER, encoding="utf-8")
+    assert [n for n, _ in free_quotes(ANSWER)] == [5, 6, 7]       # frontmatter and short quotes skipped
+    paper = cfg.out_root / A / f"{A}.md"
+    for source in (str(paper), A):                                   # a path or a held citekey
+        results = check_against(cfg, page, [source])
+        assert [r.status for r in results][:2] == ["exact", "exact"]
+        assert results[2].status != "exact"                          # one changed number fails
+        assert results[0].line == 7                                  # located as grep -n counts
+
+
+def test_text_mode_cli_exit_status(cfg, tmp_path, capsys):
+    page = tmp_path / "answer.md"
+    page.write_text(ANSWER, encoding="utf-8")
+    with pytest.raises(SystemExit) as exc:
+        cli.main(["quotes", "check", str(page), "--text", A, "--root", str(tmp_path)])
+    assert exc.value.code == 1
+    out = capsys.readouterr().out
+    assert "3 quotes; 2 exact" in out and "900 ms" in out
+    page.write_text(ANSWER.replace("900 ms", "200 ms"), encoding="utf-8")
+    with pytest.raises(SystemExit) as exc:
+        cli.main(["quotes", "check", str(page), "--text", A, "--text", B, "--root", str(tmp_path)])
+    assert exc.value.code == 0
+
+
+def test_text_mode_unknown_source(cfg, tmp_path):
+    page = tmp_path / "answer.md"
+    page.write_text(ANSWER, encoding="utf-8")
+    with pytest.raises(SystemExit, match="no text for: nobody_2000_Missing"):
+        cli.main(["quotes", "check", str(page), "--text", "nobody_2000_Missing", "--root", str(tmp_path)])

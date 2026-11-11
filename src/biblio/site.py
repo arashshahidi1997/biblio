@@ -4,6 +4,7 @@ import json
 import os
 import re
 import shutil
+import sys
 from dataclasses import asdict, dataclass
 from html import escape
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -68,10 +69,21 @@ def _path_under(root: Path, path: Path) -> bool:
 
 
 def _ensure_safe_out_dir(repo_root: Path, out_dir: Path) -> None:
-    if not _path_under(repo_root, out_dir):
-        raise ValueError(f"Site output must stay under repo root: {out_dir}")
+    """The site folder is replaced on rebuild and clean, so refuse folders that hold anything else.
+
+    Outside the repository (a local render that must not enter the dataset, lit-studio R76) is
+    allowed for a folder that is new, empty, or an earlier biblio site (``_data/``, ``style.css``).
+    """
     if out_dir == repo_root or out_dir == repo_root / "bib":
         raise ValueError(f"Refusing to use unsafe site output directory: {out_dir}")
+    if _path_under(repo_root, out_dir):
+        return
+    if out_dir == Path.home().resolve() or out_dir == Path(out_dir.anchor) or out_dir in repo_root.parents:
+        raise ValueError(f"Refusing to use unsafe site output directory: {out_dir}")
+    is_site = (out_dir / "_data").is_dir() and (out_dir / "style.css").is_file()
+    if out_dir.is_dir() and any(out_dir.iterdir()) and not is_site:
+        raise ValueError(f"Site output outside the repository must be new, empty or an earlier biblio site: {out_dir}")
+    print(f"[WARN] site output outside the repository: {out_dir}", file=sys.stderr)
 
 
 def _iter_srcbib_records(cfg: BiblioConfig) -> list[dict[str, Any]]:

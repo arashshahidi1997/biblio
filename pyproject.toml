@@ -5,22 +5,22 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "biblio-tools"
 dynamic = ["version"]
-description = "Portable bibliography workspace tool"
+description = "Papers into checkable full text: bibliography, docling and GROBID extraction, figures, quotes checked against the papers, and agent skills"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{name = "Arash Shahidi", email = "A.Shahidi@campus.lmu.de"}]
-keywords = ["bibliography", "bibtex", "docling", "openalex", "rag"]
+keywords = ["bibliography", "bibtex", "docling", "grobid", "zotero", "quotes", "claude-code"]
 classifiers = [
-  "Development Status :: 3 - Alpha",
+  "Development Status :: 4 - Beta",
   "Intended Audience :: Science/Research",
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.9",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Topic :: Scientific/Engineering :: Information Analysis",
   "Topic :: Text Processing",
   "Topic :: Utilities",
@@ -29,6 +29,7 @@ dependencies = [
   "argcomplete",
   "pyyaml",
   "pybtex",
+  "httpx",          # DOI registry and OpenAlex lookups: `add doi` and `locate --openalex` are stable base
 ]
 
 [project.urls]
@@ -39,12 +40,17 @@ Issues = "https://github.com/arashshahidi1997/biblio/issues"
 
 [project.optional-dependencies]
 bibtex = []
-docs = ["mkdocs>=1.6", "mkdocs-material>=9.5"]
-openalex = ["httpx", "tenacity", "tqdm"]
+docs = ["mkdocs>=1.6", "mkdocs-material>=9.5", "mkdocs-monorepo-plugin", "mkdocs-ezlinks-plugin"]
+openalex = ["httpx", "tenacity", "tqdm"]   # kept for old install lines; httpx is now a core dependency
 zotero = ["pyzotero>=1.6"]
 ui = ["fastapi>=0.115", "uvicorn>=0.30", "python-multipart"]
 rag = ["indexio"]
 figures = ["pillow"]   # overlay check for figures that are an embedded image plus labels drawn on top
+# The converter, pinned to the version the shared pools were made with (2.64.1) and its companions,
+# which set layout and text. CPU torch: install with the PyTorch CPU index (README, Install).
+docling = ["docling==2.64.1", "docling-core==2.55.0", "docling-ibm-models==3.10.3", "docling-parse==4.7.2"]
+mcp = ["mcp>=1.2"]     # `biblio mcp`: a small MCP server over the stable commands
+test = ["pytest", "mcp>=1.2", "httpx", "tenacity", "tqdm", "pyzotero>=1.6", "fastapi>=0.115", "uvicorn>=0.30", "python-multipart", "pillow"]
 dev = ["pytest", "build", "twine", "mkdocs>=1.6", "mkdocs-material>=9.5", "pybtex", "httpx", "tenacity", "tqdm", "pyzotero>=1.6", "fastapi>=0.115", "uvicorn>=0.30", "indexio", "python-multipart", "pillow"]
 
 [project.entry-points."projio.skills"]
@@ -62,7 +68,7 @@ where = ["src"]
 include = ["biblio", "biblio.*"]
 
 [tool.setuptools.package-data]
-biblio = ["templates/**/*.tmpl", "static/**", "profiles/*.yml", "skills/*/SKILL.md", "data/*.txt"]
+biblio = ["templates/**/*.tmpl", "static/**", "profiles/*.yml", "skills/**/*", "agents/*.md", "data/*.txt"]
 
 [tool.setuptools.dynamic]
 version = {attr = "biblio.__version__"}

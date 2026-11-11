@@ -28,6 +28,14 @@ def load_user_config() -> dict[str, Any]:
     return raw if isinstance(raw, dict) else {}
 
 
+class _BlockDumper(yaml.SafeDumper):
+    """Multi-line strings (a profile's ``agent_notes``) as ``|`` blocks, readable in ``profile show``."""
+
+
+_BlockDumper.add_representer(
+    str, lambda d, v: d.represent_scalar("tag:yaml.org,2002:str", v, style="|" if "\n" in v else None))
+
+
 def list_profiles() -> list[dict[str, str]]:
     """Return [{slug, name, description}] for all bundled profiles."""
     results = []
@@ -125,7 +133,7 @@ def apply_profile(
     dest = user_config_path()
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(
-        yaml.safe_dump(config, sort_keys=False, allow_unicode=True, default_flow_style=False),
+        yaml.dump(config, Dumper=_BlockDumper, sort_keys=False, allow_unicode=True, default_flow_style=False),
         encoding="utf-8",
     )
     return dest

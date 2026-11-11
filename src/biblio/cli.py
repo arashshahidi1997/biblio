@@ -99,12 +99,18 @@ def _launch_screen_session(*, name: str, bash_cmd: str) -> None:
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="biblio", description="Portable bib/ Docling scaffolding and runner.")
+    p = argparse.ArgumentParser(
+        prog="biblio",
+        description="Papers into checkable full text: a bibliography, docling and GROBID extraction, "
+                    "figures, and quotes checked against the papers.",
+        epilog="Commands without a mark are the stable base: their interface is kept across minor "
+               "versions. [beta] commands are in use but may still change; [experimental] ones may "
+               "change or go. See docs/explanation/scope.md.")
     p.add_argument("--version", action="version", version=_version_string())
-    sub = p.add_subparsers(dest="command", required=True)
+    sub = p.add_subparsers(dest="command", required=True, metavar="COMMAND")
 
-    p_init = sub.add_parser("init", help="Initialize a repo-local bib/ Docling scaffold.")
-    p_init.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+    p_init = sub.add_parser("init", help="Set up a biblio workspace (bib/, .projio/biblio/) in the current folder.")
+    p_init.add_argument("--root", type=Path, help="Where to set up (default: the current folder, or the biblio workspace it is in).")
     p_init.add_argument("--force", action="store_true", help="Overwrite existing scaffold files.")
 
     p_ck = sub.add_parser("citekeys", help="List active citekeys (from merged bibliography)")
@@ -165,7 +171,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p_pdf.add_argument("--stdout", action="store_true", help="Print generated BibTeX to stdout.")
     p_pdf.add_argument("--force", action="store_true", help="Re-ingest even if DOI already exists in library.")
 
-    p_doc = sub.add_parser("docling", help="Run Docling to generate Markdown/JSON artifacts.")
+    p_doc = sub.add_parser("docling", help="Convert PDFs to Markdown, JSON and figure crops (docling).")
     doc_sub = p_doc.add_subparsers(dest="doc_cmd", required=True)
     p_run = doc_sub.add_parser("run", help="Run Docling for one key or all keys.")
     p_run.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
@@ -307,7 +313,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Reinitialize the RAG config from defaults before syncing biblio-owned sources.",
     )
 
-    p_add = sub.add_parser("add", help="Add a paper to the bibliography from DOI or OpenAlex.")
+    p_add = sub.add_parser("add", help="Add a paper from a DOI or Zotero (or an OpenAlex id, an ORCID).")
     add_sub = p_add.add_subparsers(dest="add_cmd", required=True)
     add_doi = add_sub.add_parser("doi", help="Add a paper by DOI via OpenAlex metadata.")
     add_doi.add_argument("doi", help="DOI to add.")
@@ -459,7 +465,7 @@ def _build_parser() -> argparse.ArgumentParser:
     site_doctor.add_argument("--include-openalex", dest="include_openalex", action="store_true", default=True)
     site_doctor.add_argument("--no-openalex", dest="include_openalex", action="store_false")
 
-    p_grobid = sub.add_parser("grobid", help="GROBID scholarly structure extraction.")
+    p_grobid = sub.add_parser("grobid", help="Header, references and sections from PDFs (a GROBID server).")
     grobid_sub = p_grobid.add_subparsers(dest="grobid_cmd", required=True)
     grobid_check = grobid_sub.add_parser("check", help="Check connectivity to the configured GROBID server.")
     grobid_check.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
@@ -595,7 +601,7 @@ def _build_parser() -> argparse.ArgumentParser:
     q_remove.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
     q_remove.add_argument("--config", type=Path, help="Path to biblio.yml (default: .projio/biblio/biblio.yml, else bib/config/biblio.yml).")
 
-    p_pool = sub.add_parser("pool", help="Manage the shared PDF pool workspace.")
+    p_pool = sub.add_parser("pool", help="Shared pools: PDFs and derivatives several projects read.")
     pool_sub = p_pool.add_subparsers(dest="pool_cmd", required=True)
 
     _pool_args = [
@@ -689,7 +695,7 @@ def _build_parser() -> argparse.ArgumentParser:
     for flag, kwargs in _zotero_common:
         zotero_status.add_argument(flag, **kwargs)
 
-    p_profile = sub.add_parser("profile", help="Manage user-level biblio profiles.")
+    p_profile = sub.add_parser("profile", help="User presets, e.g. a lab's pools and docling command.")
     profile_sub = p_profile.add_subparsers(dest="profile_cmd", required=True)
 
     profile_sub.add_parser("list", help="List available bundled profiles.")
@@ -773,8 +779,12 @@ def _build_parser() -> argparse.ArgumentParser:
     p_quotes = sub.add_parser("quotes", help="Quotes in any markdown file, checked against the cited papers.")
     quotes_sub = p_quotes.add_subparsers(dest="quotes_cmd", required=True)
     q_check = quotes_sub.add_parser(
-        "check", help="Check '- <id>, <citekey>, <section>, L<n>: \"<quote>\"' items; exit 1 unless all exact.")
+        "check", help="Check '- <id>, <citekey>, <section>, L<n>: \"<quote>\"' items, or with --text every "
+                      "quoted string; exit 1 unless all exact.")
     q_check.add_argument("files", nargs="+", type=Path)
+    q_check.add_argument("--text", action="append", metavar="PATH_OR_KEY",
+                         help="Check every \"...\" of 12+ characters (an answer, a digest) against this text: a "
+                              ".md/.txt/.pdf path or a held citekey. Repeat for several papers.")
     q_check.add_argument("--json", dest="json_out", type=Path, help="Write the results as JSON here ('-' for stdout).")
     q_check.add_argument("--fix-lines", action="store_true", help="Rewrite wrong L<n> in place with the located line.")
     q_check.add_argument("--all", dest="show_all", action="store_true", help="Print exact quotes too, not only problems.")
@@ -817,6 +827,10 @@ def _build_parser() -> argparse.ArgumentParser:
     dig_re.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
     dig_list = dig_sub.add_parser("list", help="Stored digests with their mode, context, model and quote checks.")
     dig_list.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
+
+    p_mcp = sub.add_parser("mcp", help="Serve a small MCP server over the stable commands (stdio; "
+                                       "needs biblio-tools[mcp]).")
+    p_mcp.add_argument("--root", type=Path, help="Workspace (default: auto-detect from cwd).")
 
     # ── wiki + skills ─────────────────────────────────────────────────────
     from .wiki.cli import add_parsers as _add_wiki_parsers
@@ -885,7 +899,29 @@ def _build_parser() -> argparse.ArgumentParser:
     p_rev.add_argument("--model", default="claude-sonnet-4-20250514", help="Anthropic model to use.")
     p_rev.add_argument("--json", action="store_true", help="Emit JSON output.")
 
+    _mark_stability(sub)
     return p
+
+
+# The stable base keeps its interface across minor versions; see docs/explanation/scope.md.
+STABLE_COMMANDS = ("init", "add", "docling", "grobid", "figures", "fulltext", "locate", "pool",
+                   "quotes", "skills", "profile")
+BETA_COMMANDS = ("digest", "wiki", "mcp", "bibtex", "citekey", "citekeys", "openalex", "ingest", "refs",
+                 "library", "collection", "queue", "zotero", "ref-md")
+
+
+def _mark_stability(sub: argparse._SubParsersAction) -> None:
+    """List the stable base first in ``biblio --help``, then beta, then experimental, each marked."""
+    def tier(name: str) -> int:
+        return 0 if name in STABLE_COMMANDS else 1 if name in BETA_COMMANDS else 2
+    def order(a) -> tuple[int, int]:   # the base in pipeline order; the others as defined
+        return (tier(a.dest), STABLE_COMMANDS.index(a.dest) if a.dest in STABLE_COMMANDS else 0)
+    actions = sorted(sub._choices_actions, key=order)
+    for a in actions:
+        t = tier(a.dest)
+        if t:
+            a.help = ("[beta] " if t == 1 else "[experimental] ") + (a.help or "")
+    sub._choices_actions[:] = actions
 
 
 def _bookmarklet_js(port: int) -> str:
@@ -1076,6 +1112,7 @@ def _add_zotero(args: argparse.Namespace, cfg: Any, cfg_path: Path, repo_root: P
                     print(f"  {key} {name}: done")
                 except Exception as exc:  # noqa: BLE001
                     print(f"  {key} {name}: failed ({exc})")
+                    tally["failed"].append(f"{key} ({name})")
     elif with_pdf:
         if len(with_pdf) == 1:
             print(f"  next: biblio grobid run --key {with_pdf[0]} && biblio docling run --key {with_pdf[0]}")
@@ -1127,7 +1164,17 @@ def main(argv: Iterable[str] | None = None) -> None:
         argcomplete.autocomplete(parser)
     args = parser.parse_args(list(argv) if argv is not None else None)
     if args.command == "init":
-        repo_root = (args.root.expanduser().resolve() if args.root else find_repo_root())
+        # The current folder, unless it is inside a biblio workspace already: a .git
+        # somewhere above (a dotfiles repo in $HOME) must not pull the scaffold up there.
+        if args.root:
+            repo_root = args.root.expanduser().resolve()
+        else:
+            found = find_repo_root()
+            has_ws = default_config_path(root=found).exists()
+            repo_root = found if has_ws else Path.cwd().resolve()
+            if not has_ws and found != repo_root:
+                print(f"[INFO] initializing in {repo_root}; the repository root above is {found} "
+                      f"(use --root {found} to set up there)")
         res = init_bib_scaffold(repo_root, force=args.force)
         if res.files_written:
             rels = "\n".join(str(p.relative_to(res.root)) for p in res.files_written)
@@ -1571,7 +1618,10 @@ def main(argv: Iterable[str] | None = None) -> None:
                 ck = p.get("citekey") or "done"
                 print(f"  [{done}/{total}] {ck}", flush=True)
 
-            results = fetch_pdfs_oa(cfg, force=args.force, citekey_filter=ck_filter, progress_cb=_progress)
+            try:
+                results = fetch_pdfs_oa(cfg, force=args.force, citekey_filter=ck_filter, progress_cb=_progress)
+            except FileNotFoundError as exc:
+                raise SystemExit(f"[ERROR] {exc} (biblio openalex resolve)") from None
             summary = summarize_results(results)
             parts = [f"{k}={summary[k]}" for k in ALL_STATUSES if summary[k] > 0]
             tag = "[WARN]" if summary["needs_pdf"] else "[OK]"
@@ -1870,7 +1920,11 @@ def main(argv: Iterable[str] | None = None) -> None:
                 raise SystemExit(0 if failures == 0 else 1)
             else:
                 print(f"[RUN] {args.key.lstrip('@')}", file=sys.stderr, flush=True)
-                out = run_grobid_for_key(cfg, args.key, force=args.force)
+                try:
+                    out = run_grobid_for_key(cfg, args.key, force=args.force)
+                except (OSError, TimeoutError) as exc:   # refused, unreachable, timed out
+                    raise SystemExit(f"[ERROR] GROBID at {cfg.grobid.url}: {exc} (biblio grobid check; "
+                                     f"grobid.timeout_seconds is {cfg.grobid.timeout_seconds})") from None
                 print(f"[OK] {args.key.lstrip('@')}: refs={out.references_path}")
         elif args.grobid_cmd == "match":
             out_path, matches = run_grobid_match(cfg)
@@ -2357,6 +2411,10 @@ def main(argv: Iterable[str] | None = None) -> None:
         if args.json_out:
             args.json_out.write_text(_json.dumps(as_json(rows), indent=1, ensure_ascii=False) + "\n",
                                      encoding="utf-8")
+        failed = [r for r in rows if r.errors]
+        if failed:   # a lookup that failed is not "not held" (lit-studio R76)
+            print(f"[ERROR] {len(failed)} of {len(rows)} lookups failed: {failed[0].errors[0]}", file=sys.stderr)
+            raise SystemExit(1)
         return
 
     if args.command == "quotes":
@@ -2369,6 +2427,23 @@ def main(argv: Iterable[str] | None = None) -> None:
         for path in args.files:
             if not path.is_file():
                 raise SystemExit(f"[ERROR] no such file: {path}")
+            if args.text:
+                from .quotes import check_against
+                results = check_against(cfg, path, args.text)
+                report[str(path)] = as_json(results)
+                counts = {}
+                for r in results:
+                    counts[r.status] = counts.get(r.status, 0) + 1
+                    if r.status != "exact" or args.show_all:
+                        where = f"{Path(r.citekey).name} L{r.line}" if r.line else Path(r.citekey).name
+                        print(f"{path.name}:{r.file_line}: {r.status:11} \"{r.quote}\" [{where}]"
+                              + (f"\n    {r.diff}" if r.diff else ""))
+                n_exact = counts.get("exact", 0)
+                rest = ", ".join(f"{n} {k}" for k, n in sorted(counts.items()) if k != "exact")
+                print(f"[{'OK' if n_exact == len(results) else 'FAIL'}] {path}: {len(results)} quotes; "
+                      f"{n_exact} exact" + (f", {rest}" if rest else ""))
+                bad += len(results) - n_exact
+                continue
             results, unchecked = check_file(cfg, path)
             report[str(path)] = as_json(results)
             counts: dict[str, int] = {}
@@ -2514,6 +2589,11 @@ def main(argv: Iterable[str] | None = None) -> None:
                 for w in res.get("warnings") or []:
                     print(f"  warning: {w}")
         raise SystemExit(1 if failed else 0)
+
+    if args.command == "mcp":
+        from .mcp_server import serve
+        serve(args.root.expanduser().resolve() if args.root else None)
+        return
 
     if args.command in ("wiki", "skills"):
         from .wiki.cli import run as _run_wiki

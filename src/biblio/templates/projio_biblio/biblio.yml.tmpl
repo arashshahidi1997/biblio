@@ -12,15 +12,15 @@ pdf_pattern: "{citekey}/{citekey}.pdf"
 out_root: "bib/derivatives/docling"
 
 docling:
-  # Can be a string or list[str]. Examples:
+  # Default: `docling` on PATH, else the one installed beside biblio (the docling extra).
+  # A profile (`biblio profile use <lab>`) may set it for every project; set it here to
+  # override for this project only. A string or list[str], e.g.:
   #   cmd: ["pixi", "run", "-e", "docling", "docling"]
-  #   cmd: ["uvx", "docling"]
   #   cmd: "docling"
-  cmd: "docling"
   to: ["md", "json"]
   image_export_mode: "referenced"
 
-# Optional: OpenAlex enrichment (requires `pip install "biblio-tools[openalex]"`)
+# Optional: OpenAlex enrichment
 openalex:
   base_url: "https://api.openalex.org"
   # email: "you@lab.org"   # recommended: used as `mailto=` per OpenAlex etiquette
@@ -88,6 +88,6 @@ openalex:
 # grobid:
 #   url: "http://127.0.0.1:8070"
 #   # installation_path: "/path/to/grobid"   # optional local checkout; start cmd derived automatically
-#   timeout_seconds: 30
+#   timeout_seconds: 120
 #   consolidate_header: true
 #   consolidate_citations: false

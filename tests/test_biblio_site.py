@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from biblio.cli import main as biblio_main
 from biblio.config import load_biblio_config
 from biblio.scaffold import init_bib_scaffold
@@ -148,3 +150,18 @@ def test_biblio_site_doctor_cli_and_clean(tmp_path: Path, capsys) -> None:
     cleaned = clean_biblio_site(tmp_path)
     assert cleaned == (tmp_path / "bib" / "site").resolve()
     assert not cleaned.exists()
+
+
+def test_site_out_dir_outside_the_repo(tmp_path):
+    """An explicit folder outside the repository is allowed when it holds nothing else (R76)."""
+    from biblio.site import _ensure_safe_out_dir
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _ensure_safe_out_dir(repo, tmp_path / "render" / "site")          # new folder: allowed
+    busy = tmp_path / "busy"
+    busy.mkdir()
+    (busy / "notes.md").write_text("x")
+    with pytest.raises(ValueError, match="new, empty or an earlier biblio site"):
+        _ensure_safe_out_dir(repo, busy)
+    with pytest.raises(ValueError, match="unsafe"):
+        _ensure_safe_out_dir(repo, tmp_path)                           # the repository's parent

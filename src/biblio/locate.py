@@ -38,6 +38,7 @@ class Located:
     title: str = ""                 # the matched or OpenAlex title
     via: str = ""                   # doi | title | author-year | openalex
     note: str = ""
+    errors: list[str] = field(default_factory=list)   # lookups that failed (offline, rate limit, missing extra)
 
     @property
     def link(self) -> str:
@@ -83,26 +84,26 @@ def match(index: HoldingIndex, it: Item) -> tuple[list[Holding], str]:
 
 
 def _openalex(cfg: BiblioConfig, it: Item) -> dict[str, Any] | None:
-    """The work for an item: by DOI, else a title search checked against year and first author."""
+    """The work for an item: by DOI, else a title search checked against year and first author.
+
+    A failed request raises; a search without a match returns None.
+    """
     from .openalex.openalex_client import OpenAlexClient
     client = OpenAlexClient(cfg.openalex_client)
-    try:
-        if it.doi:
-            return client.get_work_by_doi(it.doi)
-        query = it.title or it.raw
-        for w in client.search_works(query, per_page=10) or []:
-            if it.year and w.get("publication_year") and abs(int(w["publication_year"]) - it.year) > 1:
-                continue
-            authors = [family_key((a.get("author") or {}).get("display_name") or "")
-                       for a in w.get("authorships") or []]
-            if it.author and authors and it.author not in authors[0]:
-                continue
-            want = _title_words(it.title)
-            if want and not all(x in normalize_title(w.get("title") or "").split() for x in want[:6]):
-                continue
-            return w
-    except Exception:  # noqa: BLE001  offline, rate limit
-        return None
+    if it.doi:
+        return client.get_work_by_doi(it.doi)
+    query = it.title or it.raw
+    for w in client.search_works(query, per_page=10) or []:
+        if it.year and w.get("publication_year") and abs(int(w["publication_year"]) - it.year) > 1:
+            continue
+        authors = [family_key((a.get("author") or {}).get("display_name") or "")
+                   for a in w.get("authorships") or []]
+        if it.author and authors and it.author not in authors[0]:
+            continue
+        want = _title_words(it.title)
+        if want and not all(x in normalize_title(w.get("title") or "").split() for x in want[:6]):
+            continue
+        return w
     return None
 
 
@@ -121,7 +122,7 @@ def _status(holdings: list[dict[str, Any]]) -> str:
     return f"{where}: {what}"
 
 
-def _zotero_live(libs: list, it: Item, title: str) -> list[dict[str, Any]]:
+def _zotero_live(libs: list, it: Item, title: str, errors: list[str] | None = None) -> list[dict[str, Any]]:
     from .zotero_add import _best_pdf_rank, find_items
     ref = it.doi or title or it.title
     if not ref:
@@ -130,7 +131,9 @@ def _zotero_live(libs: list, it: Item, title: str) -> list[dict[str, Any]]:
     for lib in libs:
         try:
             items = find_items(lib.zot, ref)
-        except Exception:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001
+            if errors is not None:
+                errors.append(f"Zotero {lib.label}: {exc}")
             continue
         for zi in items:
             pdf = _best_pdf_rank(lib.zot, zi["data"]["key"]) != (9,)
@@ -158,7 +161,11 @@ def locate(
             loc.doi = loc.doi or next((h.doi for h in hits if h.doi), "")
             loc.title = next((h.title for h in hits if h.title), "")
         if openalex and (not hits or not loc.doi):
-            work = _openalex(cfg, it)
+            try:
+                work = _openalex(cfg, it)
+            except Exception as exc:  # noqa: BLE001  offline, rate limit, the openalex extra missing
+                work = None
+                loc.errors.append(f"OpenAlex: {type(exc).__name__}: {exc}"[:200])
             if work:
                 loc.doi = loc.doi or normalize_doi(work.get("doi"))
                 loc.title = loc.title or (work.get("title") or "")
@@ -169,7 +176,7 @@ def locate(
                         for h in hits]
         if zotero_libraries:
             loc.holdings += _zotero_live(zotero_libraries, Item(it.raw, doi=loc.doi, title=it.title),
-                                         loc.title or it.title)
+                                         loc.title or it.title, loc.errors)
         zot = [h for h in loc.holdings if h["where"] == "zotero"]
         if len(zot) > 1:
             loc.note = f"{len(zot)} Zotero items"
@@ -187,6 +194,8 @@ def to_markdown(rows: list[Located]) -> str:
             for h in sorted(r.holdings, key=_rank))
         if r.note:
             held += f" ({r.note})"
+        if r.errors:
+            held += " (lookup failed: " + "; ".join(r.errors).replace("|", "/") + ")"
         paper = r.item.raw.replace("|", "/")
         if r.title and normalize_title(r.title) not in normalize_title(r.item.raw):
             paper += f"<br>*{r.title.replace('|', '/')}*"
@@ -201,4 +210,4 @@ def to_markdown(rows: list[Located]) -> str:
 
 def as_json(rows: list[Located]) -> list[dict[str, Any]]:
     return [{"item": r.item.raw, "doi": r.doi, "link": r.link, "title": r.title, "status": r.status,
-             "via": r.via, "note": r.note, "holdings": r.holdings} for r in rows]
+             "via": r.via, "note": r.note, "errors": r.errors, "holdings": r.holdings} for r in rows]
