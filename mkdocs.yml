@@ -65,4 +65,5 @@ nav:
       - Wiki Specification: reference/wiki-spec.md
       - Workspace Layout: reference/workspace.md
       - Configuration: reference/configuration.md
+      - Known Issues: reference/known-issues.md
   - Log: '!include ./docs/log/mkdocs.yml'

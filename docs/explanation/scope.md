@@ -1,7 +1,7 @@
 # Scope
 
-**Status:** Proposed (draft for review)
-**Date:** 2026-10-22
+**Status:** Proposed (draft for review); the stable base below is decided (2026-11-04, from 0.4.0)
+**Date:** 2026-10-22, stable base added 2026-11-11
 
 ## What biblio is for
 
@@ -18,6 +18,55 @@ need, and leaves the rest to tools built for them.
 | Ingest | partial | identifier to verified entry, canonical citekey, library status, open-access PDF | the personal library and attachments (Zotero); paywalled access |
 | Digest | full | full-text extraction; context-specific digests with provenance | |
 | Wiki | full | literature pages of the project wiki and the checks that keep them faithful | project findings (notio), project hypotheses (questio), the lab hub (sirocampus) |
+
+## Stable base, beta and experimental (from 0.4.0)
+
+biblio is shared beyond the projects it grew in (the lab, a workshop). It
+ships a **stable base** whose interface later versions keep, and marks
+everything else **beta** or **experimental**. Breaking the stable base takes a
+major version and a migration note in the CHANGELOG. A beta command moves into
+the base after it has been used and settled, through a plain update.
+
+**Stable base:**
+
+- **The on-disk layout.** Shared pools and other projects read it, and about
+  900 converted papers depend on it:
+  - `bib/articles/<key>/<key>.pdf`;
+  - `bib/derivatives/docling/<key>/<key>.md`, `<key>.json`, `<key>_artifacts/`;
+  - `bib/derivatives/grobid/<key>/` (`header.json`, `references.json`, the TEI);
+  - `bib/derivatives/figures/<key>/manifest.yml` and the figure files;
+  - `.projio/biblio/biblio.yml`, `bib/srcbib/*.bib`, `.projio/biblio/merged.bib`.
+- **The commands proven in use:**
+
+  | Command | What it does |
+  |---------|--------------|
+  | `init` | set up a workspace in the current folder |
+  | `add doi`, `add zotero` | an entry under biblio's citekey (and the PDF, from Zotero) |
+  | `docling run`, `docling batch` | the full text and figures |
+  | `grobid run`, `grobid check` | header, references, sections |
+  | `figures run` | figures at native resolution, with a manifest |
+  | `fulltext` | a held paper's text: sections, one section, lines, a search |
+  | `locate` | where each paper of a list is held (project, pools, Zotero) |
+  | `pool` | the shared PDF and derivative pools |
+  | `quotes check` | every quote in a file checked against the papers |
+  | `skills list`, `skills install` | the agent skills shipped with biblio |
+  | `profile` | user presets (a lab's pools and docling command) |
+
+- **The skills** that call only these commands: `paper-text`,
+  `literature-sourcing` and `zotero-add`.
+
+**Beta** (in use; interface may still change): the knowledge-base tooling,
+namely `digest` (the claim model and claims digests), `wiki` and its skills,
+and `paper-scrutiny`; and the bibliography maintenance around the base:
+`bibtex`, `citekey`, `citekeys`, `openalex`, `ingest`, `refs`, `library`,
+`collection`, `queue`, `zotero`, `ref-md`, `add openalex`, `add orcid`, and the
+optional `biblio mcp` server.
+
+**Experimental** (may change or go, see "Outside the core" below):
+`summarize`, `present`, `concepts`, `compare`, `reading-list`, `cite-draft`,
+`review`, `graph`, `rag`, `site`, `auth`, `ui`.
+
+`biblio --help` shows the same marks.
 
 ## Discovery (partial)
 
@@ -141,6 +190,9 @@ spec; biblio follows it rather than defining its own.
 
 ## Decisions needed
 
-1. **MCP:** which few tools stay, or CLI plus skills only?
+1. **MCP:** settled for the standalone server (2026-11-04): `biblio mcp`,
+   behind the `mcp` extra, serves a minimal set (paper lookup, full text,
+   quote check, add, docling/GROBID runs); the CLI stays the base and every
+   skill works without it. Which projio wrappers stay is still open.
 2. **RAG:** keep as an optional extra, or remove until it is evaluated?
 3. **Zotero push and EZProxy:** keep, plugin, or drop?
