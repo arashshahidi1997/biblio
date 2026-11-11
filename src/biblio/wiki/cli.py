@@ -125,12 +125,15 @@ def add_parsers(sub) -> None:
 
     p_sk = sub.add_parser("skills", help="Agent skills shipped with biblio.")
     sksub = p_sk.add_subparsers(dest="skills_cmd", required=True)
-    sksub.add_parser("list", help="List bundled skills.")
-    p = sksub.add_parser("install", help="Copy bundled skills into a project.")
+    sksub.add_parser("list", help="List bundled skills: stable or beta, and what each needs.")
+    p = sksub.add_parser("install", help="Copy bundled skills (and the agents they use) into a project or ~/.claude.")
     p.add_argument("names", nargs="*", help="Skills to install (default: all).")
+    p.add_argument("--user", action="store_true",
+                   help="Install for every project: ~/.claude/skills (and ~/.claude/agents).")
     p.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
-    p.add_argument("--dest", type=Path, help="Target folder (default: <root>/.claude/skills).")
-    p.add_argument("--force", action="store_true", help="Overwrite existing copies.")
+    p.add_argument("--dest", type=Path,
+                   help="Target skills folder (default: <root>/.claude/skills; agents go to ../agents).")
+    p.add_argument("--force", action="store_true", help="Overwrite existing copies (to update them).")
 
 
 def _cfg(args):
@@ -141,16 +144,25 @@ def _cfg(args):
 
 def run(args) -> None:
     if args.command == "skills":
-        from ..skills_bundle import install, list_skills
+        from ..skills_bundle import install, skill_infos
         if args.skills_cmd == "list":
-            for name, desc in list_skills():
-                print(f"{name}\n    {desc}")
+            for s in skill_infos():
+                extra = [n for n in s.needs if n != "biblio"]
+                mark = s.stability + (f", needs {' + '.join(extra)}" if extra else "")
+                print(f"{s.name} [{mark}]\n    {s.description}")
             return
-        repo_root = args.root.expanduser().resolve() if args.root else find_repo_root()
-        dest = (args.dest or repo_root / ".claude" / "skills").resolve()
+        if args.user:
+            if args.dest or args.root:
+                raise SystemExit("[ERROR] --user installs into ~/.claude; drop --dest/--root")
+            dest = Path.home() / ".claude" / "skills"
+        else:
+            repo_root = args.root.expanduser().resolve() if args.root else find_repo_root()
+            dest = (args.dest or repo_root / ".claude" / "skills").resolve()
         dest.mkdir(parents=True, exist_ok=True)
-        for name, action in install(dest, args.names or None, force=args.force):
-            print(f"{name}: {action} -> {dest / name}")
+        agents_dest = dest.parent / "agents" if dest.name == "skills" else None
+        for name, action in install(dest, args.names or None, force=args.force, agents_dest=agents_dest):
+            where = (agents_dest / f"{name.split(':', 1)[1]}.md") if name.startswith("agent:") else dest / name
+            print(f"{name}: {action} -> {where}")
         return
 
     cfg = _cfg(args)

@@ -12,6 +12,8 @@ description: >
 metadata:
   short-description: Claims digests of several papers -> cross-paper pages with verified quotes
   tags: [wiki, synthesis, literature, knowledge-base]
+  stability: beta
+  needs: [biblio]
   tooling:
     cli: [biblio digest claims, biblio digest claims-table, biblio digest list, biblio wiki stub, biblio wiki lint, biblio wiki hubs, biblio wiki review packet]
 ---

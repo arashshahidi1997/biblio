@@ -1,0 +1,12 @@
+{
+  "name": "biblio",
+  "owner": {"name": "Arash Shahidi"},
+  "metadata": {"description": "biblio's Claude Code skills, versioned with the biblio CLI they call."},
+  "plugins": [
+    {
+      "name": "biblio",
+      "source": "./",
+      "description": "Find or convert a paper's full text and answer from it with checked quotes; Zotero intake; (beta) wiki and paper scrutiny."
+    }
+  ]
+}

@@ -9,6 +9,8 @@ description: >
 metadata:
   short-description: Source -> plan -> atomic pages with quotes, then lint
   tags: [wiki, ingest, literature, knowledge-base]
+  stability: beta
+  needs: [biblio]
   tooling:
     cli: [biblio wiki stub, biblio wiki lint, biblio wiki hubs, biblio wiki init]
 ---

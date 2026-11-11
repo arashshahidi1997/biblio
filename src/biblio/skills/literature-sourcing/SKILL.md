@@ -1,105 +1,117 @@
 ---
 name: literature-sourcing
 description: >
-  Answer a question or back a claim from the literature with verbatim quotes
-  that are checked against the papers' full texts: find the papers held in
-  the project and the pools, list the ones that are missing (with doi.org
-  links) for the user to capture, read the exact wording by section and line,
-  write a source file of quotes, and check every quote with `biblio quotes
-  check`. Use when asked to "source this", "find the evidence for",
-  "answer the audience's question from the papers", to back the numbers and
-  claims on a slide or page, or to check the quotes in an existing file.
+  Required for any statement about what a paper says, shows, measured or
+  concludes, even a quick "what is the main finding". Use to answer a question
+  from one or more papers, write a claims digest, or back the claims and
+  numbers of a slide or page: every claim carries an exact quote, checked
+  against the paper's full text by `biblio quotes check`.
 metadata:
-  short-description: Question -> held papers -> exact quotes by line -> source file -> quotes check
-  tags: [literature, quotes, evidence, talks, wiki]
+  short-description: Question -> texts -> claims with exact quotes -> quotes check -> the checked file
+  tags: [literature, quotes, evidence, claims, talks, wiki]
+  stability: stable
+  needs: [biblio]
   tooling:
-    cli: [biblio digest claims-table, biblio fulltext, biblio locate, biblio refs triage, biblio add zotero, biblio add doi, biblio docling batch, biblio grobid run, biblio digest claims, biblio quotes check]
-    mcp:
-      - server: projio
-        tools: [paper_lookup, biblio_job]
+    cli: [biblio fulltext, biblio locate, biblio quotes check, biblio refs triage, biblio digest claims-table]
 ---
 
 # Literature sourcing
 
-Every statement taken from a paper rests on a quote copied verbatim from the
-paper's full text and checked exact. Your own reasoning is allowed, marked as
-yours, never presented as a source's.
+Every statement taken from a paper rests on a quote copied character for
+character from the paper's full text and checked. Read `MODEL.md` (next to
+this file) first: the **claim** is the unit of every answer.
 
 ## When to use
 
-- A question from a talk, a review or the user, to answer from papers.
-- The claims and numbers of a slide or a wiki page, to back with quotes.
-- An existing source file whose quotes need checking.
+- A question about one or more papers: what they show, how it was done,
+  what they say about X. Also "do we have X, and what does it show?".
+- A claims digest of one paper, on request.
+- The claims and numbers of a slide, a talk or a wiki page, to back with
+  quotes; or a file whose quotes need checking.
 
-Not for writing a wiki page from digests (`wiki-synthesize`) or adding one
-known paper (`zotero-add`).
+Not for writing a wiki page from digests (`wiki-synthesize`) or for adding
+papers (`zotero-add`, `paper-text`).
 
 ## Workflow
 
-1. **Pin the question.** Write what would count as an answer: the claim,
-   the species and preparation (rat, mouse, human; sleep, anesthesia, slice),
-   the measure. Ambiguous wording ("CA2 projects to radiatum") gets split
-   into checkable parts.
+1. **Pin the question.** What would count as an answer: the claim, the
+   species and preparation, the measure. Split ambiguous wording into
+   checkable parts.
+2. **Get the texts.** For each paper, the paper-text skill: held in the
+   project or a pool (`biblio fulltext <key>` works for both), or converted
+   from the user's PDF. Check the title matches before reading.
+3. **Find what is missing.** For papers not held, `biblio locate --from
+   list.txt --openalex` gives doi.org links. Give the user a capture list
+   with those links only (never a guessed DOI). Papers come from the user's
+   Zotero or the publisher's page, one at a time; never bulk-download.
+4. **Read what the question needs.** Methods for "how", results and figure
+   captions for "what". Find exact wording with `biblio fulltext <key>
+   --grep "<regex>"` (prints section and line), a section with `--section`,
+   context with `--lines A-B`. For a figure, open the PNGs next to its
+   caption. If the project has claims digests, `biblio digest claims-table
+   --grep "<words>"` finds claims already checked.
+5. **Write the answer in a file** in the user's folder, never a temporary
+   one: `answers/<key>-<short-topic>.md` (several papers:
+   `answers/<topic>.md`; a digest: `answers/<key>-digest.md`). Start with the
+   paper(s) and the path of each text checked against. Then the claims, in
+   MODEL.md's format:
+   - level, statement, conditions in brackets, the quote in straight double
+     quotes copied from the text, the location;
+   - **numbers only inside quotes**, the conditions' n included; a number in
+     no quote needs its own quote, or it stays out;
+   - the gaps: what the question asks that the text doesn't say ("not in the
+     text held"); the version held when it could matter;
+   - several papers: say per answer whether it is established (several
+     independent papers), reported (one), a hypothesis, or disputed (both
+     sides quoted); a review's statement is quoted as the review's.
+6. **Check every quote:**
+   `biblio quotes check answers/<file>.md --text <key> [--text <key2>]`
+   (`--text` takes a citekey or a path to a `.md`, `.txt` or `.pdf`). Every
+   quote must be `exact`. For `approximate` or `changed`, copy the passage
+   again from `biblio fulltext`; for `missing`, find the right passage or
+   remove the quote marks from a paraphrase. Never loosen the check. Repeat
+   until it prints `[OK]`.
+7. **Reply with the checked file, not a retelling.** Every claim in the
+   reply carries its level, conditions, quote and location exactly as in the
+   file; nothing is shortened into unquoted prose, and no number appears
+   outside a quote. If the file is long, show the claims the question needs
+   and give the path for the rest. Anything you add goes under a final
+   **Notes** line, without new numbers. End with the checker's last line
+   (`N quotes; N exact`) and the file path.
 
-2. **Search what is held first.**
-   - Claims already digested: `biblio digest claims-table --grep "<words>"`
-     (all digests) gives claim, section, line and whether its quote is exact.
-     A digest quote marked exact carries its line, the exact characters of
-     `<key>.md` when they differ (`quote_raw`, findable with `grep -F`), and
-     the whole sentence when the quote is part of one (`quote_sentence`).
-   - Exact wording in a paper: `biblio fulltext <key> --grep "<regex>"`; for
-     a whole section, `--section <id or title>`; for context around a line,
-     `--lines A-B`. The text is docling's, cleaned on the same lines.
-   - Is a paper held at all, and where: `paper_lookup(refs=[...])` or, for a
-     list, `biblio locate --from list.txt`.
-   - What a key paper cites: `biblio refs triage <key>`.
+## A source list for a talk or page
 
-3. **List what is missing.** For papers not held, `biblio locate --from
-   list.txt --openalex` gives one table with doi.org links. Give the user a
-   capture list with those links only (never a guessed DOI). Do not fetch
-   PDFs in bulk from publishers; papers come from the user's Zotero or the
-   pools.
+For slide or page sources, one quote per item with its line, checked
+without `--text`:
 
-4. **Add and extract the captured papers.** `biblio add zotero --from
-   refs.txt --local` on the Zotero machine (see `zotero-add`), or `biblio add
-   doi`. Then extract exactly those: `biblio grobid run --keys a,b` and
-   `biblio docling batch --keys a,b` (or `biblio_job(action="start",
-   kind="docling", keys=[...])`); never a batch without keys in a shared
-   copy. Optional: `biblio digest claims --keys a,b` for papers you will
-   come back to.
+```
+- Q3a, oliva_2016_RoleHippocampal, Discussion, L290: "in a minority of cases we observed ..." — exact
+- Q3b, same, L302: "..." — exact
+```
 
-5. **Write the source file**, one quote per item:
-
-   ```
-   - Q3a, oliva_2016_RoleHippocampal, Discussion, L290: "in a minority of cases we observed ..." — exact
-   - Q3b, same, L302: "..." — exact
-   ```
-
-   `same` repeats the previous paper; the section is optional; `L<n>` is the
-   line `biblio fulltext --grep` printed. Copy the quote from that output,
-   unchanged (no ellipses inside a quote, no fixed typos). Beside each
-   answer say its status: established (several independent papers),
-   reported (one paper), hypothesis, or disputed (both sides quoted), and
-   name the species and preparation. A review's statement is quoted as the
-   review's; prefer the primary paper when it is held.
-
-6. **Check.** `biblio quotes check <file> --json <file>.quotes.json`. Every
-   item must be `exact`. For `approximate` or `changed`, copy the passage
-   again from `biblio fulltext`; for `missing`, find the right paper or drop
-   the claim. Wrong line numbers: `--fix-lines`. "Not checked (no L<n>)"
-   lines claim a check they did not get: add `L<n>` or remove the claim.
-
-7. **Report**: the answer per question with its status, the quotes that
-   carry it, what is still missing (the capture list), and the check result
-   (`N quotes, N exact`).
+`biblio quotes check <file> --json <file>.quotes.json`; `--fix-lines` fixes
+wrong line numbers.
 
 ## Hard rules
 
 - No number or claim from a paper without a quote that checks exact.
-- Quotes come from `biblio fulltext` (or the docling text); never from
-  memory, an abstract page, retrieval snippets or another document's
-  paraphrase.
-- Your own inference is labelled as such and cites no paper as its source.
-- Do not change the meaning by cutting: a quote that drops a "not", a
+- Quotes come from the paper's text (`biblio fulltext` or the docling
+  `.md`); never from memory, an abstract page, search snippets or another
+  document's paraphrase.
+- Your own inference is labelled as yours and cites no paper as its source.
+- Cutting must not change the meaning: a quote that drops a "not", a
   condition or a species is wrong even if each word matches.
-- Do not write into other projects' files; pools are read-only.
+- People judge: Claude drafts and checks; the reader decides what to trust.
+- Pools and other projects' files are read-only.
+
+## Notes
+
+- docling writes `<`, `>` and `&` as `&lt;`, `&gt;`, `&amp;`. Write them as
+  plain characters in quotes; the check accepts both.
+- docling garbles some symbols (µ as `l`). Keep the quote as converted, so
+  it checks, and give the decoded reading after it in brackets.
+- A quote is one line, 12 characters or more. Split a long one with `…`;
+  each part must be exact.
+- When a table, equation or symbol is too garbled to quote, say so instead
+  of forcing it.
+- Converted texts and journal figures are not for public repos or sites.

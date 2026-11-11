@@ -12,6 +12,8 @@ description: >
 metadata:
   short-description: Zotero items -> srcbib entries + PDFs -> sync -> GROBID + docling (named keys)
   tags: [zotero, ingest, literature]
+  stability: stable
+  needs: [biblio, zotero]
   tooling:
     cli: [biblio add zotero, biblio locate, biblio refs triage, biblio grobid run, biblio docling batch]
 ---

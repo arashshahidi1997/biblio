@@ -1,12 +1,40 @@
 name: Sirota Lab
-description: Default profile for Sirota Lab members (UCSF/UCSF HPC)
+description: Sirota lab (LMU Munich), on gamma2 or a laptop. The shared sirocampus collection, the lab's pinned docling and GROBID.
 
-# Shared lab pool on HPC (read-only for regular users)
+# The lab collection: about 440 converted papers, read-only for members.
 pool:
   lab_root: /storage/share/sirocampus/bib
 
-# Glob pattern used to locate /storage<N>/<username>/ on HPC
+# Locates /storage<N>/<username>/ on the lab servers (a personal pool under <that>/bib).
 storage_glob: /storage[0-9]*
+
+# The lab's docling install (pixi, docling 2.64.1 CPU, the same pins as biblio's docling extra),
+# with its shared model cache, offline. Source: /storage/share/Software/docling/README.md.
+docling:
+  cmd: ["env", "HF_HOME=/storage/share/Software/docling/hf", "HF_HUB_OFFLINE=1", "TRANSFORMERS_OFFLINE=1",
+        "/storage/share/Software/docling/.pixi/envs/default/bin/docling"]
 
 grobid:
   url: http://127.0.0.1:8070
+
+# Read by the paper-text and literature-sourcing skills (`biblio profile show`).
+agent_notes: |
+  Sirota lab setup.
+  - Hosts: gamma2 is the compute host; convert papers there. It mounts the lab storage.
+    If /storage/share/sirocampus exists you are on a lab server, otherwise on a laptop.
+  - The lab collection (read-only): /storage/share/sirocampus/bib/derivatives/docling/<key>/<key>.md,
+    GROBID header and references in .../grobid/<key>/, every citekey, title and DOI in
+    /storage/share/sirocampus/.projio/biblio/merged.bib. `biblio fulltext <key>` and `biblio locate`
+    search it after the project. Without a workspace: `/storage/share/bin/lab-docling -l <key>` prints
+    a paper's folder; grep merged.bib for a title or DOI.
+  - Converting without a biblio workspace: `/storage/share/bin/lab-docling -o ./papers <key>.pdf`
+    (rename the PDF to author_year_Word.pdf first; it checks the collection before converting).
+  - Laptop: run the same commands over SSH (`ssh gamma2 '<command>'`; the host may have another name
+    in ~/.ssh/config; if `ssh -o BatchMode=yes gamma2 true` fails, ask the user, never for a password).
+    Copy texts into the local ./papers/<key>/ with `rsync -aL gamma2:<folder>/ ./papers/<key>/`.
+    To convert a local PDF: `ssh gamma2 'mkdir -p ~/lab-docling-tmp'`,
+    `rsync -L --chmod=u+rw <pdf> gamma2:lab-docling-tmp/<key>.pdf` (PDFs are often read-only),
+    `ssh gamma2 '/storage/share/bin/lab-docling -o ~/lab-docling-tmp ~/lab-docling-tmp/<key>.pdf'`,
+    `rsync -aL gamma2:lab-docling-tmp/<key>/ ./papers/<key>/`, then remove only what you made there.
+  - Papers enter the lab collection through its maintainer, not through these skills.
+  - Converted texts and journal figures stay on the lab servers and the user's machine: no public repos or sites.

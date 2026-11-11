@@ -9,6 +9,8 @@ description: >
 metadata:
   short-description: Add → fetch → extract (named keys, background) → compile → index
   tags: [bibliography, batch, curation, production]
+  stability: beta
+  needs: [biblio, projio]
   tooling:
     mcp:
       - server: projio

@@ -10,6 +10,8 @@ description: >
 metadata:
   short-description: Lint the wiki, fix what is mechanical, propose the rest
   tags: [wiki, lint, refactor, knowledge-base]
+  stability: beta
+  needs: [biblio]
   tooling:
     cli: [biblio wiki lint, biblio wiki hubs, biblio wiki status, biblio wiki stub, biblio wiki relink, biblio wiki merge, biblio wiki extract]
 ---

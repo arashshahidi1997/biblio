@@ -10,6 +10,8 @@ description: >
 metadata:
   short-description: Review queue -> packets -> the person decides -> record it
   tags: [wiki, review, knowledge-base]
+  stability: beta
+  needs: [biblio]
   tooling:
     cli: [biblio wiki status, biblio wiki review packet, biblio wiki review accept, biblio wiki review flag, biblio wiki review reopen, biblio wiki lint]
 ---
