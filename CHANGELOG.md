@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- The `mcp` extra pins `mcp<2`: mcp 2.0 renamed FastMCP, so `biblio mcp` failed with a fresh install (found by CI).
+
 ## 0.4.0 (2026-11-11)
 
 A shareable release (lit-studio R55): a **stable base** whose interface later versions keep (the

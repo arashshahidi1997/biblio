@@ -49,8 +49,8 @@ figures = ["pillow"]   # overlay check for figures that are an embedded image pl
 # The converter, pinned to the version the shared pools were made with (2.64.1) and its companions,
 # which set layout and text. CPU torch: install with the PyTorch CPU index (README, Install).
 docling = ["docling==2.64.1", "docling-core==2.55.0", "docling-ibm-models==3.10.3", "docling-parse==4.7.2"]
-mcp = ["mcp>=1.2"]     # `biblio mcp`: a small MCP server over the stable commands
-test = ["pytest", "mcp>=1.2", "httpx", "tenacity", "tqdm", "pyzotero>=1.6", "fastapi>=0.115", "uvicorn>=0.30", "python-multipart", "pillow"]
+mcp = ["mcp>=1.2,<2"]  # `biblio mcp`: a small MCP server over the stable commands (FastMCP, the v1 API)
+test = ["pytest", "mcp>=1.2,<2", "httpx", "tenacity", "tqdm", "pyzotero>=1.6", "fastapi>=0.115", "uvicorn>=0.30", "python-multipart", "pillow"]
 dev = ["pytest", "build", "twine", "mkdocs>=1.6", "mkdocs-material>=9.5", "pybtex", "httpx", "tenacity", "tqdm", "pyzotero>=1.6", "fastapi>=0.115", "uvicorn>=0.30", "indexio", "python-multipart", "pillow"]
 
 [project.entry-points."projio.skills"]
