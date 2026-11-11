@@ -1,8 +1,50 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 (2026-11-11)
+
+A shareable release (lit-studio R55): a **stable base** whose interface later versions keep (the
+on-disk layout and `init`, `add`, `docling`, `grobid`, `figures`, `fulltext`, `locate`, `pool`,
+`quotes`, `skills`, `profile`), the rest marked beta or experimental; a pinned `docling` extra;
+biblio's Claude Code skills as a set, installable for the user or as a plugin, with lab specifics in
+the `sirota` profile; an optional `biblio mcp` server. Breaking the stable base now takes a major
+version and a migration note.
 
 ### Added
+- Stable base (`docs/explanation/scope.md`): `biblio --help` lists the stable commands first and marks
+  the others `[beta]` or `[experimental]`.
+- `docling` extra: docling 2.64.1, docling-core 2.55.0, docling-ibm-models 3.10.3, docling-parse 4.7.2
+  (the pools' version); install with the PyTorch CPU index (README). Without `docling.cmd` in the
+  config, biblio uses `docling` from PATH, else the one installed beside its own Python (a uv tool).
+- `biblio quotes check FILE --text KEY|PATH [--text ...]`: every `"quoted string"` of 12+ characters
+  outside the frontmatter, checked against those texts (a held citekey, or a `.md`, `.txt`, `.pdf`);
+  `…` splits a quote into parts. For answers and digests in the claim format, which carry no `L<n>`
+  (from the lab plugin's `quote_check.py`).
+- Skills ported from the lab plugin (`sirocampus` 0.2.2, lit-studio): `paper-text` (find a paper's
+  text in the project or a pool, or convert the user's PDF; check the title); `literature-sourcing`
+  rewritten to need biblio alone, with the claim model (`MODEL.md`: claim, level measured / derived /
+  interpreted, quote, location, conditions; answer; digest) and the pilot's rules (outputs in the
+  user's folder, the reply is the checked file, numbers only inside quotes, HTML entities and garbled
+  symbols, title check first); `paper-scrutiny` (beta, lit-studio protocol D36/D37 v1.1, `PROTOCOL.md`)
+  with the blind `paper-attacker` agent.
+- Skills carry `stability` (stable, beta) and `needs` (e.g. projio); `biblio skills list` shows both.
+  `biblio skills install --user` installs into `~/.claude/skills`, and agents a skill uses go to
+  `../agents`.
+- `.claude-plugin/marketplace.json`: the repository is a Claude Code marketplace with two plugins,
+  versioned with the package: `biblio` (the stable skills: paper-text, literature-sourcing,
+  zotero-add; about 330 tokens per session) and `biblio-kb` (beta: the wiki skills, paper-scrutiny with
+  its `paper-attacker` agent, biblio-batch-curate). `claude plugin marketplace add
+  arashshahidi1997/biblio`, then `claude plugin install biblio@biblio`. `biblio skills install --stable`
+  copies only the stable skills.
+- `sirota` profile: the lab's docling install (shared model cache, offline) as `docling.cmd`, and
+  `agent_notes` (hosts, the lab collection, the laptop route over SSH and rsync) that the skills read
+  through `biblio profile show`. Its description no longer names the wrong institution.
+- `biblio mcp` (beta, `mcp` extra): a stdio MCP server with six tools over the stable commands
+  (`paper_lookup`, `paper_text`, `quotes_check`, `paper_add`, `paper_job`, `pipeline_status`), sharing
+  `biblio.mcp` with projio's server.
+- CI: `tests.yml` runs the tests on Python 3.11 to 3.13, and an end-to-end job (init, a generated PDF,
+  the pinned docling, `quotes check`).
+- Docs: README and the quickstart tutorial rewritten around the pipeline from an empty folder; GROBID
+  with Docker (`grobid/grobid:0.8.2-crf`); `docs/reference/known-issues.md`.
 - `pixi run -e dev publish` and `publish-test` (`scripts/publish.py`): build, check and upload this version; token from `TWINE_PASSWORD` or `~/.config/tokens/{pypi,testpypi}.token`. Named in RELEASE.md.
 - `wiki.yml` `severity_overrides: {CODE: error|warning|suggestion|info|off}` sets a lint code's severity per wiki, e.g. `TAG001: warning` for a vocabulary that is linted, not enforced; `biblio wiki lint --tag-candidates` lists unknown tags with their page counts (lit-studio R50).
 - `wiki.yml` `meta_files: [terms.md]`: wiki-relative files that are not pages, added to the built-in list, so a generated overview at the wiki root is not linted (lit-studio R65).
@@ -11,7 +53,26 @@
 - `biblio add zotero` checks the PDF belongs to the entry before writing it (R52): the title's first six words (letters and digits, hyphenation joined) must be on page 1 (`pdftotext`). Of several attachments the first that passes is written; when none does, the best one is written with a note to check it (book chapters often fail). Skipped without poppler.
 - Neighbouring articles in a reprint's text (lit-studio R69): `biblio fulltext KEY --span` finds the article's own lines (its title heading, the copy with the most text, through its references) and names a reference list before it (the previous article's end) or another article after it (a Title Case heading followed by an author line). `biblio fulltext --survey [--pools]` lists the texts with other articles mixed in, and `biblio quotes check` warns when a quote matches outside the cited article. Nothing is trimmed.
 
+### Changed
+- `httpx` is a core dependency: `add doi` and `locate --openalex` are in the stable base and failed
+  without the `openalex` extra (found by a clean `uv tool install`). The extra is kept.
+- Python 3.11 or newer (was `>=3.9` in the package and `>=3.11` in pixi); classifiers 3.11 to 3.13;
+  Development Status 4 (Beta).
+- `biblio init` sets up in the current folder unless it is inside a biblio workspace already; a `.git`
+  further up (a dotfiles repository in the home folder, an empty `/tmp/.git`) no longer pulls the
+  scaffold there. `--root` still chooses.
+- The scaffolded `biblio.yml` no longer sets `docling.cmd`, so a profile's command applies.
+- Hints for a missing extra name the uv tool form as well as pip (lit-studio R76).
+- `biblio site build|clean --out-dir` may point outside the repository when the folder is new, empty
+  or an earlier biblio site (lit-studio R76).
+
 ### Fixed
+- `biblio locate --openalex` and `--zotero local`: a lookup that fails (offline, rate limit, a missing
+  extra) is shown on the item's row and makes the command exit 1, instead of reading as "not held"
+  (lit-studio R76). `add zotero --extract` exits 1 when an extraction fails.
+- `grobid run --key`: GROBID's default timeout is 120 s (was 30 s, too short for a full paper on a
+  shared CPU server); an unreachable or slow server gives an error naming `grobid check`, not a traceback.
+- `bibtex fetch-pdfs-oa` without OpenAlex data: an error naming `biblio openalex resolve`, not a traceback.
 - `bibtex backfill-venue` and `add doi`: registry HTML entities are unescaped ("Learning &amp; Memory" becomes `Learning \& Memory`); a bare `&` in a written field is escaped for LaTeX (pixecog 20261108).
 - `graph promote --seed`: a citekey that shares its OpenAlex work with another citekey is found; a requested seed with nothing new prints `seed=0` (pixecog 20261108).
 - `bibtex fetch-pdfs-oa`: every paper left without a PDF is written to `<logs>/runs/pdf_fetch_oa_failures.tsv` (citekey, status, error) and counted correctly (`no_url` now carries an error text); the last progress line reads `done` instead of `None`; requested citekeys absent from the OpenAlex records are named (pixecog 20261108).
