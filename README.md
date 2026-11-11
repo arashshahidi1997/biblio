@@ -84,24 +84,30 @@ bib/derivatives/figures/<key>/manifest.yml
 
 ## Skills for Claude Code
 
-```bash
-biblio skills install --user        # into ~/.claude/skills (or omit --user: this project's .claude/skills)
-biblio skills list                  # stable or beta, and what each needs
-```
-
-Or install them as a plugin, which updates with `claude plugin update`:
+As a plugin, which updates with `claude plugin update`:
 
 ```bash
 claude plugin marketplace add arashshahidi1997/biblio
-claude plugin install biblio@biblio
+claude plugin install biblio@biblio        # the stable skills, about 330 tokens per session
+claude plugin install biblio-kb@biblio     # optional, beta: the wiki, paper scrutiny, batch intake
 ```
+
+Or copied, without the plugin system:
+
+```bash
+biblio skills install --user --stable   # into ~/.claude/skills; drop --stable for the beta skills too
+biblio skills list                      # stable or beta, and what each needs
+```
+
+Without `--user` they go into the current project's `.claude/skills`;
+`--force` updates copies after `uv tool upgrade biblio-tools`.
 
 | Skill | Status | What it does |
 |---|---|---|
 | `paper-text` | stable | find a paper's text in the project or a pool, or convert the user's PDF; check the title |
 | `literature-sourcing` | stable | answer a question or write a claims digest; every claim with an exact, checked quote |
 | `zotero-add` | stable | papers from Zotero (personal and group libraries) with their PDFs |
-| `paper-scrutiny` | beta | break a paper's argument down, then a blind attack by a second agent |
+| `paper-scrutiny` | beta | break a paper's argument down, then a blind attack by a second agent (`paper-attacker`) |
 | `wiki-ingest`, `wiki-synthesize`, `wiki-maintain`, `wiki-review` | beta | a project knowledge wiki whose quotes are checked |
 | `biblio-batch-curate` | beta | batch intake; needs projio's MCP tools |
 

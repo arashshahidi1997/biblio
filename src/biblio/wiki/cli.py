@@ -133,6 +133,7 @@ def add_parsers(sub) -> None:
     p.add_argument("--root", type=Path, help="Repository root (default: auto-detect from cwd).")
     p.add_argument("--dest", type=Path,
                    help="Target skills folder (default: <root>/.claude/skills; agents go to ../agents).")
+    p.add_argument("--stable", action="store_true", help="Only the stable skills (fewer tokens in every session).")
     p.add_argument("--force", action="store_true", help="Overwrite existing copies (to update them).")
 
 
@@ -160,7 +161,10 @@ def run(args) -> None:
             dest = (args.dest or repo_root / ".claude" / "skills").resolve()
         dest.mkdir(parents=True, exist_ok=True)
         agents_dest = dest.parent / "agents" if dest.name == "skills" else None
-        for name, action in install(dest, args.names or None, force=args.force, agents_dest=agents_dest):
+        names = args.names or None
+        if args.stable:
+            names = [s.name for s in skill_infos() if s.stability == "stable" and (not names or s.name in names)]
+        for name, action in install(dest, names, force=args.force, agents_dest=agents_dest):
             where = (agents_dest / f"{name.split(':', 1)[1]}.md") if name.startswith("agent:") else dest / name
             print(f"{name}: {action} -> {where}")
         return

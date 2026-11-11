@@ -88,8 +88,12 @@ one word and the check names it and exits 1. `--text` also takes a path to a
 ## 5. With Claude Code
 
 ```bash
-biblio skills install --user
+claude plugin marketplace add arashshahidi1997/biblio
+claude plugin install biblio@biblio
 ```
+
+(or `biblio skills install --user --stable`, which copies the same skills
+into `~/.claude/skills`).
 
 Then ask Claude, in the workspace folder: "Do we have the Collins 2016 paper
 on motor demands? What did they find?" The `paper-text` skill finds the text

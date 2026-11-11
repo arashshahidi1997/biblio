@@ -1,6 +1,6 @@
 """Agent skills shipped with biblio; ``biblio skills install`` copies them into a project or ~/.claude.
 
-The same folders make biblio's Claude Code plugin (``.claude-plugin/plugin.json`` at the repository
+The same folders make biblio's Claude Code plugins (``.claude-plugin/marketplace.json`` at the repository
 root points at ``src/biblio/skills`` and ``src/biblio/agents``).
 """
 from __future__ import annotations
@@ -61,7 +61,7 @@ def install(dest: Path, names: list[str] | None = None, force: bool = False,
     results = []
     wanted_agents: set[str] = set()
     for info in skill_infos():
-        if names and info.name not in names:
+        if names is not None and info.name not in names:
             continue
         wanted_agents.update(info.agents)
         target = dest / info.name

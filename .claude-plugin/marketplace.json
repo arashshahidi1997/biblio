@@ -1,12 +1,36 @@
 {
   "name": "biblio",
   "owner": {"name": "Arash Shahidi"},
-  "metadata": {"description": "biblio's Claude Code skills, versioned with the biblio CLI they call."},
+  "metadata": {"description": "biblio's Claude Code skills, versioned with the biblio CLI they call (uv tool install \"biblio-tools[zotero,docling]\")."},
   "plugins": [
     {
       "name": "biblio",
       "source": "./",
-      "description": "Find or convert a paper's full text and answer from it with checked quotes; Zotero intake; (beta) wiki and paper scrutiny."
+      "strict": false,
+      "version": "0.4.0",
+      "description": "Find or convert a paper's full text, answer from it with claims whose quotes are checked against the text, and bring papers in from Zotero. Needs the biblio CLI.",
+      "author": {"name": "Arash Shahidi"},
+      "homepage": "https://arashshahidi1997.github.io/biblio/",
+      "repository": "https://github.com/arashshahidi1997/biblio",
+      "license": "MIT",
+      "keywords": ["papers", "docling", "zotero", "quotes", "literature"],
+      "skills": ["./src/biblio/skills/paper-text", "./src/biblio/skills/literature-sourcing", "./src/biblio/skills/zotero-add"],
+      "mcpServers": {}
+    },
+    {
+      "name": "biblio-kb",
+      "source": "./",
+      "strict": false,
+      "version": "0.4.0",
+      "description": "(beta) A project knowledge wiki built from papers with checked quotes, paper scrutiny with a blind second reader, and batch intake. Install with the biblio plugin.",
+      "author": {"name": "Arash Shahidi"},
+      "homepage": "https://arashshahidi1997.github.io/biblio/",
+      "repository": "https://github.com/arashshahidi1997/biblio",
+      "license": "MIT",
+      "keywords": ["wiki", "knowledge-base", "appraisal", "journal-club"],
+      "skills": ["./src/biblio/skills/wiki-ingest", "./src/biblio/skills/wiki-synthesize", "./src/biblio/skills/wiki-maintain", "./src/biblio/skills/wiki-review", "./src/biblio/skills/paper-scrutiny", "./src/biblio/skills/biblio-batch-curate"],
+      "agents": ["./src/biblio/agents/paper-attacker.md"],
+      "mcpServers": {}
     }
   ]
 }

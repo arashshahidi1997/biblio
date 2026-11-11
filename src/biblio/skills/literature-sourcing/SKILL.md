@@ -59,6 +59,9 @@ papers (`zotero-add`, `paper-text`).
      quotes copied from the text, the location;
    - **numbers only inside quotes**, the conditions' n included; a number in
      no quote needs its own quote, or it stays out;
+   - docling's `&lt;`, `&gt;`, `&amp;` are written as `<`, `>`, `&` (the
+     check accepts both); a garbled symbol stays as converted, so it checks,
+     with its reading in brackets right after the quote: "20-60 l A" [µA];
    - the gaps: what the question asks that the text doesn't say ("not in the
      text held"); the version held when it could matter;
    - several papers: say per answer whether it is established (several
@@ -106,10 +109,6 @@ wrong line numbers.
 
 ## Notes
 
-- docling writes `<`, `>` and `&` as `&lt;`, `&gt;`, `&amp;`. Write them as
-  plain characters in quotes; the check accepts both.
-- docling garbles some symbols (µ as `l`). Keep the quote as converted, so
-  it checks, and give the decoded reading after it in brackets.
 - A quote is one line, 12 characters or more. Split a long one with `…`;
   each part must be exact.
 - When a table, equation or symbol is too garbled to quote, say so instead

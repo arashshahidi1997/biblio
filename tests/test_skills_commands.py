@@ -91,17 +91,26 @@ def test_help_marks_beta_and_experimental(capsys):
     assert out.index("  init ") < out.index("  quotes ") < out.index("  digest ")
 
 
-def test_plugin_manifest_matches_the_package():
-    """The Claude Code plugin is versioned with the CLI its skills call."""
+def test_plugin_marketplace_matches_the_package():
+    """The Claude Code plugins (biblio: the stable skills; biblio-kb: the beta rest) are versioned
+    with the CLI their skills call, and between them ship every bundled skill once."""
     import json
     from pathlib import Path
     import biblio
+    from biblio.skills_bundle import skill_infos
     root = Path(__file__).resolve().parent.parent
-    manifest = json.loads((root / ".claude-plugin" / "plugin.json").read_text())
-    assert manifest["version"] == biblio.__version__
-    assert (root / manifest["skills"]).resolve() == skills_dir()
-    for agent in manifest["agents"]:
-        assert (root / agent).is_file()
+    market = json.loads((root / ".claude-plugin" / "marketplace.json").read_text())
+    shipped = []
+    for plugin in market["plugins"]:
+        assert plugin["version"] == biblio.__version__
+        for path in plugin["skills"]:
+            assert (root / path / "SKILL.md").is_file(), path
+            shipped.append(Path(path).name)
+        for agent in plugin.get("agents", []):
+            assert (root / agent).is_file(), agent
+    assert sorted(shipped) == sorted(s.name for s in skill_infos())
+    base = next(p for p in market["plugins"] if p["name"] == "biblio")
+    assert {Path(x).name for x in base["skills"]} == {s.name for s in skill_infos() if s.stability == "stable"}
 
 
 def test_install_user_copies_skills_and_agents(tmp_path, monkeypatch, capsys):
@@ -111,6 +120,9 @@ def test_install_user_copies_skills_and_agents(tmp_path, monkeypatch, capsys):
     assert (tmp_path / ".claude" / "skills" / "paper-scrutiny" / "PROTOCOL.md").is_file()
     assert (tmp_path / ".claude" / "skills" / "paper-text" / "SKILL.md").is_file()
     assert (tmp_path / ".claude" / "agents" / "paper-attacker.md").is_file()
+    cli.main(["skills", "install", "--user", "--stable", "--force"])
+    out = capsys.readouterr().out
+    assert "paper-text: installed" in out and "wiki-ingest" not in out
     cli.main(["skills", "list"])
     out = capsys.readouterr().out
     assert "biblio-batch-curate [beta, needs projio]" in out and "paper-text [stable]" in out
