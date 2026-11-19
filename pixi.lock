@@ -2066,14 +2066,17 @@ packages:
   requires_python: '>=3.7.0'
 - pypi: ./
   name: biblio-tools
-  version: 0.3.3
-  sha256: 7869a70c2836084f26a9c0f908c948726be97e6376995d50a7b9a266d271cb0e
+  version: 0.4.1
+  sha256: 78dbb95a445a7c7f3f703bf33fb86e66edbbed1067921d2b53c992a5f56355b0
   requires_dist:
   - argcomplete
   - pyyaml
   - pybtex
+  - httpx
   - mkdocs>=1.6 ; extra == 'docs'
   - mkdocs-material>=9.5 ; extra == 'docs'
+  - mkdocs-monorepo-plugin ; extra == 'docs'
+  - mkdocs-ezlinks-plugin ; extra == 'docs'
   - httpx ; extra == 'openalex'
   - tenacity ; extra == 'openalex'
   - tqdm ; extra == 'openalex'
@@ -2083,6 +2086,21 @@ packages:
   - python-multipart ; extra == 'ui'
   - indexio ; extra == 'rag'
   - pillow ; extra == 'figures'
+  - docling==2.64.1 ; extra == 'docling'
+  - docling-core==2.55.0 ; extra == 'docling'
+  - docling-ibm-models==3.10.3 ; extra == 'docling'
+  - docling-parse==4.7.2 ; extra == 'docling'
+  - mcp>=1.2,<2 ; extra == 'mcp'
+  - pytest ; extra == 'test'
+  - mcp>=1.2,<2 ; extra == 'test'
+  - httpx ; extra == 'test'
+  - tenacity ; extra == 'test'
+  - tqdm ; extra == 'test'
+  - pyzotero>=1.6 ; extra == 'test'
+  - fastapi>=0.115 ; extra == 'test'
+  - uvicorn>=0.30 ; extra == 'test'
+  - python-multipart ; extra == 'test'
+  - pillow ; extra == 'test'
   - pytest ; extra == 'dev'
   - build ; extra == 'dev'
   - twine ; extra == 'dev'
@@ -2098,7 +2116,7 @@ packages:
   - indexio ; extra == 'dev'
   - python-multipart ; extra == 'dev'
   - pillow ; extra == 'dev'
-  requires_python: '>=3.9'
+  requires_python: '>=3.11'
 - pypi: https://files.pythonhosted.org/packages/44/1c/577d3ce406e88f370e80a6ebf76ae52a2866521e0b585e8ec612759894f1/bibtexparser-1.4.4.tar.gz
   name: bibtexparser
   version: 1.4.4
