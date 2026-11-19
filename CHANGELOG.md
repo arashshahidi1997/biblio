@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.4.1 (2026-11-19)
+
+The first 0.4 release on PyPI (0.4.0 was released on GitHub only).
+
 ### Fixed
 - The `mcp` extra pins `mcp<2`: mcp 2.0 renamed FastMCP, so `biblio mcp` failed with a fresh install (found by CI).
 
